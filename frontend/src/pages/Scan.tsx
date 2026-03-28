@@ -25,6 +25,7 @@ export default function Scan() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Account scan state
+  const [accountEmailInput, setAccountEmailInput] = useState("");
   const [accountScanning, setAccountScanning] = useState(false);
   const [accountProgress, setAccountProgress] = useState(0);
   const [accountTotal, setAccountTotal] = useState(0);
@@ -164,7 +165,7 @@ export default function Scan() {
     setAccountError("");
     setAccountProgress(0);
     try {
-      const data = await api.startAccountScan();
+      const data = await api.startAccountScan(accountEmailInput.trim() || undefined);
       setAccountEmail(data.email);
       startAccountPolling();
     } catch (e) {
@@ -331,24 +332,32 @@ export default function Scan() {
 
       {/* Account Scanner (Holehe) */}
       <div className="mt-10">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold">Account Scanner</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Check which online services have an account registered with your email
-            </p>
+        <div className="mb-6">
+          <h2 className="text-xl font-bold">Account Scanner</h2>
+          <p className="text-sm text-gray-500 mt-1 mb-4">
+            Check which online services have an account registered with an email address
+          </p>
+          <div className="flex gap-3">
+            <input
+              type="email"
+              placeholder="Enter email to check (leave empty for profile email)"
+              value={accountEmailInput}
+              onChange={(e) => setAccountEmailInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !accountScanning && startAccountScan()}
+              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none text-sm"
+            />
+            <button
+              onClick={startAccountScan}
+              disabled={accountScanning}
+              className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition disabled:opacity-50 shrink-0"
+            >
+              {accountScanning ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Checking...</>
+              ) : (
+                <><Mail className="w-4 h-4" /> {accountHasResults ? "Check Again" : "Check Accounts"}</>
+              )}
+            </button>
           </div>
-          <button
-            onClick={startAccountScan}
-            disabled={accountScanning}
-            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition disabled:opacity-50"
-          >
-            {accountScanning ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Checking...</>
-            ) : (
-              <><Mail className="w-4 h-4" /> {accountHasResults ? "Check Again" : "Check Accounts"}</>
-            )}
-          </button>
         </div>
 
         {accountError && (

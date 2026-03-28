@@ -139,6 +139,7 @@ def create_scan_router(
     async def start_account_scan(
         background_tasks: BackgroundTasks,
         session: str | None = Cookie(default=None),
+        email: str | None = None,
     ):
         password = session_store.validate(session)
         profile, _ = vault.load(password)
@@ -146,18 +147,20 @@ def create_scan_router(
         if _account_state["running"] and not (time.time() - _account_state["started_at"] > STUCK_TIMEOUT):
             raise HTTPException(status_code=409, detail="Account scan already running")
 
-        if not profile.emails:
-            raise HTTPException(status_code=400, detail="No email addresses in profile")
+        target_email = email
+        if not target_email:
+            if not profile.emails:
+                raise HTTPException(status_code=400, detail="No email addresses provided")
+            target_email = profile.emails[0]
 
         _account_state["running"] = True
         _account_state["started_at"] = time.time()
         _account_state["progress"] = 0
         _account_state["error"] = None
 
-        # Scan the first email address
-        background_tasks.add_task(_run_account_scan, profile.emails[0])
+        background_tasks.add_task(_run_account_scan, target_email)
 
-        return {"status": "started", "email": profile.emails[0]}
+        return {"status": "started", "email": target_email}
 
     @r.get("/accounts/results")
     def get_account_results(session: str | None = Cookie(default=None)):
