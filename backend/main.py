@@ -5,9 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.auth import create_auth_router
 from backend.api.setup import create_setup_router
+from backend.api.brokers import create_brokers_router
 from backend.api.deps import SessionStore
 from backend.core.config import AppConfig
 from backend.core.profile import ProfileVault
+from backend.core.broker import BrokerRegistry
 from backend.db.session import init_db
 
 
@@ -36,8 +38,18 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.state.session_store = session_store
     app.state.db_session_factory = db_session_factory
 
+    brokers_dir = config.brokers_dir
+    if not brokers_dir.exists():
+        project_brokers = Path(__file__).parent.parent / "brokers"
+        if project_brokers.exists():
+            brokers_dir = project_brokers
+
+    broker_registry = BrokerRegistry.load(brokers_dir)
+    app.state.broker_registry = broker_registry
+
     app.include_router(create_auth_router(vault, session_store))
     app.include_router(create_setup_router(vault, session_store))
+    app.include_router(create_brokers_router(broker_registry, session_store))
 
     @app.get("/api/profile")
     def get_profile(session: str | None = Cookie(default=None)):
