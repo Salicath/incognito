@@ -1,0 +1,13 @@
+name: Acxiom
+domain: acxiom.com
+category: data_broker
+dpo_email: privacy@acxiom.com
+removal_method: email
+removal_url: null
+api_endpoint: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-01"
+notes: "Major data broker, typically responds within 14 days"
