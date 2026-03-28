@@ -70,9 +70,11 @@ def status():
 
 @app.command(name="follow-up")
 def follow_up(
-    auto: bool = typer.Option(False, "--auto", help="Automatically send follow-ups"),
+    auto: bool = typer.Option(False, "--auto", help="Automatically send follow-ups and escalations"),
 ):
     """Check deadlines and send follow-ups for overdue requests."""
+    import asyncio
+
     config = get_config()
 
     if not config.vault_path.exists():
@@ -81,6 +83,7 @@ def follow_up(
 
     from backend.db.session import init_db
     from backend.core.request import RequestManager
+    from backend.core.profile import ProfileVault
 
     session_factory = init_db(config.db_path)
     session = session_factory()
@@ -89,16 +92,68 @@ def follow_up(
         mgr = RequestManager(session, config.gdpr_deadline_days)
         overdue = mgr.find_overdue()
 
-        if not overdue:
+        if not overdue and not auto:
             console.print("[green]No overdue requests.[/]")
             return
 
-        console.print(f"[yellow]{len(overdue)} overdue request(s) found.[/]")
-        for req in overdue:
-            console.print(f"  - {req.broker_id} ({req.request_type.value}) sent {req.sent_at}")
-            if auto:
+        if overdue:
+            console.print(f"[yellow]{len(overdue)} request(s) past their 30-day deadline.[/]")
+            for req in overdue:
+                console.print(f"  - {req.broker_id} ({req.request_type.value}) sent {req.sent_at}")
+
+        if auto:
+            from backend.core.scheduler import run_follow_ups
+            from backend.core.template import TemplateRenderer
+            from backend.core.broker import BrokerRegistry
+            from pathlib import Path
+
+            vault = ProfileVault(config.vault_path)
+
+            # Need password from environment or prompt
+            import os
+            password = os.environ.get("INCOGNITO_PASSWORD", "")
+            if not password:
+                import getpass
+                password = getpass.getpass("Master password: ")
+
+            profile, smtp = vault.load(password)
+
+            templates_dir = Path(__file__).parent / "templates"
+            if not templates_dir.exists():
+                templates_dir = config.data_dir / "templates"
+            renderer = TemplateRenderer(templates_dir)
+
+            brokers_dir = config.brokers_dir
+            if not brokers_dir.exists():
+                brokers_dir = Path(__file__).parent / "brokers"
+            broker_registry = BrokerRegistry.load(brokers_dir)
+
+            result = asyncio.run(run_follow_ups(
+                session=session,
+                profile=profile,
+                smtp=smtp,
+                broker_registry=broker_registry,
+                renderer=renderer,
+                gdpr_deadline_days=config.gdpr_deadline_days,
+            ))
+
+            if result.newly_overdue:
+                console.print(f"[yellow]Marked {result.newly_overdue} request(s) as overdue.[/]")
+            if result.follow_ups_sent:
+                console.print(f"[blue]Sent {result.follow_ups_sent} follow-up email(s).[/]")
+            if result.escalations_sent:
+                console.print(f"[red]Sent {result.escalations_sent} escalation warning(s).[/]")
+            if result.errors:
+                for err in result.errors:
+                    console.print(f"[red]Error: {err}[/]")
+            if not result.newly_overdue and not result.follow_ups_sent and not result.escalations_sent:
+                console.print("[green]Nothing to do.[/]")
+        else:
+            # Just mark overdue without sending
+            for req in overdue:
                 mgr.mark_overdue(req.id)
-                console.print(f"    [yellow]Marked as overdue[/]")
+            if overdue:
+                console.print(f"[yellow]Marked {len(overdue)} as overdue. Run with --auto to send follow-ups.[/]")
     finally:
         session.close()
 

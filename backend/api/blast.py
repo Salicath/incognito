@@ -178,4 +178,36 @@ def create_blast_router(
         finally:
             db.close()
 
+    @r.post("/follow-up")
+    async def run_follow_up(session: str | None = Cookie(default=None)) -> dict:
+        """Check deadlines and send follow-ups/escalations."""
+        password = session_store.validate(session)
+        profile, smtp = vault.load(password)
+
+        from backend.core.scheduler import run_follow_ups
+        from backend.core.template import TemplateRenderer
+        from pathlib import Path
+
+        templates_dir = Path(__file__).parent.parent.parent / "templates"
+        renderer = TemplateRenderer(templates_dir)
+
+        db = db_session_factory()
+        try:
+            result = await run_follow_ups(
+                session=db,
+                profile=profile,
+                smtp=smtp,
+                broker_registry=broker_registry,
+                renderer=renderer,
+                gdpr_deadline_days=config.gdpr_deadline_days,
+            )
+            return {
+                "newly_overdue": result.newly_overdue,
+                "follow_ups_sent": result.follow_ups_sent,
+                "escalations_sent": result.escalations_sent,
+                "errors": result.errors,
+            }
+        finally:
+            db.close()
+
     return r

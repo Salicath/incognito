@@ -64,4 +64,6 @@ export const api = {
     }),
   blastSendAll: () =>
     request<{ sent: number; failed: number; manual: number; total: number; results: Array<Record<string, string>> }>("/blast/send-all", { method: "POST" }),
+  runFollowUp: () =>
+    request<{ newly_overdue: number; follow_ups_sent: number; escalations_sent: number; errors: string[] }>("/blast/follow-up", { method: "POST" }),
 };

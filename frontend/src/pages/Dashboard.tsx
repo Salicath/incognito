@@ -12,6 +12,8 @@ export default function Dashboard() {
   const [blastResult, setBlastResult] = useState<{ created: number; skipped: number } | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
   const [sendResult, setSendResult] = useState<{ sent: number; failed: number; manual: number } | null>(null);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [followUpResult, setFollowUpResult] = useState<{ newly_overdue: number; follow_ups_sent: number; escalations_sent: number } | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => { loadData(); }, []);
@@ -34,6 +36,19 @@ export default function Dashboard() {
       setError(e instanceof Error ? e.message : "Failed to create requests");
     } finally {
       setBlastLoading(false);
+    }
+  }
+
+  async function handleFollowUp() {
+    setFollowUpLoading(true);
+    try {
+      const result = await api.runFollowUp();
+      setFollowUpResult(result);
+      loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Follow-up check failed");
+    } finally {
+      setFollowUpLoading(false);
     }
   }
 
@@ -138,6 +153,31 @@ export default function Dashboard() {
             {sendResult.sent} sent
             {sendResult.failed > 0 && <span className="text-red-600"> &middot; {sendResult.failed} failed</span>}
             {sendResult.manual > 0 && <span className="text-yellow-600"> &middot; {sendResult.manual} need manual action</span>}
+          </p>
+        </div>
+      )}
+
+      {stats.sent > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-gray-900">Deadline monitoring</p>
+            <p className="text-gray-500 text-sm">{stats.sent} requests awaiting response. Check for overdue and send follow-ups.</p>
+          </div>
+          <button onClick={handleFollowUp} disabled={followUpLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
+            {followUpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+            Check Deadlines
+          </button>
+        </div>
+      )}
+
+      {followUpResult && (
+        <div className="bg-orange-50 border border-orange-200 text-orange-800 px-5 py-4 rounded-xl mb-6">
+          <p className="font-medium">
+            {followUpResult.newly_overdue} newly overdue
+            {followUpResult.follow_ups_sent > 0 && <span> &middot; {followUpResult.follow_ups_sent} follow-ups sent</span>}
+            {followUpResult.escalations_sent > 0 && <span> &middot; {followUpResult.escalations_sent} escalations sent</span>}
+            {followUpResult.newly_overdue === 0 && followUpResult.follow_ups_sent === 0 && followUpResult.escalations_sent === 0 && " — all requests within deadline"}
           </p>
         </div>
       )}
