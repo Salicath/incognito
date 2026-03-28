@@ -1,0 +1,6 @@
+[Unit]
+Description=Incognito follow-up runner
+
+[Service]
+Type=oneshot
+ExecStart=podman exec systemd-incognito incognito follow-up --auto

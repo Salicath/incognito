@@ -1,0 +1,16 @@
+[Unit]
+Description=Incognito — Personal Data Removal Service
+
+[Container]
+Image=ghcr.io/malte/incognito:latest
+AutoUpdate=registry
+PublishPort=127.0.0.1:8080:8080
+Volume=incognito-data.volume:/home/incognito/.incognito:Z
+Environment=INCOGNITO_LOG_LEVEL=info
+UserNS=keep-id
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
