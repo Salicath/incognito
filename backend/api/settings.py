@@ -105,4 +105,67 @@ def create_settings_router(
         else:
             raise HTTPException(status_code=400, detail=f"SMTP test failed: {result.message}")
 
+    @r.get("/backup/export")
+    def export_backup(session: str | None = Cookie(default=None)):
+        """Export encrypted backup of all data."""
+        import base64
+        import json
+
+        password = session_store.validate(session)
+
+        # Read the encrypted vault file
+        vault_bytes = config.vault_path.read_bytes() if config.vault_path.exists() else b""
+
+        # Read the database
+        db_path = config.db_path
+        db_bytes = db_path.read_bytes() if db_path.exists() else b""
+
+        # Read HIBP key if exists
+        hibp_key = ""
+        hibp_path = config.data_dir / "hibp_key.txt"
+        if hibp_path.exists():
+            hibp_key = hibp_path.read_text().strip()
+
+        backup = {
+            "version": "0.1.0",
+            "vault": base64.b64encode(vault_bytes).decode("ascii"),
+            "database": base64.b64encode(db_bytes).decode("ascii"),
+            "hibp_key": hibp_key,
+        }
+
+        from fastapi.responses import Response
+        return Response(
+            content=json.dumps(backup),
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=incognito-backup.json"},
+        )
+
+    @r.post("/backup/import")
+    async def import_backup(body: dict, session: str | None = Cookie(default=None)):
+        """Import a backup file."""
+        import base64
+
+        session_store.validate(session)
+
+        version = body.get("version")
+        if not version:
+            raise HTTPException(status_code=400, detail="Invalid backup file")
+
+        vault_b64 = body.get("vault", "")
+        db_b64 = body.get("database", "")
+        hibp_key = body.get("hibp_key", "")
+
+        if vault_b64:
+            vault_bytes = base64.b64decode(vault_b64)
+            config.vault_path.write_bytes(vault_bytes)
+
+        if db_b64:
+            db_bytes = base64.b64decode(db_b64)
+            config.db_path.write_bytes(db_bytes)
+
+        if hibp_key:
+            (config.data_dir / "hibp_key.txt").write_text(hibp_key)
+
+        return {"status": "imported", "message": "Backup restored. Please restart the application."}
+
     return r
