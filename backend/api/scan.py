@@ -15,6 +15,7 @@ def create_scan_router(
     vault: ProfileVault,
     session_store: SessionStore,
     broker_registry: BrokerRegistry,
+    config=None,  # Add this
 ) -> APIRouter:
     r = APIRouter(prefix="/api/scan", tags=["scan"])
 
@@ -194,5 +195,86 @@ def create_scan_router(
             "total": _account_state["total"],
             "error": _account_state.get("error"),
         }
+
+    # HIBP breach check state
+    _breach_state: dict = {
+        "report": None,
+        "running": False,
+        "started_at": 0,
+        "error": None,
+    }
+
+    async def _run_breach_check(email: str, api_key: str):
+        try:
+            from backend.scanner.hibp import check_breaches
+            report = await check_breaches(email, api_key)
+            _breach_state["report"] = report
+            _breach_state["error"] = report.error
+        except Exception as e:
+            _breach_state["error"] = str(e)
+        finally:
+            _breach_state["running"] = False
+
+    @r.post("/breaches/start")
+    async def start_breach_check(
+        background_tasks: BackgroundTasks,
+        session: str | None = Cookie(default=None),
+        email: str | None = None,
+    ):
+        password = session_store.validate(session)
+        profile, _ = vault.load(password)
+
+        # Read HIBP key from file
+        from backend.core.config import AppConfig
+        effective_config = config if config is not None else AppConfig()
+        key_path = effective_config.data_dir / "hibp_key.txt"
+        if not key_path.exists():
+            raise HTTPException(status_code=400, detail="HIBP API key not configured. Add it in Settings.")
+        api_key = key_path.read_text().strip()
+
+        if _breach_state["running"] and not (time.time() - _breach_state["started_at"] > STUCK_TIMEOUT):
+            raise HTTPException(status_code=409, detail="Breach check already running")
+
+        target_email = email or (profile.emails[0] if profile.emails else None)
+        if not target_email:
+            raise HTTPException(status_code=400, detail="No email provided")
+
+        _breach_state["running"] = True
+        _breach_state["started_at"] = time.time()
+        _breach_state["error"] = None
+
+        background_tasks.add_task(_run_breach_check, target_email, api_key)
+
+        return {"status": "started", "email": target_email}
+
+    @r.get("/breaches/results")
+    def get_breach_results(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        report = _breach_state.get("report")
+        if report is None:
+            return {"has_results": False, "breaches": [], "email": "", "error": None}
+        return {
+            "has_results": True,
+            "email": report.email,
+            "total_breaches": report.total_breaches,
+            "breaches": [
+                {
+                    "name": b.name,
+                    "title": b.title,
+                    "domain": b.domain,
+                    "breach_date": b.breach_date,
+                    "pwn_count": b.pwn_count,
+                    "data_classes": b.data_classes,
+                }
+                for b in report.breaches
+            ],
+            "error": report.error,
+        }
+
+    @r.get("/breaches/status")
+    def breach_status(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        running = _breach_state["running"] and not (time.time() - _breach_state["started_at"] > STUCK_TIMEOUT)
+        return {"running": running, "error": _breach_state.get("error")}
 
     return r

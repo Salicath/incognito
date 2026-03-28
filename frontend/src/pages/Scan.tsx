@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { api } from "../api/client";
-import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail } from "lucide-react";
+import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail, ShieldAlert } from "lucide-react";
 
 interface ScanHit {
   broker_domain: string;
@@ -12,6 +12,15 @@ interface ScanHit {
 interface AccountHit {
   service: string;
   url: string;
+}
+
+interface BreachHit {
+  name: string;
+  title: string;
+  domain: string;
+  breach_date: string;
+  pwn_count: number;
+  data_classes: string[];
 }
 
 export default function Scan() {
@@ -36,14 +45,28 @@ export default function Scan() {
   const [accountError, setAccountError] = useState("");
   const accountPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Breach scan state
+  const [breachEmailInput, setBreachEmailInput] = useState("");
+  const [breachChecking, setBreachChecking] = useState(false);
+  const [breachResults, setBreachResults] = useState<BreachHit[]>([]);
+  const [breachHasResults, setBreachHasResults] = useState(false);
+  const [breachEmail, setBreachEmail] = useState("");
+  const [breachError, setBreachError] = useState("");
+  const [hibpConfigured, setHibpConfigured] = useState<boolean | null>(null);
+  const breachPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     loadResults();
     checkIfRunning();
     loadAccountResults();
     checkIfAccountRunning();
+    loadBreachResults();
+    checkIfBreachRunning();
+    checkHibpConfigured();
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (accountPollRef.current) clearInterval(accountPollRef.current);
+      if (breachPollRef.current) clearInterval(breachPollRef.current);
     };
   }, []);
 
@@ -171,6 +194,73 @@ export default function Scan() {
     } catch (e) {
       setAccountError(e instanceof Error ? e.message : "Account scan failed");
       setAccountScanning(false);
+    }
+  }
+
+  async function checkHibpConfigured() {
+    try {
+      const status = await api.getHibpStatus();
+      setHibpConfigured(status.configured);
+    } catch {
+      setHibpConfigured(false);
+    }
+  }
+
+  async function checkIfBreachRunning() {
+    try {
+      const status = await api.getBreachStatus();
+      if (status.running) {
+        setBreachChecking(true);
+        startBreachPolling();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function loadBreachResults() {
+    try {
+      const data = await api.getBreachResults();
+      setBreachResults(data.breaches);
+      setBreachHasResults(data.has_results);
+      setBreachEmail(data.email);
+    } catch {
+      // No results yet
+    }
+  }
+
+  function startBreachPolling() {
+    if (breachPollRef.current) clearInterval(breachPollRef.current);
+    breachPollRef.current = setInterval(async () => {
+      try {
+        const status = await api.getBreachStatus();
+        if (status.error) {
+          setBreachError(status.error);
+          setBreachChecking(false);
+          if (breachPollRef.current) clearInterval(breachPollRef.current);
+          return;
+        }
+        if (!status.running) {
+          setBreachChecking(false);
+          if (breachPollRef.current) clearInterval(breachPollRef.current);
+          await loadBreachResults();
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 2000);
+  }
+
+  async function startBreachCheck() {
+    setBreachChecking(true);
+    setBreachError("");
+    try {
+      const data = await api.startBreachCheck(breachEmailInput.trim() || undefined);
+      setBreachEmail(data.email);
+      startBreachPolling();
+    } catch (e) {
+      setBreachError(e instanceof Error ? e.message : "Breach check failed");
+      setBreachChecking(false);
     }
   }
 
@@ -329,6 +419,154 @@ export default function Scan() {
           )}
         </>
       )}
+
+      {/* Breach Scanner (HIBP) */}
+      <div className="mt-10">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold">Breach Scanner</h2>
+          <p className="text-sm text-gray-500 mt-1 mb-4">
+            Check if your email has appeared in known data breaches via Have I Been Pwned
+          </p>
+
+          {hibpConfigured === false && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 text-sm text-orange-800">
+              <span className="font-medium">HIBP API key not configured.</span>{" "}
+              <a href="/settings" className="underline hover:text-orange-900">
+                Add your key in Settings
+              </a>{" "}
+              to use this feature. Keys are available at{" "}
+              <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
+                className="underline hover:text-orange-900">
+                haveibeenpwned.com/API/Key
+              </a>.
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <input
+              type="email"
+              placeholder="Enter email to check (leave empty for profile email)"
+              value={breachEmailInput}
+              onChange={(e) => setBreachEmailInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !breachChecking && hibpConfigured && startBreachCheck()}
+              disabled={!hibpConfigured}
+              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <button
+              onClick={startBreachCheck}
+              disabled={breachChecking || !hibpConfigured}
+              className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50 shrink-0"
+            >
+              {breachChecking ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Checking...</>
+              ) : (
+                <><ShieldAlert className="w-4 h-4" /> {breachHasResults ? "Check Again" : "Check Breaches"}</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {breachError && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{breachError}</div>
+        )}
+
+        {breachChecking && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-red-600 animate-spin" />
+              <p className="text-red-900 font-medium">
+                Checking {breachEmail} against known breaches...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!breachChecking && !breachHasResults && !breachError && hibpConfigured && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <ShieldAlert className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No breach results yet</h3>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">
+              Click "Check Breaches" to query Have I Been Pwned and find out if your
+              email has appeared in any known data breaches.
+            </p>
+          </div>
+        )}
+
+        {!breachChecking && breachHasResults && (
+          <>
+            <div className="flex gap-4 mb-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
+                <div className="flex items-center gap-3">
+                  {breachResults.length > 0 ? (
+                    <AlertTriangle className="w-8 h-8 text-red-500" />
+                  ) : (
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                  )}
+                  <div>
+                    <p className="text-2xl font-bold">{breachResults.length}</p>
+                    <p className="text-sm text-gray-500">
+                      {breachResults.length === 1 ? "breach found" : "breaches found"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
+                <p className="text-sm text-gray-500">Checked email</p>
+                <p className="font-medium text-sm mt-1">{breachEmail}</p>
+              </div>
+            </div>
+
+            {breachResults.length > 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="px-5 py-4 border-b border-gray-200">
+                  <h3 className="font-semibold">Breaches Found</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Your email was found in these data breaches. Consider changing passwords for affected services.
+                  </p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {breachResults.map((breach) => (
+                    <div key={breach.name} className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
+                            <span className="font-medium text-sm">{breach.title}</span>
+                            {breach.domain && (
+                              <span className="text-xs text-gray-400">{breach.domain}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {breach.data_classes.map((dc) => (
+                              <span key={dc} className="px-2 py-0.5 bg-red-50 text-red-700 rounded text-xs">
+                                {dc}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-gray-500">{breach.breach_date}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {breach.pwn_count.toLocaleString()} records
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
+                <p className="text-green-900 font-medium">No breaches found</p>
+                <p className="text-green-700 text-sm mt-1">
+                  Your email was not found in any known data breaches. Stay vigilant!
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Account Scanner (Holehe) */}
       <div className="mt-10">

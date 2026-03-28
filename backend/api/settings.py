@@ -60,6 +60,33 @@ def create_settings_router(
         vault.save(body.profile, smtp, password)
         return {"status": "updated"}
 
+    @r.get("/hibp")
+    def get_hibp_status(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        key_path = config.data_dir / "hibp_key.txt"
+        if key_path.exists():
+            key = key_path.read_text().strip()
+            return {"configured": True, "key_preview": key[:4] + "..." + key[-4:] if len(key) > 8 else "***"}
+        return {"configured": False}
+
+    @r.post("/hibp")
+    def update_hibp_key(body: dict, session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        key = body.get("api_key", "").strip()
+        if not key:
+            raise HTTPException(status_code=400, detail="API key required")
+        key_path = config.data_dir / "hibp_key.txt"
+        key_path.write_text(key)
+        return {"status": "saved"}
+
+    @r.delete("/hibp")
+    def delete_hibp_key(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        key_path = config.data_dir / "hibp_key.txt"
+        if key_path.exists():
+            key_path.unlink()
+        return {"status": "deleted"}
+
     @r.post("/test-smtp")
     async def test_smtp(session: str | None = Cookie(default=None)):
         password = session_store.validate(session)

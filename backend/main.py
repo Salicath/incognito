@@ -57,7 +57,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.include_router(
         create_requests_router(db_session_factory, session_store, config.gdpr_deadline_days)
     )
-    app.include_router(create_scan_router(vault, session_store, broker_registry))
+    app.include_router(create_scan_router(vault, session_store, broker_registry, config))
     app.include_router(create_blast_router(vault, session_store, broker_registry, db_session_factory, config))
     app.include_router(create_settings_router(vault, session_store, broker_registry, config))
 

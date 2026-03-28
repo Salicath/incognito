@@ -57,6 +57,15 @@ export const api = {
     request<{ status: string; email: string }>(`/scan/accounts/start${email ? `?email=${encodeURIComponent(email)}` : ""}`, { method: "POST" }),
   getAccountResults: () => request<{ has_results: boolean; email: string; checked: number; hits: Array<{ service: string; url: string }>; errors: string[] }>("/scan/accounts/results"),
   getAccountStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null }>("/scan/accounts/status"),
+  getHibpStatus: () => request<{ configured: boolean; key_preview?: string }>("/settings/hibp"),
+  saveHibpKey: (apiKey: string) => request("/settings/hibp", { method: "POST", body: JSON.stringify({ api_key: apiKey }) }),
+  deleteHibpKey: () => request("/settings/hibp", { method: "DELETE" }),
+  startBreachCheck: (email?: string) =>
+    request<{ status: string; email: string }>(`/scan/breaches/start${email ? `?email=${encodeURIComponent(email)}` : ""}`, { method: "POST" }),
+  getBreachResults: () =>
+    request<{ has_results: boolean; email: string; total_breaches: number; breaches: Array<{ name: string; title: string; domain: string; breach_date: string; pwn_count: number; data_classes: string[] }>; error: string | null }>("/scan/breaches/results"),
+  getBreachStatus: () =>
+    request<{ running: boolean; error: string | null }>("/scan/breaches/status"),
   blastCreate: (requestType: string, dryRun: boolean) =>
     request<{ dry_run: boolean; created: number; skipped: number; total_brokers: number; requests: Array<Record<string, string>> }>("/blast/create", {
       method: "POST",

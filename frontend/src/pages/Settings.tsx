@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { Mail, User, Info, CheckCircle, Loader2 } from "lucide-react";
+import { Mail, User, Info, CheckCircle, Loader2, ShieldAlert } from "lucide-react";
 
 const BASE = "/api";
 
@@ -25,6 +25,11 @@ interface SmtpStatus {
   username?: string;
 }
 
+interface HibpStatus {
+  configured: boolean;
+  key_preview?: string;
+}
+
 interface AppInfo {
   broker_count: number;
   data_dir: string;
@@ -42,25 +47,65 @@ export default function Settings() {
   const [smtpTesting, setSmtpTesting] = useState(false);
   const [smtpMessage, setSmtpMessage] = useState({ type: "", text: "" });
 
+  // HIBP state
+  const [hibpStatus, setHibpStatus] = useState<HibpStatus | null>(null);
+  const [hibpKeyInput, setHibpKeyInput] = useState("");
+  const [showHibpForm, setShowHibpForm] = useState(false);
+  const [hibpSaving, setHibpSaving] = useState(false);
+  const [hibpDeleting, setHibpDeleting] = useState(false);
+  const [hibpMessage, setHibpMessage] = useState({ type: "", text: "" });
+
   useEffect(() => {
     loadData();
   }, []);
 
   async function loadData() {
     try {
-      const [smtp, info, prof] = await Promise.all([
+      const [smtp, info, prof, hibp] = await Promise.all([
         settingsRequest<SmtpStatus>("/settings/smtp"),
         settingsRequest<AppInfo>("/settings/info"),
         api.getProfile(),
+        api.getHibpStatus(),
       ]);
       setSmtpStatus(smtp);
       setAppInfo(info);
       setProfile(prof);
+      setHibpStatus(hibp);
       if (smtp.configured) {
         setSmtpForm({ host: smtp.host || "", port: smtp.port || 587, username: smtp.username || "", password: "" });
       }
     } catch {
       // ignore
+    }
+  }
+
+  async function handleSaveHibpKey() {
+    setHibpSaving(true);
+    setHibpMessage({ type: "", text: "" });
+    try {
+      await api.saveHibpKey(hibpKeyInput.trim());
+      setHibpMessage({ type: "success", text: "API key saved." });
+      setShowHibpForm(false);
+      setHibpKeyInput("");
+      loadData();
+    } catch (e) {
+      setHibpMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to save" });
+    } finally {
+      setHibpSaving(false);
+    }
+  }
+
+  async function handleDeleteHibpKey() {
+    setHibpDeleting(true);
+    setHibpMessage({ type: "", text: "" });
+    try {
+      await api.deleteHibpKey();
+      setHibpMessage({ type: "success", text: "API key removed." });
+      loadData();
+    } catch (e) {
+      setHibpMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
+    } finally {
+      setHibpDeleting(false);
     }
   }
 
@@ -171,6 +216,91 @@ export default function Settings() {
           {smtpMessage.text && (
             <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${smtpMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
               {smtpMessage.text}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Have I Been Pwned API Key */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-gray-500" />
+          <h2 className="font-semibold">Have I Been Pwned (HIBP)</h2>
+        </div>
+        <div className="p-5">
+          {hibpStatus && !hibpStatus.configured && !showHibpForm && (
+            <div>
+              <p className="text-sm text-gray-600 mb-3">
+                Optional: enter a{" "}
+                <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
+                  className="text-indigo-600 underline hover:text-indigo-800">
+                  Have I Been Pwned API key
+                </a>{" "}
+                to check whether your email has appeared in known data breaches.
+              </p>
+              <button onClick={() => setShowHibpForm(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                Add API Key
+              </button>
+            </div>
+          )}
+
+          {hibpStatus && hibpStatus.configured && !showHibpForm && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-700 font-medium">HIBP API key configured</span>
+              </div>
+              <div className="text-sm text-gray-600 mb-4">
+                <p><span className="font-medium">Key:</span> {hibpStatus.key_preview}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowHibpForm(true)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                  Update
+                </button>
+                <button onClick={handleDeleteHibpKey} disabled={hibpDeleting}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition disabled:opacity-50">
+                  {hibpDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Remove Key
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showHibpForm && (
+            <div className="space-y-3">
+              <input
+                type="password"
+                placeholder="Paste your HIBP API key here"
+                value={hibpKeyInput}
+                onChange={(e) => setHibpKeyInput(e.target.value)}
+                className={inputClass}
+              />
+              <p className="text-xs text-gray-500">
+                Get a key at{" "}
+                <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
+                  className="text-indigo-600 underline">
+                  haveibeenpwned.com/API/Key
+                </a>. The key is stored in plain text in your data directory.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={handleSaveHibpKey} disabled={hibpSaving || !hibpKeyInput.trim()}
+                  className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50">
+                  {hibpSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Save
+                </button>
+                <button onClick={() => { setShowHibpForm(false); setHibpKeyInput(""); setHibpMessage({ type: "", text: "" }); }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hibpMessage.text && (
+            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${hibpMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+              {hibpMessage.text}
             </div>
           )}
         </div>
