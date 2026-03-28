@@ -1,9 +1,10 @@
-import pytest
-from unittest.mock import AsyncMock, patch
 from datetime import date
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from backend.core.profile import Profile
-from backend.scanner.duckduckgo import scan_profile, ScanHit, ScanReport, _extract_domain
+from backend.scanner.duckduckgo import ScanHit, ScanReport, _extract_domain, scan_profile
 
 
 def test_extract_domain():

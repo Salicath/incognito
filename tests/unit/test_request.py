@@ -1,13 +1,11 @@
-import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-import pytest
-
-from backend.db.models import Base, Request, RequestEvent, RequestStatus, RequestType
-from backend.core.request import RequestManager, InvalidTransitionError
+from backend.core.request import InvalidTransitionError, RequestManager
+from backend.db.models import Base, RequestEvent, RequestStatus, RequestType
 
 
 def make_session():
@@ -138,7 +136,7 @@ def test_find_overdue_requests():
     mgr.mark_sent(req.id)
 
     # Manually set deadline in the past
-    req.deadline_at = datetime.now(timezone.utc) - timedelta(days=1)
+    req.deadline_at = datetime.now(UTC) - timedelta(days=1)
     session.commit()
 
     overdue = mgr.find_overdue()

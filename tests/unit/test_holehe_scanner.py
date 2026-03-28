@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from backend.scanner.holehe_scanner import check_email_accounts, AccountReport, AccountHit
+import pytest
+
+from backend.scanner.holehe_scanner import AccountHit, AccountReport, check_email_accounts
 
 
 @pytest.mark.asyncio

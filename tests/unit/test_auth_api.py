@@ -1,12 +1,10 @@
 from datetime import date
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from backend.core.config import AppConfig
-from backend.core.profile import Address, Profile, ProfileVault, SmtpConfig
+from backend.core.profile import Profile, ProfileVault, SmtpConfig
 
 
 @pytest.fixture

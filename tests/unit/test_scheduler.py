@@ -1,12 +1,10 @@
-import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch, MagicMock
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from backend.db.models import Base, Request, RequestEvent, RequestStatus, RequestType
 from backend.core.request import RequestManager
+from backend.db.models import Base, RequestEvent, RequestStatus, RequestType
 
 
 def make_session():
@@ -23,7 +21,7 @@ def test_find_overdue_detects_past_deadline():
     mgr.mark_sent(req.id)
 
     # Set deadline to yesterday
-    req.deadline_at = datetime.now(timezone.utc) - timedelta(days=1)
+    req.deadline_at = datetime.now(UTC) - timedelta(days=1)
     session.commit()
 
     overdue = mgr.find_overdue()

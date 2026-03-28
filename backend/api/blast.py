@@ -1,8 +1,6 @@
-from typing import Optional
 
 from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
@@ -185,9 +183,10 @@ def create_blast_router(
         password = session_store.validate(session)
         profile, smtp = vault.load(password)
 
+        from pathlib import Path
+
         from backend.core.scheduler import run_follow_ups
         from backend.core.template import TemplateRenderer
-        from pathlib import Path
 
         templates_dir = Path(__file__).parent.parent.parent / "templates"
         renderer = TemplateRenderer(templates_dir)

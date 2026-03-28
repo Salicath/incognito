@@ -1,10 +1,9 @@
 import uuid
-from datetime import datetime, timezone
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from backend.db.models import Base, Request, RequestEvent, ScanResult, RequestStatus, RequestType
+from backend.db.models import Base, Request, RequestEvent, RequestStatus, RequestType, ScanResult
 
 
 def make_engine():

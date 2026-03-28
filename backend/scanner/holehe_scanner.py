@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 
 import httpx
@@ -28,8 +27,8 @@ async def check_email_accounts(email: str, on_progress=None) -> AccountReport:
     report = AccountReport(email=email)
 
     try:
-        from holehe.core import import_submodules, get_functions
         import holehe.modules
+        from holehe.core import get_functions, import_submodules
 
         modules = import_submodules(holehe.modules)
         websites = get_functions(modules)

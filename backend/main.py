@@ -1,19 +1,19 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Cookie, HTTPException
+from fastapi import Cookie, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.auth import create_auth_router
-from backend.api.setup import create_setup_router
+from backend.api.blast import create_blast_router
 from backend.api.brokers import create_brokers_router
+from backend.api.deps import SessionStore
 from backend.api.requests import create_requests_router
 from backend.api.scan import create_scan_router
-from backend.api.blast import create_blast_router
 from backend.api.settings import create_settings_router
-from backend.api.deps import SessionStore
+from backend.api.setup import create_setup_router
+from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
 from backend.core.profile import ProfileVault
-from backend.core.broker import BrokerRegistry
 from backend.db.session import init_db
 
 
@@ -67,8 +67,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         profile, _ = vault.load(password)
         return profile.model_dump()
 
-    from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
 
     # Serve frontend static files
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"

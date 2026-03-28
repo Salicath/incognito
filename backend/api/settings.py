@@ -1,4 +1,3 @@
-from typing import Optional
 
 from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
@@ -98,7 +97,7 @@ def create_settings_router(
         sender = EmailSender(smtp)
         result = await sender.send(
             to_email=smtp.username,  # Send test to self
-            rendered_text=f"Subject: Incognito SMTP Test\n\nThis is a test email from Incognito. If you received this, your SMTP configuration is working correctly.",
+            rendered_text="Subject: Incognito SMTP Test\n\nThis is a test email from Incognito. If you received this, your SMTP configuration is working correctly.",
         )
         if result.status.value == "success":
             return {"status": "success", "message": f"Test email sent to {smtp.username}"}

@@ -1,10 +1,9 @@
-import json
 from datetime import date
 from pathlib import Path
 
 import pytest
 
-from backend.core.profile import Address, Profile, SmtpConfig, ProfileVault
+from backend.core.profile import Address, Profile, ProfileVault, SmtpConfig
 
 
 def test_profile_model():

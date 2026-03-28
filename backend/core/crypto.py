@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from argon2.low_level import Type, hash_secret_raw
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-
 _ARGON2_TIME_COST = 3
 _ARGON2_MEMORY_COST = 65536  # 64 MB
 _ARGON2_PARALLELISM = 4

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -49,7 +49,7 @@ class RequestManager:
 
         old_status = req.status
         req.status = new_status
-        req.updated_at = datetime.now(timezone.utc)
+        req.updated_at = datetime.now(UTC)
 
         event = RequestEvent(
             request_id=request_id,
@@ -82,7 +82,7 @@ class RequestManager:
 
     def mark_sent(self, request_id: str) -> Request:
         req = self._transition(request_id, RequestStatus.SENT, "Request sent")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         req.sent_at = now
         req.deadline_at = now + timedelta(days=self._deadline_days)
         self._session.commit()
@@ -90,7 +90,7 @@ class RequestManager:
 
     def mark_acknowledged(self, request_id: str, response_body: str) -> Request:
         req = self._transition(request_id, RequestStatus.ACKNOWLEDGED, response_body)
-        req.response_at = datetime.now(timezone.utc)
+        req.response_at = datetime.now(UTC)
         req.response_body = response_body
         self._session.commit()
         return req
@@ -114,7 +114,7 @@ class RequestManager:
         return self._transition(request_id, RequestStatus.MANUAL_ACTION_NEEDED, reason)
 
     def find_overdue(self) -> list[Request]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return (
             self._session.query(Request)
             .filter(

@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import typer
 import uvicorn
@@ -40,8 +39,8 @@ def status():
         console.print("[yellow]Not initialized.[/] Run [bold]incognito serve[/] and complete setup.")
         return
 
-    from backend.db.session import init_db
     from backend.db.models import Request, RequestStatus
+    from backend.db.session import init_db
 
     session_factory = init_db(config.db_path)
     session = session_factory()
@@ -81,9 +80,9 @@ def follow_up(
         console.print("[yellow]Not initialized.[/]")
         return
 
-    from backend.db.session import init_db
-    from backend.core.request import RequestManager
     from backend.core.profile import ProfileVault
+    from backend.core.request import RequestManager
+    from backend.db.session import init_db
 
     session_factory = init_db(config.db_path)
     session = session_factory()
@@ -102,10 +101,11 @@ def follow_up(
                 console.print(f"  - {req.broker_id} ({req.request_type.value}) sent {req.sent_at}")
 
         if auto:
+            from pathlib import Path
+
+            from backend.core.broker import BrokerRegistry
             from backend.core.scheduler import run_follow_ups
             from backend.core.template import TemplateRenderer
-            from backend.core.broker import BrokerRegistry
-            from pathlib import Path
 
             vault = ProfileVault(config.vault_path)
 

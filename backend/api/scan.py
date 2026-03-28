@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import time
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
@@ -8,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
 from backend.core.profile import ProfileVault
-from backend.scanner.duckduckgo import scan_profile, ScanReport
+from backend.scanner.duckduckgo import scan_profile
 
 
 def create_scan_router(

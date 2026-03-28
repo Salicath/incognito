@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,7 @@ from backend.core.broker import BrokerRegistry
 from backend.core.profile import Profile, SmtpConfig
 from backend.core.request import RequestManager
 from backend.core.template import TemplateRenderer
-from backend.db.models import Request, RequestEvent, RequestStatus, RequestType
+from backend.db.models import Request, RequestEvent, RequestStatus
 from backend.senders.email import EmailSender
 
 
@@ -39,7 +39,7 @@ async def run_follow_ups(
     """
     result = FollowUpResult()
     mgr = RequestManager(session, gdpr_deadline_days)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Step 1: Find and mark overdue requests
     overdue_requests = mgr.find_overdue()

@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.scanner.hibp import check_breaches, BreachReport, BreachInfo
+import pytest
+
+from backend.scanner.hibp import BreachInfo, BreachReport, check_breaches
 
 
 @pytest.mark.asyncio

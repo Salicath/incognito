@@ -1,8 +1,7 @@
-import json
 
 import pytest
 
-from backend.core.crypto import derive_key, encrypt, decrypt, EncryptedPayload
+from backend.core.crypto import EncryptedPayload, decrypt, derive_key, encrypt
 
 
 def test_derive_key_deterministic():

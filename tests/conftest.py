@@ -1,5 +1,4 @@
 from datetime import date
-from pathlib import Path
 
 import pytest
 import yaml
@@ -80,6 +79,7 @@ def seeded_vault(config, sample_profile, sample_smtp):
 def authenticated_client(config, seeded_vault):
     """A TestClient that is already authenticated."""
     from fastapi.testclient import TestClient
+
     from backend.main import create_app
 
     app = create_app(config)
