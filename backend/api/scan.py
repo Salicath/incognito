@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
-from fastapi import APIRouter, Cookie, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
 
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
@@ -18,38 +18,69 @@ def create_scan_router(
 ) -> APIRouter:
     r = APIRouter(prefix="/api/scan", tags=["scan"])
 
-    # Store latest scan results in memory
-    _latest_report: dict[str, ScanReport | None] = {"report": None, "running": False}
+    _state: dict = {
+        "report": None,
+        "running": False,
+        "started_at": 0,
+        "progress": 0,
+        "total": 0,
+        "error": None,
+    }
+
+    # Auto-clear stuck scans after 10 minutes
+    STUCK_TIMEOUT = 600
+
+    def _is_stuck() -> bool:
+        if not _state["running"]:
+            return False
+        return (time.time() - _state["started_at"]) > STUCK_TIMEOUT
+
+    async def _run_scan(profile, broker_domains):
+        try:
+            def on_progress(checked, total):
+                _state["progress"] = checked
+                _state["total"] = total
+
+            report = await scan_profile(profile, broker_domains, on_progress=on_progress)
+            _state["report"] = report
+            _state["error"] = None
+        except Exception as e:
+            _state["error"] = str(e)
+        finally:
+            _state["running"] = False
 
     @r.post("/start")
-    async def start_scan(session: str | None = Cookie(default=None)):
+    async def start_scan(
+        background_tasks: BackgroundTasks,
+        session: str | None = Cookie(default=None),
+    ):
         password = session_store.validate(session)
         profile, _ = vault.load(password)
 
-        if _latest_report.get("running"):
+        if _state["running"] and not _is_stuck():
             raise HTTPException(status_code=409, detail="Scan already running")
 
-        _latest_report["running"] = True
+        _state["running"] = True
+        _state["started_at"] = time.time()
+        _state["progress"] = 0
+        _state["error"] = None
 
         broker_domains = [(b.domain, b.name) for b in broker_registry.brokers]
+        _state["total"] = len(broker_domains) + len(profile.emails)
 
-        try:
-            report = await scan_profile(profile, broker_domains)
-            _latest_report["report"] = report
-        finally:
-            _latest_report["running"] = False
+        # Run in background so the request returns immediately
+        background_tasks.add_task(_run_scan, profile, broker_domains)
 
         return {
-            "status": "completed",
-            "hits": len(report.hits),
-            "checked": report.checked,
+            "status": "started",
+            "total": _state["total"],
         }
 
     @r.get("/results")
     def get_results(session: str | None = Cookie(default=None)):
         session_store.validate(session)
 
-        report = _latest_report.get("report")
+        report = _state.get("report")
         if report is None:
             return {"hits": [], "checked": 0, "has_results": False}
 
@@ -70,6 +101,12 @@ def create_scan_router(
     @r.get("/status")
     def scan_status(session: str | None = Cookie(default=None)):
         session_store.validate(session)
-        return {"running": _latest_report.get("running", False)}
+        running = _state["running"] and not _is_stuck()
+        return {
+            "running": running,
+            "progress": _state["progress"],
+            "total": _state["total"],
+            "error": _state.get("error"),
+        }
 
     return r

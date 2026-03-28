@@ -50,9 +50,9 @@ export const api = {
       body: JSON.stringify({ action, details }),
     }),
   getStats: () => request<Record<string, number>>("/requests/stats"),
-  startScan: () => request<{ status: string; hits: number; checked: number }>("/scan/start", { method: "POST" }),
+  startScan: () => request<{ status: string; total: number }>("/scan/start", { method: "POST" }),
   getScanResults: () => request<{ has_results: boolean; checked: number; hits: Array<{ broker_domain: string; broker_name: string; snippet: string; url: string }> }>("/scan/results"),
-  getScanStatus: () => request<{ running: boolean }>("/scan/status"),
+  getScanStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null }>("/scan/status"),
   blastCreate: (requestType: string, dryRun: boolean) =>
     request<{ dry_run: boolean; created: number; skipped: number; total_brokers: number; requests: Array<Record<string, string>> }>("/blast/create", {
       method: "POST",

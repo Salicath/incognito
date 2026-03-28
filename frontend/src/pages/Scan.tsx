@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api } from "../api/client";
 import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 
@@ -11,14 +11,33 @@ interface ScanHit {
 
 export default function Scan() {
   const [scanning, setScanning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [total, setTotal] = useState(0);
   const [results, setResults] = useState<ScanHit[]>([]);
   const [hasResults, setHasResults] = useState(false);
   const [checked, setChecked] = useState(0);
   const [error, setError] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadResults();
+    checkIfRunning();
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  async function checkIfRunning() {
+    try {
+      const status = await api.getScanStatus();
+      if (status.running) {
+        setScanning(true);
+        setProgress(status.progress);
+        setTotal(status.total);
+        startPolling();
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   async function loadResults() {
     try {
@@ -27,27 +46,50 @@ export default function Scan() {
       setHasResults(data.has_results);
       setChecked(data.checked);
     } catch {
-      // No results yet, that's fine
+      // No results yet
     }
+  }
+
+  function startPolling() {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await api.getScanStatus();
+        setProgress(status.progress);
+        setTotal(status.total);
+        if (status.error) {
+          setError(status.error);
+          setScanning(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+          return;
+        }
+        if (!status.running) {
+          setScanning(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+          await loadResults();
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 2000);
   }
 
   async function startScan() {
     setScanning(true);
     setError("");
+    setProgress(0);
     try {
       const data = await api.startScan();
-      setChecked(data.checked);
-      await loadResults();
+      setTotal(data.total);
+      startPolling();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Scan failed");
-    } finally {
       setScanning(false);
     }
   }
 
   async function handleCreateRequest(brokerDomain: string, type: string) {
     try {
-      // Find the broker ID from domain
       const brokers = await api.getBrokers();
       const broker = brokers.find(
         (b) => (b as Record<string, unknown>).domain === brokerDomain
@@ -57,12 +99,14 @@ export default function Scan() {
         await api.createRequest(broker.id as string, type);
         alert(`${type} request created for ${broker.name}`);
       } else {
-        alert(`Broker for ${brokerDomain} not in registry. You may need to add it manually.`);
+        alert(`Broker for ${brokerDomain} not in registry.`);
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to create request");
     }
   }
+
+  const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
 
   return (
     <div className="p-8">
@@ -79,48 +123,48 @@ export default function Scan() {
           className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50"
         >
           {scanning ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Scanning...
-            </>
+            <><Loader2 className="w-4 h-4 animate-spin" /> Scanning...</>
           ) : (
-            <>
-              <Search className="w-4 h-4" />
-              {hasResults ? "Scan Again" : "Start Scan"}
-            </>
+            <><Search className="w-4 h-4" /> {hasResults ? "Scan Again" : "Start Scan"}</>
           )}
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
-          {error}
-        </div>
+        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
       )}
 
       {scanning && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6 mb-6 text-center">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3" />
-          <p className="text-indigo-900 font-medium">
-            Scanning data broker sites...
-          </p>
-          <p className="text-indigo-600 text-sm mt-1">
-            This may take a minute. Searching DuckDuckGo for your data across
-            all registered brokers.
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+            <p className="text-indigo-900 font-medium">
+              Scanning... {progress}/{total} searches completed
+            </p>
+          </div>
+          <div className="w-full bg-indigo-200 rounded-full h-2">
+            <div
+              className="bg-indigo-600 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="text-indigo-600 text-xs mt-2">
+            Searching DuckDuckGo for your data across all registered brokers.
+            This takes a few minutes due to rate limiting.
           </p>
         </div>
       )}
 
-      {!scanning && !hasResults && (
+      {!scanning && !hasResults && !error && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">
-            No scan results yet
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">No scan results yet</h2>
           <p className="text-gray-500 text-sm max-w-md mx-auto">
             Click "Start Scan" to search for your personal data across data
-            broker and people-search sites. We'll use DuckDuckGo to find where
-            your information appears.
+            broker and people-search sites via DuckDuckGo. Note: most data
+            brokers keep data behind login walls, so this mainly finds
+            people-search sites. For full coverage, use the Art. 15 blast from
+            the Dashboard.
           </p>
         </div>
       )}
@@ -136,13 +180,9 @@ export default function Scan() {
                   <CheckCircle className="w-8 h-8 text-green-500" />
                 )}
                 <div>
-                  <p className="text-2xl font-bold">
-                    {results.length}
-                  </p>
+                  <p className="text-2xl font-bold">{results.length}</p>
                   <p className="text-sm text-gray-500">
-                    {results.length === 1
-                      ? "site likely has your data"
-                      : "sites likely have your data"}
+                    {results.length === 1 ? "site likely has your data" : "sites likely have your data"}
                   </p>
                 </div>
               </div>
@@ -158,49 +198,29 @@ export default function Scan() {
               <div className="px-5 py-4 border-b border-gray-200">
                 <h2 className="font-semibold">Found Results</h2>
                 <p className="text-xs text-gray-500 mt-1">
-                  These sites likely contain your personal data. Click to verify,
-                  then create a removal request.
+                  These sites likely contain your personal data. Click to verify, then create a removal request.
                 </p>
               </div>
               <div className="divide-y divide-gray-100">
                 {results.map((hit) => (
-                  <div
-                    key={hit.broker_domain}
-                    className="px-5 py-4"
-                  >
+                  <div key={hit.broker_domain} className="px-5 py-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-sm">
-                            {hit.broker_name}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {hit.broker_domain}
-                          </span>
+                          <span className="font-medium text-sm">{hit.broker_name}</span>
+                          <span className="text-xs text-gray-400">{hit.broker_domain}</span>
                         </div>
-                        {hit.snippet && (
-                          <p className="text-xs text-gray-500 truncate">
-                            {hit.snippet}
-                          </p>
-                        )}
+                        {hit.snippet && <p className="text-xs text-gray-500 truncate">{hit.snippet}</p>}
                       </div>
                       <div className="flex items-center gap-2 ml-4 shrink-0">
                         {hit.url && (
-                          <a
-                            href={hit.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition"
-                          >
+                          <a href={hit.url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition">
                             <ExternalLink className="w-3 h-3" /> Verify
                           </a>
                         )}
-                        <button
-                          onClick={() =>
-                            handleCreateRequest(hit.broker_domain, "erasure")
-                          }
-                          className="px-3 py-1 text-xs bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition"
-                        >
+                        <button onClick={() => handleCreateRequest(hit.broker_domain, "erasure")}
+                          className="px-3 py-1 text-xs bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition">
                           Art. 17
                         </button>
                       </div>
@@ -212,13 +232,11 @@ export default function Scan() {
           ) : (
             <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
               <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
-              <p className="text-green-900 font-medium">
-                No data found on searched broker sites
-              </p>
+              <p className="text-green-900 font-medium">No data found in search results</p>
               <p className="text-green-700 text-sm mt-1">
-                Your data wasn't found in our search. This doesn't guarantee
-                you're not listed — brokers may block search engine indexing.
-                Consider sending Art. 15 access requests to verify directly.
+                Most data brokers don't expose data to search engines. Use the
+                Art. 15 blast from the Dashboard to ask them directly — they're
+                legally required to respond within 30 days.
               </p>
             </div>
           )}
