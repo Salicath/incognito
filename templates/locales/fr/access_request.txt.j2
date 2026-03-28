@@ -1,0 +1,28 @@
+Subject: Demande d'accès conformément à l'article 15 du RGPD — {{ profile.full_name }} [{{ reference_id }}]
+
+Madame, Monsieur,
+
+Par la présente, j'exerce mon droit d'accès prévu par l'article 15 du Règlement Général sur la Protection des Données (RGPD) et vous demande de confirmer si vous traitez des données personnelles me concernant.
+
+Dans l'affirmative, je vous prie de bien vouloir me fournir, conformément à l'article 15, paragraphe 1, du RGPD :
+
+- les finalités du traitement,
+- les catégories de données personnelles concernées,
+- les destinataires ou catégories de destinataires,
+- la durée de conservation prévue ou les critères de détermination,
+- l'origine des données si elles n'ont pas été collectées directement auprès de moi.
+
+Mes coordonnées :
+- Nom : {{ profile.full_name }}
+- E-mail : {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Téléphone : {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Date de naissance : {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adresse : {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Conformément à l'article 12, paragraphe 3, du RGPD, vous disposez d'un délai d'un mois pour répondre. Le non-respect de ce délai constitue une violation du RGPD et pourra donner lieu à une plainte auprès de la CNIL.
+
+Cordialement,
+{{ profile.full_name }}
+
+Réf : {{ reference_id }}

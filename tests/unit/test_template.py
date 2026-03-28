@@ -102,3 +102,55 @@ def test_render_returns_subject_and_body(renderer, profile):
         broker_name="Acxiom",
     )
     assert "Subject:" in result
+
+
+def test_render_german_erasure_request(renderer, profile):
+    result = renderer.render_localized(
+        "erasure_request",
+        "de",
+        profile=profile,
+        reference_id="REQ-003",
+        broker_name="SCHUFA",
+    )
+    assert "Art. 17" in result or "Artikel 17" in result
+    assert "DSGVO" in result
+    assert "Malte Example" in result
+    assert "SCHUFA" in result
+    assert "REQ-003" in result
+
+
+def test_render_german_access_request(renderer, profile):
+    result = renderer.render_localized(
+        "access_request",
+        "de",
+        profile=profile,
+        reference_id="REQ-004",
+        broker_name="Deutsche Post",
+    )
+    assert "Art. 15" in result or "Artikel 15" in result
+    assert "DSGVO" in result
+    assert "Deutsche Post" in result
+
+
+def test_render_french_erasure_request(renderer, profile):
+    result = renderer.render_localized(
+        "erasure_request",
+        "fr",
+        profile=profile,
+        reference_id="REQ-005",
+        broker_name="Criteo",
+    )
+    assert "article 17" in result.lower()
+    assert "RGPD" in result
+    assert "Criteo" in result
+
+
+def test_render_localized_fallback_to_english(renderer, profile):
+    result = renderer.render_localized(
+        "erasure_request",
+        "xx",  # nonexistent locale
+        profile=profile,
+        reference_id="REQ-006",
+        broker_name="Test",
+    )
+    assert "Article 17" in result  # English fallback

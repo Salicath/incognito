@@ -1,0 +1,27 @@
+Subject: Demande d'effacement conformément à l'article 17 du RGPD — {{ profile.full_name }} [{{ reference_id }}]
+
+Madame, Monsieur le Délégué à la Protection des Données de {{ broker_name }},
+
+Par la présente, j'exerce mon droit à l'effacement prévu par l'article 17 du Règlement Général sur la Protection des Données (RGPD) et vous demande de supprimer l'ensemble des données personnelles me concernant.
+
+Je fonde ma demande sur les motifs suivants :
+- Les données ne sont plus nécessaires au regard des finalités pour lesquelles elles ont été collectées (art. 17, par. 1, a)
+- Je retire mon consentement et il n'existe pas d'autre fondement juridique au traitement (art. 17, par. 1, b)
+- Je m'oppose au traitement et il n'existe pas de motif légitime impérieux (art. 17, par. 1, c)
+
+Mes coordonnées :
+- Nom : {{ profile.full_name }}
+- E-mail : {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Téléphone : {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Date de naissance : {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adresse : {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Conformément à l'article 12, paragraphe 3, du RGPD, vous disposez d'un délai d'un mois pour confirmer la suppression. Si vous estimez qu'une exception au titre de l'article 17, paragraphe 3, s'applique, je vous prie de m'en indiquer le fondement juridique.
+
+En cas de non-respect du délai légal, je me réserve le droit de déposer une plainte auprès de la CNIL.
+
+Cordialement,
+{{ profile.full_name }}
+
+Réf : {{ reference_id }}

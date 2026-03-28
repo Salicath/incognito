@@ -1,0 +1,25 @@
+Subject: DSGVO-Beschwerde — Nichtbefolgung durch {{ broker_name }} [{{ reference_id }}]
+
+An: {{ dpa_name }}
+
+Sehr geehrte Damen und Herren,
+
+hiermit reiche ich gemäß Art. 77 der Datenschutz-Grundverordnung (DSGVO) eine Beschwerde ein bezüglich der Nichtbefolgung meiner Datenschutzrechte durch {{ broker_name }} (Kontakt: {{ broker_email }}).
+
+Sachverhalt:
+- Am {{ original_date }} habe ich ein Datenschutzersuchen an {{ broker_name }} gerichtet (Ref: {{ reference_id }}).
+- Die gesetzliche Antwortfrist von einem Monat gemäß Art. 12 Abs. 3 DSGVO ist verstrichen.
+- Ich habe eine Erinnerung sowie eine letzte Mahnung versendet, jedoch keine inhaltliche Antwort erhalten.
+
+Meine Angaben:
+- Name: {{ profile.full_name }}
+- E-Mail: {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Anschrift: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Ich bitte die Aufsichtsbehörde, den Sachverhalt zu prüfen und geeignete Maßnahmen zu ergreifen.
+
+Mit freundlichen Grüßen
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

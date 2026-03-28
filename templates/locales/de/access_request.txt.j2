@@ -1,0 +1,28 @@
+Subject: Auskunftsersuchen gemäß Art. 15 DSGVO — {{ profile.full_name }} [{{ reference_id }}]
+
+Sehr geehrter Datenschutzbeauftragter bei {{ broker_name }},
+
+hiermit mache ich von meinem Auskunftsrecht gemäß Art. 15 der Datenschutz-Grundverordnung (DSGVO) Gebrauch und bitte um Bestätigung, ob Sie personenbezogene Daten über mich verarbeiten.
+
+Sollte dies der Fall sein, bitte ich gemäß Art. 15 Abs. 1 DSGVO um Auskunft über:
+
+- die Verarbeitungszwecke,
+- die Kategorien personenbezogener Daten,
+- die Empfänger oder Kategorien von Empfängern,
+- die geplante Speicherdauer bzw. die Kriterien für deren Festlegung,
+- die Herkunft der Daten, sofern diese nicht direkt bei mir erhoben wurden.
+
+Zu meiner Identifikation:
+- Name: {{ profile.full_name }}
+- E-Mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefon: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Geburtsdatum: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Anschrift: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Bitte antworten Sie innerhalb der in Art. 12 Abs. 3 DSGVO vorgesehenen Frist von einem Monat. Eine Nichteinhaltung dieser Frist stellt einen Verstoß gegen die DSGVO dar und kann eine Beschwerde bei der zuständigen Aufsichtsbehörde zur Folge haben.
+
+Mit freundlichen Grüßen
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}
