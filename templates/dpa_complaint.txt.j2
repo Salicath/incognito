@@ -1,0 +1,22 @@
+Subject: GDPR Complaint — Non-Compliance by {{ broker_name }} [{{ reference_id }}]
+
+To: {{ dpa_name }}
+
+I am filing a complaint under Article 77 of the General Data Protection Regulation (EU) 2016/679 regarding the failure of {{ broker_name }} (contact: {{ broker_email }}) to comply with my data protection rights.
+
+Details of the complaint:
+- On {{ original_date }}, I submitted a data protection request to {{ broker_name }} (Ref: {{ reference_id }}).
+- The statutory 30-day response period under Article 12(3) GDPR has passed.
+- I sent a follow-up and a final warning, but have not received a substantive response.
+
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Address: {{ profile.addresses[0].formatted }}
+{% endif %}
+I request that the supervisory authority investigate this matter and take appropriate enforcement action.
+
+Yours faithfully,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

@@ -1,0 +1,25 @@
+Subject: Data Access Request pursuant to Article 15 GDPR — {{ profile.full_name }} [{{ reference_id }}]
+
+Dear Data Protection Officer at {{ broker_name }},
+
+Pursuant to Article 15 of the General Data Protection Regulation (EU) 2016/679, I am requesting confirmation as to whether you are processing any personal data relating to me. If so, please provide me with a copy of all personal data you hold about me, along with the following information as required by Article 15(1):
+
+- The purposes of the processing
+- The categories of personal data concerned
+- The recipients to whom the data has been disclosed
+- The retention period or criteria for determining it
+- The source of the data if not collected directly from me
+
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Phone: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Date of birth: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Address: {{ profile.addresses[0].formatted }}
+{% endif %}
+Please respond within 30 days as required by Article 12(3) GDPR. Failure to respond within this period constitutes a violation of the GDPR and may result in a complaint to the relevant supervisory authority.
+
+Yours faithfully,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

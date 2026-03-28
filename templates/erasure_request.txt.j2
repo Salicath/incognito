@@ -1,0 +1,26 @@
+Subject: Data Erasure Request pursuant to Article 17 GDPR — {{ profile.full_name }} [{{ reference_id }}]
+
+Dear Data Protection Officer at {{ broker_name }},
+
+I am writing to request the erasure of all personal data you hold relating to me, pursuant to Article 17 of the General Data Protection Regulation (EU) 2016/679.
+
+I am exercising my right to erasure on the grounds that:
+- The data is no longer necessary for the purpose for which it was collected (Art. 17(1)(a))
+- I withdraw my consent, and there is no other legal ground for the processing (Art. 17(1)(b))
+- I object to the processing and there are no overriding legitimate grounds (Art. 17(1)(c))
+
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Phone: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Date of birth: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Address: {{ profile.addresses[0].formatted }}
+{% endif %}
+Please confirm the deletion of my data within 30 days as required by Article 12(3) GDPR. If you believe an exemption applies under Article 17(3), please specify the legal basis for your refusal.
+
+Failure to respond within the statutory period may result in a complaint to the relevant supervisory authority.
+
+Yours faithfully,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}
