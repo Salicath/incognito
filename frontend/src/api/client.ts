@@ -44,4 +44,7 @@ export const api = {
       body: JSON.stringify({ action, details }),
     }),
   getStats: () => request<Record<string, number>>("/requests/stats"),
+  startScan: () => request<{ status: string; hits: number; checked: number }>("/scan/start", { method: "POST" }),
+  getScanResults: () => request<{ has_results: boolean; checked: number; hits: Array<{ broker_domain: string; broker_name: string; snippet: string; url: string }> }>("/scan/results"),
+  getScanStatus: () => request<{ running: boolean }>("/scan/status"),
 };

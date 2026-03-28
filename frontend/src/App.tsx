@@ -6,6 +6,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Requests from "./pages/Requests";
 import Brokers from "./pages/Brokers";
+import Scan from "./pages/Scan";
 
 function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const [password, setPassword] = useState("");
@@ -49,6 +50,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/brokers" element={<Brokers />} />
+          <Route path="/scan" element={<Scan />} />
           <Route path="/settings" element={<p className="p-8">Settings page coming soon.</p>} />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />

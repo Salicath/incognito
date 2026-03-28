@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, LayoutDashboard, Send, Database, Settings, LogOut } from "lucide-react";
+import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut } from "lucide-react";
 import { api } from "../api/client";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/requests", icon: Send, label: "Requests" },
   { to: "/brokers", icon: Database, label: "Brokers" },
+  { to: "/scan", icon: Search, label: "Scan" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
