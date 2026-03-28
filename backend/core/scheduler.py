@@ -74,10 +74,11 @@ async def run_follow_ups(
             event_types = [e.event_type for e in events]
 
             if "follow_up_sent" not in event_types:
-                # Send follow-up
+                # Send follow-up using broker's language
                 try:
-                    rendered = renderer.render(
+                    rendered = renderer.render_localized(
                         "follow_up",
+                        broker.language,
                         profile=profile,
                         reference_id=req.id[:8].upper(),
                         broker_name=broker.name,
@@ -104,8 +105,9 @@ async def run_follow_ups(
                 follow_up_event = next((e for e in events if e.event_type == "follow_up_sent"), None)
                 if follow_up_event and (now - follow_up_event.created_at).days >= escalation_days:
                     try:
-                        rendered = renderer.render(
+                        rendered = renderer.render_localized(
                             "escalation_warning",
+                            broker.language,
                             profile=profile,
                             reference_id=req.id[:8].upper(),
                             broker_name=broker.name,
