@@ -75,4 +75,11 @@ export const api = {
     request<{ sent: number; failed: number; manual: number; total: number; results: Array<Record<string, string>> }>("/blast/send-all", { method: "POST" }),
   runFollowUp: () =>
     request<{ newly_overdue: number; follow_ups_sent: number; escalations_sent: number; errors: string[] }>("/blast/follow-up", { method: "POST" }),
+  generateComplaint: (requestId: string) =>
+    request<{
+      complaint_text: string;
+      dpa: { name: string; short_name: string; email: string | null; url: string; language: string } | null;
+      broker: { name: string; domain: string; dpo_email: string; country: string };
+      request_id: string;
+    }>(`/blast/generate-complaint/${requestId}`, { method: "POST" }),
 };

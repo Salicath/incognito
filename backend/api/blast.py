@@ -234,4 +234,67 @@ def create_blast_router(
         finally:
             db.close()
 
+    @r.post("/generate-complaint/{request_id}")
+    def generate_complaint(
+        request_id: str,
+        session: str | None = Cookie(default=None),
+    ) -> dict:
+        """Generate a DPA complaint for an escalated request."""
+        password = session_store.validate(session)
+        profile, _ = vault.load(password)
+
+        from backend.core.dpa import get_dpa_for_country
+        from pathlib import Path
+
+        db = db_session_factory()
+        try:
+            req = db.get(Request, request_id)
+            if req is None:
+                raise HTTPException(status_code=404, detail="Request not found")
+
+            broker = broker_registry.get(req.broker_id)
+            if broker is None:
+                raise HTTPException(status_code=404, detail="Broker not found")
+
+            dpa = get_dpa_for_country(broker.country)
+
+            # Render the complaint template
+            templates_dir = Path(__file__).parent.parent.parent / "templates"
+            renderer = TemplateRenderer(templates_dir)
+
+            dpa_name = dpa["short_name"] if dpa else "the relevant supervisory authority"
+            dpa_language = dpa["language"] if dpa else "en"
+
+            complaint = renderer.render_localized(
+                "dpa_complaint",
+                dpa_language,
+                profile=profile,
+                reference_id=req.id[:8].upper(),
+                broker_name=broker.name,
+                broker_email=broker.dpo_email,
+                original_date=req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown",
+                dpa_name=dpa_name,
+            )
+
+            return {
+                "complaint_text": complaint,
+                "dpa": dpa,
+                "broker": {
+                    "name": broker.name,
+                    "domain": broker.domain,
+                    "dpo_email": broker.dpo_email,
+                    "country": broker.country,
+                },
+                "request_id": request_id,
+            }
+        finally:
+            db.close()
+
+    @r.get("/dpa-list")
+    def list_dpas(session: str | None = Cookie(default=None)):
+        """List all known DPAs."""
+        session_store.validate(session)
+        from backend.core.dpa import DPA_REGISTRY
+        return DPA_REGISTRY
+
     return r
