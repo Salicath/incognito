@@ -53,4 +53,11 @@ export const api = {
   startScan: () => request<{ status: string; hits: number; checked: number }>("/scan/start", { method: "POST" }),
   getScanResults: () => request<{ has_results: boolean; checked: number; hits: Array<{ broker_domain: string; broker_name: string; snippet: string; url: string }> }>("/scan/results"),
   getScanStatus: () => request<{ running: boolean }>("/scan/status"),
+  blastCreate: (requestType: string, dryRun: boolean) =>
+    request<{ dry_run: boolean; created: number; skipped: number; total_brokers: number; requests: Array<Record<string, string>> }>("/blast/create", {
+      method: "POST",
+      body: JSON.stringify({ request_type: requestType, dry_run: dryRun }),
+    }),
+  blastSendAll: () =>
+    request<{ sent: number; failed: number; manual: number; total: number; results: Array<Record<string, string>> }>("/blast/send-all", { method: "POST" }),
 };
