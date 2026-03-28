@@ -1,11 +1,16 @@
 import { useEffect, useState, useRef } from "react";
 import { api } from "../api/client";
-import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail } from "lucide-react";
 
 interface ScanHit {
   broker_domain: string;
   broker_name: string;
   snippet: string;
+  url: string;
+}
+
+interface AccountHit {
+  service: string;
   url: string;
 }
 
@@ -19,10 +24,26 @@ export default function Scan() {
   const [error, setError] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Account scan state
+  const [accountScanning, setAccountScanning] = useState(false);
+  const [accountProgress, setAccountProgress] = useState(0);
+  const [accountTotal, setAccountTotal] = useState(0);
+  const [accountResults, setAccountResults] = useState<AccountHit[]>([]);
+  const [accountHasResults, setAccountHasResults] = useState(false);
+  const [accountChecked, setAccountChecked] = useState(0);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountError, setAccountError] = useState("");
+  const accountPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     loadResults();
     checkIfRunning();
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    loadAccountResults();
+    checkIfAccountRunning();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (accountPollRef.current) clearInterval(accountPollRef.current);
+    };
   }, []);
 
   async function checkIfRunning() {
@@ -88,6 +109,70 @@ export default function Scan() {
     }
   }
 
+  async function checkIfAccountRunning() {
+    try {
+      const status = await api.getAccountStatus();
+      if (status.running) {
+        setAccountScanning(true);
+        setAccountProgress(status.progress);
+        setAccountTotal(status.total);
+        startAccountPolling();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function loadAccountResults() {
+    try {
+      const data = await api.getAccountResults();
+      setAccountResults(data.hits);
+      setAccountHasResults(data.has_results);
+      setAccountChecked(data.checked);
+      setAccountEmail(data.email);
+    } catch {
+      // No results yet
+    }
+  }
+
+  function startAccountPolling() {
+    if (accountPollRef.current) clearInterval(accountPollRef.current);
+    accountPollRef.current = setInterval(async () => {
+      try {
+        const status = await api.getAccountStatus();
+        setAccountProgress(status.progress);
+        setAccountTotal(status.total);
+        if (status.error) {
+          setAccountError(status.error);
+          setAccountScanning(false);
+          if (accountPollRef.current) clearInterval(accountPollRef.current);
+          return;
+        }
+        if (!status.running) {
+          setAccountScanning(false);
+          if (accountPollRef.current) clearInterval(accountPollRef.current);
+          await loadAccountResults();
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 2000);
+  }
+
+  async function startAccountScan() {
+    setAccountScanning(true);
+    setAccountError("");
+    setAccountProgress(0);
+    try {
+      const data = await api.startAccountScan();
+      setAccountEmail(data.email);
+      startAccountPolling();
+    } catch (e) {
+      setAccountError(e instanceof Error ? e.message : "Account scan failed");
+      setAccountScanning(false);
+    }
+  }
+
   async function handleCreateRequest(brokerDomain: string, type: string) {
     try {
       const brokers = await api.getBrokers();
@@ -107,6 +192,7 @@ export default function Scan() {
   }
 
   const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
+  const accountPct = accountTotal > 0 ? Math.round((accountProgress / accountTotal) * 100) : 0;
 
   return (
     <div className="p-8">
@@ -242,6 +328,132 @@ export default function Scan() {
           )}
         </>
       )}
+
+      {/* Account Scanner (Holehe) */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold">Account Scanner</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Check which online services have an account registered with your email
+            </p>
+          </div>
+          <button
+            onClick={startAccountScan}
+            disabled={accountScanning}
+            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition disabled:opacity-50"
+          >
+            {accountScanning ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Checking...</>
+            ) : (
+              <><Mail className="w-4 h-4" /> {accountHasResults ? "Check Again" : "Check Accounts"}</>
+            )}
+          </button>
+        </div>
+
+        {accountError && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{accountError}</div>
+        )}
+
+        {accountScanning && (
+          <div className="bg-violet-50 border border-violet-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className="w-5 h-5 text-violet-600 animate-spin" />
+              <p className="text-violet-900 font-medium">
+                Checking {accountEmail}... {accountProgress}/{accountTotal} services checked
+              </p>
+            </div>
+            <div className="w-full bg-violet-200 rounded-full h-2">
+              <div
+                className="bg-violet-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${accountPct}%` }}
+              />
+            </div>
+            <p className="text-violet-600 text-xs mt-2">
+              Probing 120+ service login endpoints to detect registered accounts.
+            </p>
+          </div>
+        )}
+
+        {!accountScanning && !accountHasResults && !accountError && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <Mail className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No account scan results yet</h3>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">
+              Click "Check Accounts" to probe 120+ online services and find out
+              which ones have an account registered with your email address.
+              No password required.
+            </p>
+          </div>
+        )}
+
+        {!accountScanning && accountHasResults && (
+          <>
+            <div className="flex gap-4 mb-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
+                <div className="flex items-center gap-3">
+                  {accountResults.length > 0 ? (
+                    <AlertTriangle className="w-8 h-8 text-orange-500" />
+                  ) : (
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                  )}
+                  <div>
+                    <p className="text-2xl font-bold">{accountResults.length}</p>
+                    <p className="text-sm text-gray-500">
+                      {accountResults.length === 1 ? "service has your email registered" : "services have your email registered"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
+                <p className="text-2xl font-bold">{accountChecked}</p>
+                <p className="text-sm text-gray-500">services checked for <span className="font-medium">{accountEmail}</span></p>
+              </div>
+            </div>
+
+            {accountResults.length > 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="px-5 py-4 border-b border-gray-200">
+                  <h3 className="font-semibold">Registered Accounts Found</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Your email address is registered with these services.
+                  </p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {accountResults.map((hit) => (
+                    <div key={hit.service} className="px-5 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Mail className="w-4 h-4 text-violet-500 shrink-0" />
+                          <span className="font-medium text-sm">{hit.service}</span>
+                        </div>
+                        {hit.url && (
+                          <a
+                            href={hit.url.startsWith("http") ? hit.url : `https://${hit.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition"
+                          >
+                            <ExternalLink className="w-3 h-3" /> Visit
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
+                <p className="text-green-900 font-medium">No registered accounts found</p>
+                <p className="text-green-700 text-sm mt-1">
+                  Your email was not detected as registered on any of the checked services.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
