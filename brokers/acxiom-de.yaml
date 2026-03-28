@@ -1,0 +1,12 @@
+name: Acxiom Deutschland
+domain: acxiom.de
+category: data_broker
+dpo_email: datenschutz@acxiom.com
+removal_method: email
+removal_url: https://www.acxiom.de/datenschutz/
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "German subsidiary of Acxiom LLC. Consumer and B2B marketing data, address validation, and audience segmentation for the German market. Separate from acxiom-eu.yaml (UK entity)."

@@ -1,0 +1,12 @@
+name: Kompass International
+domain: kompass.com
+category: data_broker
+dpo_email: dpo@kompass.com
+removal_method: email
+removal_url: null
+country: FR
+gdpr_applies: true
+verification_required: false
+language: fr
+last_verified: "2026-03-28"
+notes: "Global B2B directory and marketing data provider headquartered in Geneva/Paris. Covers 70+ countries. Data includes company profiles, executive contacts, and firmographics."

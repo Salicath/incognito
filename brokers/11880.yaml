@@ -1,0 +1,12 @@
+name: 11880 Solutions (Klicktel)
+domain: 11880.com
+category: people_search
+dpo_email: datenschutz@11880.com
+removal_method: web_form
+removal_url: https://www.11880.com/datenschutzerklaerung
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "German people-search and phone directory. Klicktel.de redirects here. Operated by 11880 Solutions AG. Data sourced from public registries and telcos."

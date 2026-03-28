@@ -1,0 +1,12 @@
+name: Gelbe Seiten
+domain: gelbeseiten.de
+category: people_search
+dpo_email: datenschutz@gelbeseiten-marketing.de
+removal_method: email
+removal_url: https://www.gelbeseiten.de/gsservice/datenschutz
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "German business and private address directory (Yellow Pages). Operated by pdm solutions GmbH, Berlin. Use removal_url for web-form submission or email DPO."

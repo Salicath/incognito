@@ -1,0 +1,12 @@
+name: Altares Dun & Bradstreet France
+domain: altares.com
+category: data_broker
+dpo_email: dpo@altares.com
+removal_method: email
+removal_url: null
+country: FR
+gdpr_applies: true
+verification_required: false
+language: fr
+last_verified: "2026-03-28"
+notes: "French B2B data provider and exclusive Dun & Bradstreet partner in France. Company firmographics, financial data, executive contacts, and credit risk scores. HQ: Paris."

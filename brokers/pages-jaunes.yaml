@@ -1,0 +1,12 @@
+name: Pages Jaunes (Solocal)
+domain: pagesjaunes.fr
+category: people_search
+dpo_email: dpo@solocal.com
+removal_method: web_form
+removal_url: https://www.pagesjaunes.fr/donnees-personnelles
+country: FR
+gdpr_applies: true
+verification_required: false
+language: fr
+last_verified: "2026-03-28"
+notes: "French Yellow Pages (Pages Jaunes) and residential directory. Operated by Solocal Group SA, Boulogne-Billancourt. Also operates PagesBlancheS.fr for residential listings."

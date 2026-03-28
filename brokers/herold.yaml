@@ -1,0 +1,12 @@
+name: Herold Business Data
+domain: herold.at
+category: people_search
+dpo_email: datenschutz@herold.at
+removal_method: email
+removal_url: null
+country: AT
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "Austrian business and residential phone directory. Herold Business Data GmbH, Vienna. Largest Austrian directory publisher."

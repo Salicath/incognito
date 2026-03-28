@@ -1,0 +1,12 @@
+name: Merinfo
+domain: merinfo.se
+category: people_search
+dpo_email: dataskydd@merinfo.se
+removal_method: web_form
+removal_url: https://www.merinfo.se/ta-bort-uppgifter
+country: SE
+gdpr_applies: true
+verification_required: true
+language: sv
+last_verified: "2026-03-28"
+notes: "Swedish people-search aggregating public register data. Shows address, phone, income, and household data. Removal requires identity verification."

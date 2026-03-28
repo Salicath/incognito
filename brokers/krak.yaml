@@ -1,0 +1,12 @@
+name: Krak
+domain: krak.dk
+category: people_search
+dpo_email: privacy@eniro.com
+removal_method: web_form
+removal_url: https://www.krak.dk/privacy
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-03-28"
+notes: "Danish phone and address directory. Operated by Eniro Group. Covers residential and business listings across Denmark."

@@ -1,0 +1,12 @@
+name: Europages
+domain: europages.com
+category: data_broker
+dpo_email: privacy@europages.com
+removal_method: email
+removal_url: null
+country: FR
+gdpr_applies: true
+verification_required: false
+language: fr
+last_verified: "2026-03-28"
+notes: "Pan-European B2B business directory, headquartered in Paris. Lists over 3 million companies across EU. Part of Visable GmbH (Berlin). Also operates wlw.de (Wer liefert was)."

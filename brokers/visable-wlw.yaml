@@ -1,0 +1,12 @@
+name: Visable / Wer liefert was (wlw)
+domain: wlw.de
+category: data_broker
+dpo_email: datenschutz@visable.com
+removal_method: email
+removal_url: null
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "German B2B marketplace and directory (wlw.de = Wer liefert was). Parent company Visable GmbH also operates Europages. HQ: Hamburg. Lists executive contacts and company profiles."

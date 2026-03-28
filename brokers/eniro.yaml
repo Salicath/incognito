@@ -1,0 +1,12 @@
+name: Eniro
+domain: eniro.se
+category: people_search
+dpo_email: privacy@eniro.com
+removal_method: web_form
+removal_url: https://www.eniro.se/privacy-policy/
+country: SE
+gdpr_applies: true
+verification_required: false
+language: sv
+last_verified: "2026-03-28"
+notes: "Nordic people-search and business directory. Headquartered in Stockholm, Sweden. Covers SE, NO, DK, FI. Also operates gulasidorna.se and gulesider.no."

@@ -1,0 +1,12 @@
+name: CRIF AG (Switzerland)
+domain: crif.ch
+category: credit_agency
+dpo_email: info.ch@crif.com
+removal_method: email
+removal_url: null
+country: CH
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "Swiss credit scoring and consumer data broker. Subsidiary of CRIF S.p.A. (Italy). Hagenholzstrasse 81, 8050 Zurich. No separate DPO appointed; contact is info.ch@crif.com."

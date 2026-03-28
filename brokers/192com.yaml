@@ -1,0 +1,12 @@
+name: 192.com
+domain: 192.com
+category: people_search
+dpo_email: dpo@192.com
+removal_method: web_form
+removal_url: https://www.192.com/opt-out/
+country: GB
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "UK people-search aggregating electoral roll, BT directory, and Companies House data. Operated by 192 Business Searches Ltd, London. Opt-out via web form."

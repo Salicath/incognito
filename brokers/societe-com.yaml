@@ -1,0 +1,12 @@
+name: Societe.com
+domain: societe.com
+category: data_broker
+dpo_email: dpo@societe.com
+removal_method: web_form
+removal_url: https://www.societe.com/cgi-bin/opt-out
+country: FR
+gdpr_applies: true
+verification_required: false
+language: fr
+last_verified: "2026-03-28"
+notes: "French company registry aggregator providing public SIRENE/RCS data and executive information. Free public access to company filings. Part of Infolegale group."

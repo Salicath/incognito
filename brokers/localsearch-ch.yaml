@@ -1,0 +1,12 @@
+name: localsearch / local.ch
+domain: local.ch
+category: people_search
+dpo_email: dataprivacy@localsearch.ch
+removal_method: email
+removal_url: null
+country: CH
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "Swiss phone and address directory operated by Swisscom Directories AG (localsearch group), Zurich. Also publishes search.ch and tel.search.ch. EU GDPR representative: VGS Datenschutzpartner UG, Hamburg."

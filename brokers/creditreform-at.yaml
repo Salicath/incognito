@@ -1,0 +1,12 @@
+name: Creditreform Austria
+domain: creditreform.at
+category: credit_agency
+dpo_email: datenschutz@creditreform.at
+removal_method: email
+removal_url: null
+country: AT
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "Austrian credit bureau and B2B data provider. Part of the international Creditreform network. Consumer credit and business risk data."

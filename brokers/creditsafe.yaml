@@ -1,0 +1,12 @@
+name: Creditsafe
+domain: creditsafe.com
+category: credit_agency
+dpo_email: privacy@creditsafe.com
+removal_method: email
+removal_url: null
+country: GB
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Pan-European business credit information provider. HQ in Cardiff, Wales. EU operations via Creditsafe Ireland Limited, Dublin. Absorbed Graydon (NL/BE). Operates in DE, NL, BE, FR, SE, NO."
