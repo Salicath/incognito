@@ -1,0 +1,12 @@
+name: Acxiom France
+domain: acxiom.com
+category: data_broker
+dpo_email: Datenschutz@acxiom.com
+removal_method: web_form
+removal_url: "https://www.acxiom.com/privacy/fr/"
+country: FR
+gdpr_applies: true
+verification_required: false
+language: fr
+last_verified: "2026-03-28"
+notes: "French consumer opt-out portal."

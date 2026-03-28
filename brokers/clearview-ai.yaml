@@ -1,0 +1,12 @@
+name: Clearview AI
+domain: clearview.ai
+category: data_broker
+dpo_email: privacy@clearview.ai
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Facial recognition. Fined by multiple EU DPAs. Subject to GDPR. Submit deletion requests via email with selfie for verification."

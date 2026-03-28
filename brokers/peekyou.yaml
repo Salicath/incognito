@@ -1,0 +1,12 @@
+name: PeekYou
+domain: peekyou.com
+category: people_search
+dpo_email: ccpa@peekyou.com
+removal_method: web_form
+removal_url: "https://www.peekyou.com/privacy#DoNotSellMyInfo"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Social media aggregator. Also email admin@peekyou.com or info@peekyou.com."

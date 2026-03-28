@@ -1,0 +1,12 @@
+name: Wiland
+domain: wiland.com
+category: marketing
+dpo_email: privacy@wiland.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Cooperative marketing data. Consumer spending and donation data."

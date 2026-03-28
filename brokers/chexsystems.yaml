@@ -1,0 +1,12 @@
+name: ChexSystems
+domain: chexsystems.com
+category: credit_agency
+dpo_email: privacy@chexsystems.com
+removal_method: web_form
+removal_url: "https://www.chexsystems.com/security-freeze/place-freeze"
+country: US
+gdpr_applies: false
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Banking/check fraud reporting. Security freeze available. Phone: 1-800-428-9623."

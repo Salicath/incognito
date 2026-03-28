@@ -1,0 +1,12 @@
+name: PropertyRecs
+domain: propertyrecs.com
+category: people_search
+dpo_email: privacy@propertyrecs.com
+removal_method: web_form
+removal_url: "https://dashboard.propertyrecs.com/opt-out"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Property and owner data."

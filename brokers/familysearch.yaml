@@ -1,0 +1,12 @@
+name: FamilySearch
+domain: familysearch.org
+category: people_search
+dpo_email: DataProtectionOfficer@familysearch.org
+removal_method: web_form
+removal_url: "https://submit-irm.trustarc.com/services/validation/b8d6e704-e5b1-42a0-9f86-bbdec35939a1"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Genealogy records by LDS Church. Requires free account. Submit via TrustArc form."

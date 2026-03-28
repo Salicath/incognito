@@ -1,0 +1,12 @@
+name: Experian Europe
+domain: experian.co.uk
+category: credit_agency
+dpo_email: dpo@experian.com
+removal_method: email
+removal_url: null
+country: GB
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "UK/EU operations. DPO for GDPR requests. Also operates in DACH, Benelux, Nordics."

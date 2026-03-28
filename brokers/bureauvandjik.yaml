@@ -1,0 +1,12 @@
+name: Bureau van Dijk (Moody's)
+domain: bvdinfo.com
+category: data_broker
+dpo_email: dpo@bvdinfo.com
+removal_method: email
+removal_url: null
+country: BE
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Belgium-based, owned by Moody's. Business data provider (Orbis, Amadeus databases)."

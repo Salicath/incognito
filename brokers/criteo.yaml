@@ -1,0 +1,12 @@
+name: Criteo
+domain: criteo.com
+category: marketing
+dpo_email: dpo@criteo.com
+removal_method: web_form
+removal_url: "https://www.criteo.com/privacy/disable-criteo-services-on-internet-browsers/"
+country: FR
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "French adtech company. GDPR DPO. Opt-out via browser/cookie settings."

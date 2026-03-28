@@ -1,0 +1,12 @@
+name: Apollo.io
+domain: apollo.io
+category: data_broker
+dpo_email: privacy@apollo.io
+removal_method: web_form
+removal_url: "https://www.apollo.io/claim/person"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "B2B sales intelligence. Claim and remove profile via URL."

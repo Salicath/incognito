@@ -1,0 +1,12 @@
+name: Nuwber
+domain: nuwber.com
+category: people_search
+dpo_email: support@nuwber.com
+removal_method: web_form
+removal_url: "https://nuwber.com/removal/link"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "If web form fails, email support@nuwber.com with screenshot of results."

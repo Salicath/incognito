@@ -1,0 +1,12 @@
+name: BeenVerified
+domain: beenverified.com
+category: people_search
+dpo_email: support@beenverified.com
+removal_method: web_form
+removal_url: "https://www.beenverified.com/app/optout/search"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Also owns PeopleLooker and PeopleSmart. One opt-out per email address. Confirm via email link."

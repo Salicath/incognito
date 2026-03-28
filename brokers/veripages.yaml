@@ -1,0 +1,12 @@
+name: Veripages
+domain: veripages.com
+category: people_search
+dpo_email: privacy@veripages.com
+removal_method: web_form
+removal_url: "https://veripages.com/inner/control-privacy"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Submit profile URL with name and email. Captcha and email confirmation required."

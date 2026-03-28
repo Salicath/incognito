@@ -1,0 +1,12 @@
+name: Nielsen
+domain: nielsen.com
+category: marketing
+dpo_email: privacy.department@nielsen.com
+removal_method: web_form
+removal_url: "https://sites.nielsen.com/legal/privacy-statement/exelate-privacy-policy/opt-in-opt-out/"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Marketing measurement and data analytics. EU DPO: privacy.department@nielsen.com."

@@ -1,0 +1,12 @@
+name: Sirdata
+domain: sirdata.com
+category: marketing
+dpo_email: dpo@sirdata.com
+removal_method: email
+removal_url: null
+country: FR
+gdpr_applies: true
+verification_required: false
+language: fr
+last_verified: "2026-03-28"
+notes: "French audience data platform. GDPR-compliant, IAB TCF participant."

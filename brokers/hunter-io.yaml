@@ -1,0 +1,12 @@
+name: Hunter.io
+domain: hunter.io
+category: data_broker
+dpo_email: dpo@hunter.io
+removal_method: web_form
+removal_url: "https://hunter.io/claim"
+country: FR
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "France-based email finder. Claim and remove via web form."

@@ -1,0 +1,12 @@
+name: PeopleSearchNow
+domain: peoplesearchnow.com
+category: people_search
+dpo_email: privacy@peoplesearchnow.com
+removal_method: web_form
+removal_url: "https://www.peoplesearchnow.com/opt-out"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "People search site."

@@ -1,0 +1,12 @@
+name: FaceCheck.id
+domain: facecheck.id
+category: people_search
+dpo_email: privacy@facecheck.id
+removal_method: web_form
+removal_url: "https://facecheck.id/Face-Search/RemoveMyPhotos"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Reverse face search. Requires photo ID or selfie for removal. Does not remove from source sites."

@@ -1,11 +1,12 @@
 name: Equifax
 domain: equifax.com
 category: credit_agency
-dpo_email: privacy@equifax.com
-removal_method: email
+dpo_email: usprivacy@equifax.com
+removal_method: web_form
+removal_url: "https://www.equifax.com/personal/credit-report-services/credit-freeze/"
 country: US
 gdpr_applies: true
 verification_required: true
 language: en
-last_verified: "2026-03-01"
-notes: "Credit bureau, typically requires ID verification"
+last_verified: "2026-03-28"
+notes: "Credit bureau. Phone: 1-800-349-9960. UK DPO: ukdataprotectionofficer@equifax.com."

@@ -1,0 +1,12 @@
+name: Samba TV
+domain: samba.tv
+category: marketing
+dpo_email: privacy@samba.tv
+removal_method: web_form
+removal_url: "https://samba.tv/opt-out"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "TV data and cross-screen measurement."

@@ -1,0 +1,12 @@
+name: InfoTracer
+domain: infotracer.com
+category: people_search
+dpo_email: privacy@infotracer.com
+removal_method: web_form
+removal_url: "https://infotracer.com/optout/"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Can also mail/fax opt-out form. Fax: 1-617-933-9946."

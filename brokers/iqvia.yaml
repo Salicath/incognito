@@ -1,0 +1,12 @@
+name: IQVIA
+domain: iqvia.com
+category: data_broker
+dpo_email: privacyofficer@iqvia.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Healthcare data analytics. EU DPO available. Privacy: iqvia.com/about-us/privacy."

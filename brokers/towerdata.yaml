@@ -1,0 +1,12 @@
+name: TowerData
+domain: towerdata.com
+category: data_broker
+dpo_email: privacy@towerdata.com
+removal_method: web_form
+removal_url: "https://www.towerdata.com/ccpa-form"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Email intelligence and data append. Phone: 866-377-3630."

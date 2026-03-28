@@ -1,0 +1,12 @@
+name: Segment (Twilio)
+domain: segment.com
+category: marketing
+dpo_email: privacy@twilio.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Customer data platform, owned by Twilio. GDPR DPO via Twilio."

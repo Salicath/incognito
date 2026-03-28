@@ -1,0 +1,12 @@
+name: Thomson Reuters (CLEAR/Westlaw)
+domain: thomsonreuters.com
+category: data_broker
+dpo_email: privacy.enquiries@thomsonreuters.com
+removal_method: web_form
+removal_url: "https://privacyportal-cdn.onetrust.com/dsarwebform/dbf5ae8a-0a6a-4f4b-b527-7f94d0de6bbc/5dc91c0f-f1b7-4b6e-9d42-76043adaf72d.html"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Legal/business data via CLEAR and Westlaw PeopleMap. Phone: 1-866-633-7656."

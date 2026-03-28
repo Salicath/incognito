@@ -1,0 +1,12 @@
+name: LexisNexis Risk Solutions
+domain: risk.lexisnexis.com
+category: data_broker
+dpo_email: privacy.information.mgr@lexisnexis.com
+removal_method: web_form
+removal_url: "https://consumer.risk.lexisnexis.com/california"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Major data aggregator. Phone: 1-888-217-1591. Also email consumer.documents@lexisnexis.com."

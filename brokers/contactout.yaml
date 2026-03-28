@@ -1,0 +1,12 @@
+name: ContactOut
+domain: contactout.com
+category: data_broker
+dpo_email: privacy@contactout.com
+removal_method: web_form
+removal_url: "https://contactout.com/optout"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "LinkedIn email and phone finder."

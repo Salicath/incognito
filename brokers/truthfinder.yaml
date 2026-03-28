@@ -1,0 +1,12 @@
+name: TruthFinder
+domain: truthfinder.com
+category: people_search
+dpo_email: help@truthfinder.com
+removal_method: web_form
+removal_url: "https://www.truthfinder.com/opt-out/v2/"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Owned by PeopleConnect (same parent as Intelius). Phone: (800) 699-8081."

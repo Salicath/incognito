@@ -1,0 +1,12 @@
+name: Creditreform
+domain: creditreform.de
+category: credit_agency
+dpo_email: datenschutz@creditreform.de
+removal_method: email
+removal_url: null
+country: DE
+gdpr_applies: true
+verification_required: true
+language: de
+last_verified: "2026-03-28"
+notes: "Major German/European credit bureau and business data provider."

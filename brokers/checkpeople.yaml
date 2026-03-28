@@ -1,0 +1,12 @@
+name: CheckPeople
+domain: checkpeople.com
+category: people_search
+dpo_email: privacy@checkpeople.com
+removal_method: web_form
+removal_url: "https://checkpeople.com/opt-out"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Requires birthdate and full legal name for opt-out."

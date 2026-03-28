@@ -1,0 +1,12 @@
+name: Zeotap
+domain: zeotap.com
+category: marketing
+dpo_email: dpo@zeotap.com
+removal_method: email
+removal_url: null
+country: DE
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Berlin-based customer intelligence platform. Telecom-grade identity data."

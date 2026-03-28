@@ -1,0 +1,12 @@
+name: Melissa Corporation
+domain: melissa.com
+category: data_broker
+dpo_email: ccparequest@melissa.com
+removal_method: web_form
+removal_url: "https://www.melissa.com/user/ccpa.aspx"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Address verification and data quality. Phone: 1-800-800-6245 x4."

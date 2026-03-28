@@ -1,11 +1,12 @@
 name: Oracle Data Cloud
 domain: oracle.com
 category: data_broker
-dpo_email: secalert_grp@oracle.com
-removal_method: email
+dpo_email: privacy_ww@oracle.com
+removal_method: web_form
+removal_url: "https://datacloudoptout.oracle.com/"
 country: US
 gdpr_applies: true
 verification_required: false
 language: en
-last_verified: "2026-03-01"
-notes: "Major data broker via BlueKai/AddThis acquisitions"
+last_verified: "2026-03-28"
+notes: "Major data broker via BlueKai/AddThis acquisitions. Privacy policy: oracle.com/legal/privacy/marketing-cloud-data-cloud-privacy-policy.html."

@@ -1,0 +1,12 @@
+name: Acxiom Europe (Germany/Austria/Switzerland)
+domain: acxiom.com
+category: data_broker
+dpo_email: Datenschutz@acxiom.com
+removal_method: email
+removal_url: null
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "DACH region. For France use acxiom.com/privacy/fr/, Italy acxiom.com/privacy/it/, Spain acxiom.com/privacy/es/. Other international: use Acxiom Consumer International Rights Portal via OneTrust."

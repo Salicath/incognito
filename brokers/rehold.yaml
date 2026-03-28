@@ -1,0 +1,12 @@
+name: Rehold
+domain: rehold.com
+category: people_search
+dpo_email: privacy@rehold.com
+removal_method: web_form
+removal_url: "https://rehold.com/"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Property data. Click red 'remove' button next to your listing. Captcha required."

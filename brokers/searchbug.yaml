@@ -1,0 +1,12 @@
+name: Searchbug
+domain: searchbug.com
+category: people_search
+dpo_email: privacy@searchbug.com
+removal_method: web_form
+removal_url: "https://www.searchbug.com/contact-us.aspx"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Requires credit card for search (first search free). Phone/text: (760) 454-7301. Fax: (760) 454-7341."

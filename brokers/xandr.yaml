@@ -1,0 +1,12 @@
+name: Xandr (Microsoft Advertising)
+domain: xandr.com
+category: marketing
+dpo_email: privacy@xandr.com
+removal_method: web_form
+removal_url: "https://about.ads.microsoft.com/en-us/resources/policies/opt-out-of-the-microsoft-advertising-optimization"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Formerly AppNexus, now part of Microsoft. Programmatic advertising data."

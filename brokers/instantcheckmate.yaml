@@ -1,0 +1,12 @@
+name: Instant Checkmate
+domain: instantcheckmate.com
+category: people_search
+dpo_email: support@instantcheckmate.com
+removal_method: web_form
+removal_url: "https://www.instantcheckmate.com/opt-out"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Owned by PeopleConnect. Phone: (800) 222-8985."

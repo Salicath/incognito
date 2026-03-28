@@ -1,0 +1,12 @@
+name: "That's Them"
+domain: thatsthem.com
+category: people_search
+dpo_email: privacy@thatsthem.com
+removal_method: web_form
+removal_url: "https://thatsthem.com/optout"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "People search site."

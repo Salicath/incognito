@@ -1,0 +1,12 @@
+name: ZoomInfo
+domain: zoominfo.com
+category: data_broker
+dpo_email: privacy@zoominfo.com
+removal_method: web_form
+removal_url: "https://www.zoominfo.com/about-zoominfo/privacy-center"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "B2B contact data. Also email remove@zoominfo.com. Verification via email code."

@@ -1,0 +1,12 @@
+name: comScore
+domain: comscore.com
+category: marketing
+dpo_email: privacy@comscore.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Cross-platform measurement and analytics. EU subsidiary subject to GDPR."

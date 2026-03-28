@@ -1,0 +1,12 @@
+name: NeighborReport
+domain: neighbor.report
+category: people_search
+dpo_email: privacy@neighbor.report
+removal_method: web_form
+removal_url: "https://neighbor.report/remove"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Address and neighbor info. Email verification required."

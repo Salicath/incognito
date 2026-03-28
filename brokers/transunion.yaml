@@ -1,0 +1,12 @@
+name: TransUnion
+domain: transunion.com
+category: credit_agency
+dpo_email: privacy@transunion.com
+removal_method: web_form
+removal_url: "https://www.transunion.com/consumer-privacy"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Credit bureau. Phone: 1-866-310-8783. Pre-screened offers opt-out: optoutprescreen.com."

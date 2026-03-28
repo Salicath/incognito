@@ -1,0 +1,12 @@
+name: CRIF
+domain: crif.com
+category: credit_agency
+dpo_email: dpo@crif.com
+removal_method: email
+removal_url: null
+country: IT
+gdpr_applies: true
+verification_required: true
+language: it
+last_verified: "2026-03-28"
+notes: "Italian credit bureau operating across Europe. Also operates CRIF Buergelel in Germany."

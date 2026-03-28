@@ -1,0 +1,12 @@
+name: VoterRecords
+domain: voterrecords.com
+category: people_search
+dpo_email: privacy@voterrecords.com
+removal_method: web_form
+removal_url: "https://voterrecords.com"
+country: US
+gdpr_applies: false
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Voter registration data. Opt-out link at bottom of profile page."

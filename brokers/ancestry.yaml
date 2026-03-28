@@ -1,0 +1,12 @@
+name: Ancestry.com
+domain: ancestry.com
+category: people_search
+dpo_email: privacy@ancestry.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Send profile URLs to privacy@ancestry.com. Also use content removal form at support.ancestry.com/s/reportissue."

@@ -1,0 +1,12 @@
+name: ID5
+domain: id5.io
+category: marketing
+dpo_email: dpo@id5.io
+removal_method: web_form
+removal_url: "https://id5.io/platform/universal-id/opt-out"
+country: GB
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "UK-based universal ID for advertising. GDPR-compliant, IAB TCF participant."

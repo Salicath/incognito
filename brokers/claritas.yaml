@@ -1,0 +1,12 @@
+name: Claritas
+domain: claritas.com
+category: marketing
+dpo_email: privacy@claritas.com
+removal_method: web_form
+removal_url: "https://www.claritas.com/opt-out"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Consumer segmentation/PRIZM. Also provides 1-800 number. DAA AdChoices member."

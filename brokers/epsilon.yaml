@@ -2,10 +2,11 @@ name: Epsilon Data Management
 domain: epsilon.com
 category: data_broker
 dpo_email: privacy@epsilon.com
-removal_method: email
+removal_method: web_form
+removal_url: "https://us.epsilon.com/consumer-information"
 country: US
 gdpr_applies: true
 verification_required: false
 language: en
-last_verified: "2026-03-01"
-notes: "Marketing data broker, subsidiary of Publicis"
+last_verified: "2026-03-28"
+notes: "Marketing data broker, subsidiary of Publicis Groupe. Opt-out at us.epsilon.com/consumer-information."

@@ -1,0 +1,12 @@
+name: Bertelsmann/Arvato (AZ Direct)
+domain: az-direct.com
+category: data_broker
+dpo_email: datenschutz@az-direct.com
+removal_method: email
+removal_url: null
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-03-28"
+notes: "Major German address and marketing data broker, subsidiary of Bertelsmann. Also known as Arvato Direct Services."

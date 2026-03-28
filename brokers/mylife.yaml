@@ -1,0 +1,12 @@
+name: MyLife
+domain: mylife.com
+category: people_search
+dpo_email: privacy@mylife.com
+removal_method: web_form
+removal_url: "https://www.mylife.com/privacyrequest"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "May require phone call to (888) 704-1900. Also try info@mylife.com or removalrequests@mylife.com."

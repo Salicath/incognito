@@ -1,0 +1,12 @@
+name: UnMask
+domain: unmask.com
+category: people_search
+dpo_email: privacy@unmask.com
+removal_method: web_form
+removal_url: "https://unmask.com/opt-out/"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Confirmation email required. Multiple captchas."

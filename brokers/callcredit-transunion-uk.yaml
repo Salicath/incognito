@@ -1,0 +1,12 @@
+name: TransUnion UK (formerly Callcredit)
+domain: transunion.co.uk
+category: credit_agency
+dpo_email: dpo@transunion.co.uk
+removal_method: email
+removal_url: null
+country: GB
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "UK credit reference agency. Formerly Callcredit Information Group."

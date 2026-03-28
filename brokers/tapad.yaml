@@ -1,0 +1,12 @@
+name: Tapad
+domain: tapad.com
+category: marketing
+dpo_email: privacy@tapad.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Cross-device identity. Part of Experian. Pseudonymous data only. Also email legal@tapad.com."

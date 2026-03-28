@@ -1,0 +1,12 @@
+name: PrivateEye
+domain: privateeye.com
+category: people_search
+dpo_email: privacy@privateeye.com
+removal_method: web_form
+removal_url: "https://www.privateeye.com/removal"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Provides record removal form via link after initial opt-out."

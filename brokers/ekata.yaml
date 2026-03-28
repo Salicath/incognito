@@ -1,0 +1,12 @@
+name: Ekata (Mastercard)
+domain: ekata.com
+category: data_broker
+dpo_email: privacy@ekata.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Identity verification, now owned by Mastercard. Global identity graph."

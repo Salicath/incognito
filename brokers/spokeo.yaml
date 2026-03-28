@@ -1,12 +1,12 @@
 name: Spokeo
 domain: spokeo.com
 category: people_search
-dpo_email: privacy@spokeo.com
+dpo_email: legal@spokeo.com
 removal_method: web_form
 removal_url: "https://www.spokeo.com/optout"
 country: US
 gdpr_applies: true
 verification_required: false
 language: en
-last_verified: "2026-03-01"
-notes: "People search engine, web form opt-out required"
+last_verified: "2026-03-28"
+notes: "Confirm opt-out via email link. Retained data may still show for paid accounts. Phone: 1-877-864-0183. Also owns FreePeopleDirectory."

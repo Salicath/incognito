@@ -1,0 +1,12 @@
+name: Pipl
+domain: pipl.com
+category: data_broker
+dpo_email: mail@pipl.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Identity verification platform. Does not publicly display consumer data. Opt-out via email or web form."

@@ -1,11 +1,12 @@
 name: Experian
 domain: experian.com
 category: credit_agency
-dpo_email: dpo@experian.com
-removal_method: email
+dpo_email: privacyrequests@experian.com
+removal_method: web_form
+removal_url: "https://www.experian.com/privacy/opting_out"
 country: US
 gdpr_applies: true
 verification_required: true
 language: en
-last_verified: "2026-03-01"
-notes: "Credit bureau, may require ID verification"
+last_verified: "2026-03-28"
+notes: "Credit bureau. CCPA: experian.com/ccpa. Phone: 1-833-210-4615. EU DPO: dpo@experian.com."

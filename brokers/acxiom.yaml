@@ -1,13 +1,13 @@
 name: Acxiom
 domain: acxiom.com
 category: data_broker
-dpo_email: privacy@acxiom.com
-removal_method: email
-removal_url: null
+dpo_email: consumeradvo@acxiom.com
+removal_method: web_form
+removal_url: "https://www.acxiom.com/optout/"
 api_endpoint: null
 country: US
 gdpr_applies: true
 verification_required: false
 language: en
-last_verified: "2026-03-01"
-notes: "Major data broker, typically responds within 14 days"
+last_verified: "2026-03-28"
+notes: "Major data broker. Also email privacy@acxiom.com. Phone: 1-877-774-2094. DACH: Datenschutz@acxiom.com."

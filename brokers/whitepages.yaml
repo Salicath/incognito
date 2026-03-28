@@ -1,0 +1,12 @@
+name: Whitepages
+domain: whitepages.com
+category: people_search
+dpo_email: support@whitepages.com
+removal_method: web_form
+removal_url: "https://www.whitepages.com/suppression_requests"
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Requires phone verification via automated call with 4-digit code. Also owns 411.com."

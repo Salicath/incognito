@@ -1,0 +1,12 @@
+name: Cision
+domain: cision.com
+category: data_broker
+dpo_email: privacy@cision.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "PR and media database. EU operations with GDPR-compliant DPO."

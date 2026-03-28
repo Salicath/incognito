@@ -1,0 +1,12 @@
+name: Dun & Bradstreet
+domain: dnb.com
+category: data_broker
+dpo_email: privacyofficer@dnb.com
+removal_method: web_form
+removal_url: "https://www.dnb.com/utility-pages/privacy-policy.html#title-twenty"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Business data and analytics. EU operations subject to GDPR."

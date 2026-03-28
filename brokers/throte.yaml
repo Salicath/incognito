@@ -1,0 +1,12 @@
+name: Throtle
+domain: throtle.io
+category: marketing
+dpo_email: privacy@throtle.io
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Identity resolution and data onboarding."

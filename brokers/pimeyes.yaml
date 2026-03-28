@@ -1,0 +1,12 @@
+name: PimEyes
+domain: pimeyes.com
+category: people_search
+dpo_email: privacy@pimeyes.com
+removal_method: web_form
+removal_url: "https://pimeyes.com/en/opt-out-request-form"
+country: PL
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "Face recognition search engine, Poland-based. Requires photo ID with sensitive data blurred."

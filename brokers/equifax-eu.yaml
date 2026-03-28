@@ -1,0 +1,12 @@
+name: Equifax Europe
+domain: equifax.co.uk
+category: credit_agency
+dpo_email: ukdataprotectionofficer@equifax.com
+removal_method: email
+removal_url: null
+country: GB
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-28"
+notes: "UK credit bureau. Also use GDPR subject access request portal."

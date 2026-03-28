@@ -1,0 +1,12 @@
+name: SCHUFA Holding AG
+domain: schufa.de
+category: credit_agency
+dpo_email: datenschutz@schufa.de
+removal_method: email
+removal_url: null
+country: DE
+gdpr_applies: true
+verification_required: true
+language: de
+last_verified: "2026-03-28"
+notes: "German credit bureau. Free self-disclosure (Datenkopie) once per year under Art. 15 GDPR via meineschufa.de."

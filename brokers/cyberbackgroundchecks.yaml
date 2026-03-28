@@ -1,0 +1,12 @@
+name: Cyber Background Checks
+domain: cyberbackgroundchecks.com
+category: people_search
+dpo_email: privacy@cyberbackgroundchecks.com
+removal_method: web_form
+removal_url: "https://www.cyberbackgroundchecks.com/removal"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "People search and background check site."

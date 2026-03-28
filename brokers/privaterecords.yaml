@@ -1,0 +1,12 @@
+name: PrivateRecords
+domain: privaterecords.net
+category: people_search
+dpo_email: privacy@privaterecords.net
+removal_method: web_form
+removal_url: "https://www.privaterecords.net/api/helper/optOutLight/search"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Search by name and state."

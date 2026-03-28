@@ -1,0 +1,12 @@
+name: CoreLogic
+domain: corelogic.com
+category: data_broker
+dpo_email: privacy@corelogic.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Real estate and property data. Subsidiary Credco opt-out: 877-532-8778. Teletrack: 877-309-5226."

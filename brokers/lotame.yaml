@@ -1,0 +1,12 @@
+name: Lotame
+domain: lotame.com
+category: marketing
+dpo_email: privacy@lotame.com
+removal_method: web_form
+removal_url: "https://www.lotame.com/about-lotame/privacy/privacy-manager-opt-out/"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Data management platform. Privacy center at lotame.com/about-lotame/privacy/."

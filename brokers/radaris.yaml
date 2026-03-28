@@ -1,0 +1,12 @@
+name: Radaris
+domain: radaris.com
+category: people_search
+dpo_email: customer-service@radaris.com
+removal_method: web_form
+removal_url: "https://radaris.com/control-privacy"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Web form requires profile URL. If no View Profile button, email customer-service@radaris.com with screenshot."

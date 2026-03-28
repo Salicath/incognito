@@ -1,0 +1,12 @@
+name: DemandScience (formerly Leadsiro)
+domain: demandscience.com
+category: data_broker
+dpo_email: privacy@demandscience.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "B2B intent data and demand generation."

@@ -1,0 +1,12 @@
+name: Permutive
+domain: permutive.com
+category: marketing
+dpo_email: dpo@permutive.com
+removal_method: email
+removal_url: null
+country: GB
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "UK-based privacy-first audience platform for publishers."

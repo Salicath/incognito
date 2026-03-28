@@ -1,0 +1,12 @@
+name: NextRoll (AdRoll)
+domain: nextroll.com
+category: marketing
+dpo_email: privacy@nextroll.com
+removal_method: web_form
+removal_url: "https://app.adroll.com/optout"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Retargeting and digital marketing. Cookie-based opt-out."

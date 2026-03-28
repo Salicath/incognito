@@ -1,0 +1,12 @@
+name: PeopleLooker
+domain: peoplelooker.com
+category: people_search
+dpo_email: support@beenverified.com
+removal_method: web_form
+removal_url: "https://www.beenverified.com/app/optout/search"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "Owned by BeenVerified. Opt-out through BeenVerified's form."

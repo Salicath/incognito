@@ -1,0 +1,12 @@
+name: Acxiom IT (Italy)
+domain: acxiom.com
+category: data_broker
+dpo_email: Datenschutz@acxiom.com
+removal_method: web_form
+removal_url: "https://www.acxiom.com/privacy/it/"
+country: IT
+gdpr_applies: true
+verification_required: false
+language: it
+last_verified: "2026-03-28"
+notes: "Italian consumer opt-out portal for Acxiom."

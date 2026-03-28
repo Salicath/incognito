@@ -1,0 +1,12 @@
+name: Seamless.AI
+domain: seamless.ai
+category: data_broker
+dpo_email: privacy@seamless.ai
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "B2B contact data and sales intelligence."

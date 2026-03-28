@@ -1,0 +1,12 @@
+name: People Data Labs
+domain: peopledatalabs.com
+category: data_broker
+dpo_email: privacy@peopledatalabs.com
+removal_method: web_form
+removal_url: "https://www.peopledatalabs.com/opt-out-form"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-28"
+notes: "B2B person and company data API."
