@@ -1,0 +1,12 @@
+name: Spokeo
+domain: spokeo.com
+category: people_search
+dpo_email: privacy@spokeo.com
+removal_method: web_form
+removal_url: "https://www.spokeo.com/optout"
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-01"
+notes: "People search engine, web form opt-out required"

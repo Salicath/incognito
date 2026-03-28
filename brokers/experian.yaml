@@ -1,0 +1,11 @@
+name: Experian
+domain: experian.com
+category: credit_agency
+dpo_email: dpo@experian.com
+removal_method: email
+country: US
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-01"
+notes: "Credit bureau, may require ID verification"
