@@ -129,18 +129,32 @@ def create_blast_router(
             for req in pending:
                 broker = broker_registry.get(req.broker_id)
                 if broker is None:
-                    results.append({"broker_id": req.broker_id, "status": "skipped", "reason": "broker not found"})
+                    results.append({
+                        "broker_id": req.broker_id,
+                        "status": "skipped",
+                        "reason": "broker not found",
+                    })
                     continue
 
                 # Only send to email-based brokers for now
-                if broker.removal_method != "email" and broker.removal_method.value != "email":
-                    # Still mark as needing manual action for non-email brokers
-                    mgr.mark_manual_action_needed(req.id, f"Broker requires {broker.removal_method} — visit {broker.removal_url or broker.domain}")
-                    results.append({"broker_id": req.broker_id, "status": "manual", "reason": f"requires {broker.removal_method}"})
+                method = broker.removal_method
+                is_email = method == "email" or method.value == "email"
+                if not is_email:
+                    url = broker.removal_url or broker.domain
+                    reason = f"Broker requires {method} — visit {url}"
+                    mgr.mark_manual_action_needed(req.id, reason)
+                    results.append({
+                        "broker_id": req.broker_id,
+                        "status": "manual",
+                        "reason": f"requires {method}",
+                    })
                     continue
 
                 # Determine template and language
-                template_name = "access_request" if req.request_type == RequestType.ACCESS else "erasure_request"
+                if req.request_type == RequestType.ACCESS:
+                    template_name = "access_request"
+                else:
+                    template_name = "erasure_request"
 
                 rendered = renderer.render_localized(
                     template_name,
@@ -158,10 +172,20 @@ def create_blast_router(
                 if result.status.value == "success":
                     mgr.mark_sent(req.id)
                     sent += 1
-                    results.append({"broker_id": req.broker_id, "broker_name": broker.name, "status": "sent", "email": broker.dpo_email})
+                    results.append({
+                        "broker_id": req.broker_id,
+                        "broker_name": broker.name,
+                        "status": "sent",
+                        "email": broker.dpo_email,
+                    })
                 else:
                     failed += 1
-                    results.append({"broker_id": req.broker_id, "broker_name": broker.name, "status": "failed", "reason": result.message})
+                    results.append({
+                        "broker_id": req.broker_id,
+                        "broker_name": broker.name,
+                        "status": "failed",
+                        "reason": result.message,
+                    })
 
                 # Rate limit
                 import asyncio
