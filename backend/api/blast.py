@@ -1,0 +1,181 @@
+from typing import Optional
+
+from fastapi import APIRouter, Cookie, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from backend.api.deps import SessionStore
+from backend.core.broker import BrokerRegistry
+from backend.core.config import AppConfig
+from backend.core.profile import ProfileVault
+from backend.core.request import RequestManager
+from backend.core.template import TemplateRenderer
+from backend.db.models import Request, RequestStatus, RequestType
+
+
+def create_blast_router(
+    vault: ProfileVault,
+    session_store: SessionStore,
+    broker_registry: BrokerRegistry,
+    db_session_factory,
+    config: AppConfig,
+) -> APIRouter:
+    r = APIRouter(prefix="/api/blast", tags=["blast"])
+
+    class BlastRequest(BaseModel):
+        request_type: str  # "access" or "erasure"
+        dry_run: bool = True
+
+    class BlastResult(BaseModel):
+        created: int
+        skipped: int  # already has a pending/sent request
+        total_brokers: int
+        requests: list[dict]
+
+    @r.post("/create")
+    def create_blast(
+        body: BlastRequest,
+        session: str | None = Cookie(default=None),
+    ) -> dict:
+        """Create requests for all brokers that don't already have an active request."""
+        password = session_store.validate(session)
+
+        request_type = RequestType.ACCESS if body.request_type == "access" else RequestType.ERASURE
+
+        db = db_session_factory()
+        try:
+            mgr = RequestManager(db, config.gdpr_deadline_days)
+
+            # Find brokers that already have active requests of this type
+            existing = db.query(Request).filter(
+                Request.request_type == request_type,
+                Request.status.in_([
+                    RequestStatus.CREATED,
+                    RequestStatus.SENT,
+                    RequestStatus.ACKNOWLEDGED,
+                ]),
+            ).all()
+            existing_broker_ids = {req.broker_id for req in existing}
+
+            created = []
+            skipped = []
+
+            for broker in broker_registry.brokers:
+                if broker.id in existing_broker_ids:
+                    skipped.append(broker.id)
+                    continue
+
+                if body.dry_run:
+                    created.append({
+                        "broker_id": broker.id,
+                        "broker_name": broker.name,
+                        "dpo_email": broker.dpo_email,
+                        "request_type": request_type.value,
+                        "status": "would_create",
+                    })
+                else:
+                    req = mgr.create(broker.id, request_type)
+                    created.append({
+                        "broker_id": broker.id,
+                        "broker_name": broker.name,
+                        "dpo_email": broker.dpo_email,
+                        "request_type": request_type.value,
+                        "status": "created",
+                        "request_id": req.id,
+                    })
+
+            return {
+                "dry_run": body.dry_run,
+                "created": len(created),
+                "skipped": len(skipped),
+                "total_brokers": len(broker_registry.brokers),
+                "requests": created,
+            }
+        finally:
+            db.close()
+
+    @r.post("/send-all")
+    async def send_all_pending(session: str | None = Cookie(default=None)) -> dict:
+        """Send all pending (created) requests via email."""
+        password = session_store.validate(session)
+        profile, smtp = vault.load(password)
+
+        if smtp is None:
+            raise HTTPException(
+                status_code=400,
+                detail="SMTP not configured. Add SMTP settings before sending requests.",
+            )
+
+        from backend.senders.email import EmailSender
+
+        templates_dir = config.data_dir / "templates"
+        if not templates_dir.exists():
+            from pathlib import Path
+            templates_dir = Path(__file__).parent.parent.parent / "templates"
+
+        renderer = TemplateRenderer(templates_dir)
+        sender = EmailSender(smtp)
+
+        db = db_session_factory()
+        try:
+            mgr = RequestManager(db, config.gdpr_deadline_days)
+
+            pending = db.query(Request).filter(
+                Request.status == RequestStatus.CREATED,
+            ).all()
+
+            sent = 0
+            failed = 0
+            results = []
+
+            for req in pending:
+                broker = broker_registry.get(req.broker_id)
+                if broker is None:
+                    results.append({"broker_id": req.broker_id, "status": "skipped", "reason": "broker not found"})
+                    continue
+
+                # Only send to email-based brokers for now
+                if broker.removal_method != "email" and broker.removal_method.value != "email":
+                    # Still mark as needing manual action for non-email brokers
+                    mgr.mark_manual_action_needed(req.id, f"Broker requires {broker.removal_method} — visit {broker.removal_url or broker.domain}")
+                    results.append({"broker_id": req.broker_id, "status": "manual", "reason": f"requires {broker.removal_method}"})
+                    continue
+
+                # Determine template
+                template_name = "access_request" if req.request_type == RequestType.ACCESS else "erasure_request"
+
+                rendered = renderer.render(
+                    template_name,
+                    profile=profile,
+                    reference_id=req.id[:8].upper(),
+                    broker_name=broker.name,
+                )
+
+                result = await sender.send(
+                    to_email=broker.dpo_email,
+                    rendered_text=rendered,
+                )
+
+                if result.status.value == "success":
+                    mgr.mark_sent(req.id)
+                    sent += 1
+                    results.append({"broker_id": req.broker_id, "broker_name": broker.name, "status": "sent", "email": broker.dpo_email})
+                else:
+                    failed += 1
+                    results.append({"broker_id": req.broker_id, "broker_name": broker.name, "status": "failed", "reason": result.message})
+
+                # Rate limit
+                import asyncio
+                await asyncio.sleep(0.5)
+
+            return {
+                "sent": sent,
+                "failed": failed,
+                "manual": sum(1 for r in results if r.get("status") == "manual"),
+                "total": len(pending),
+                "results": results,
+            }
+        finally:
+            db.close()
+
+    return r

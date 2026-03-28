@@ -8,6 +8,7 @@ from backend.api.setup import create_setup_router
 from backend.api.brokers import create_brokers_router
 from backend.api.requests import create_requests_router
 from backend.api.scan import create_scan_router
+from backend.api.blast import create_blast_router
 from backend.api.deps import SessionStore
 from backend.core.config import AppConfig
 from backend.core.profile import ProfileVault
@@ -56,6 +57,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         create_requests_router(db_session_factory, session_store, config.gdpr_deadline_days)
     )
     app.include_router(create_scan_router(vault, session_store, broker_registry))
+    app.include_router(create_blast_router(vault, session_store, broker_registry, db_session_factory, config))
 
     @app.get("/api/profile")
     def get_profile(session: str | None = Cookie(default=None)):
