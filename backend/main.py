@@ -4,6 +4,7 @@ from fastapi import FastAPI, Cookie, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.auth import create_auth_router
+from backend.api.setup import create_setup_router
 from backend.api.deps import SessionStore
 from backend.core.config import AppConfig
 from backend.core.profile import ProfileVault
@@ -36,6 +37,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.state.db_session_factory = db_session_factory
 
     app.include_router(create_auth_router(vault, session_store))
+    app.include_router(create_setup_router(vault, session_store))
 
     @app.get("/api/profile")
     def get_profile(session: str | None = Cookie(default=None)):
