@@ -48,10 +48,10 @@ export default function Requests() {
           <div className="divide-y divide-gray-100">
             {requests.map((req) => (
               <div key={req.id}>
-                <div className="px-5 py-3 flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-4">
-                    <span className="font-medium w-40 truncate">{req.broker_id}</span>
-                    <span className="text-gray-500 w-24">{req.request_type}</span>
+                <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                    <span className="font-medium sm:w-40 truncate">{req.broker_id}</span>
+                    <span className="hidden sm:block text-gray-500 w-24">{req.request_type}</span>
                     <StatusBadge status={req.status} />
                   </div>
                   <div className="flex items-center gap-2">

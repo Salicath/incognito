@@ -96,7 +96,7 @@ export default function Dashboard() {
                 Send legally-binding GDPR requests to all 145 data brokers in our registry.
                 Under Article 15, they must respond within 30 days or face regulatory action.
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => handleBlast("access")}
                   disabled={blastLoading}
@@ -183,7 +183,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">

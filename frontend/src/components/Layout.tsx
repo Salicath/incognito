@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut } from "lucide-react";
+import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut, Menu, X } from "lucide-react";
 import { api } from "../api/client";
 
 const navItems = [
@@ -11,6 +12,8 @@ const navItems = [
 ];
 
 export default function Layout({ onLock }: { onLock: () => void }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   async function handleLock() {
     await api.lock();
     onLock();
@@ -18,7 +21,28 @@ export default function Layout({ onLock }: { onLock: () => void }) {
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-56 bg-slate-900 text-white flex flex-col">
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Shield className="w-5 h-5 text-indigo-400" />
+          <span className="font-bold">Incognito</span>
+        </div>
+        <button onClick={() => setSidebarOpen(!sidebarOpen)}>
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Sidebar overlay on mobile */}
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-40 w-56 bg-slate-900 text-white flex flex-col
+        transform transition-transform lg:transform-none
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+      `}>
         <div className="flex items-center gap-2.5 px-5 py-5 border-b border-slate-700">
           <Shield className="w-6 h-6 text-indigo-400" />
           <span className="font-bold text-lg">Incognito</span>
@@ -29,6 +53,7 @@ export default function Layout({ onLock }: { onLock: () => void }) {
               key={to}
               to={to}
               end={to === "/"}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-5 py-2.5 text-sm transition ${
                   isActive
@@ -50,7 +75,9 @@ export default function Layout({ onLock }: { onLock: () => void }) {
           Lock
         </button>
       </aside>
-      <main className="flex-1 bg-gray-50 overflow-auto">
+
+      {/* Main content */}
+      <main className="flex-1 bg-gray-50 overflow-auto pt-14 lg:pt-0">
         <Outlet />
       </main>
     </div>
