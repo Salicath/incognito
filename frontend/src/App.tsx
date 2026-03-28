@@ -5,6 +5,7 @@ import SetupWizard from "./pages/SetupWizard";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Requests from "./pages/Requests";
+import RequestDetailPage from "./pages/RequestDetail";
 import Brokers from "./pages/Brokers";
 import Scan from "./pages/Scan";
 import Settings from "./pages/Settings";
@@ -50,6 +51,7 @@ function App() {
         <Route element={<Layout onLock={() => setStatus({ ...status, authenticated: false })} />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/requests" element={<Requests />} />
+          <Route path="/requests/:id" element={<RequestDetailPage />} />
           <Route path="/brokers" element={<Brokers />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/settings" element={<Settings />} />

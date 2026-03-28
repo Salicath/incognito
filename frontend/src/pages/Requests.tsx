@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { Send, Eye } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
@@ -7,6 +8,7 @@ interface RequestItem { id: string; broker_id: string; request_type: string; sta
 interface RequestEvent { id: number; event_type: string; details: string | null; created_at: string | null; }
 
 export default function Requests() {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -50,7 +52,10 @@ export default function Requests() {
               <div key={req.id}>
                 <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-2">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                    <span className="font-medium sm:w-40 truncate">{req.broker_id}</span>
+                    <span className="font-medium sm:w-40 truncate cursor-pointer hover:text-indigo-600"
+                      onClick={() => navigate(`/requests/${req.id}`)}>
+                      {req.broker_id}
+                    </span>
                     <span className="hidden sm:block text-gray-500 w-24">{req.request_type}</span>
                     <StatusBadge status={req.status} />
                   </div>

@@ -8,7 +8,8 @@ from backend.db.models import Request, RequestEvent, RequestStatus, RequestType
 
 
 def create_requests_router(
-    db_session_factory, session_store: SessionStore, gdpr_deadline_days: int
+    db_session_factory, session_store: SessionStore, gdpr_deadline_days: int,
+    broker_registry=None,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/requests", tags=["requests"])
 
@@ -88,7 +89,7 @@ def create_requests_router(
             req = db.get(Request, request_id)
             if req is None:
                 raise HTTPException(status_code=404, detail="Request not found")
-            return {
+            result = {
                 "id": req.id,
                 "broker_id": req.broker_id,
                 "request_type": req.request_type.value,
@@ -98,7 +99,20 @@ def create_requests_router(
                 "response_at": req.response_at.isoformat() if req.response_at else None,
                 "response_body": req.response_body,
                 "created_at": req.created_at.isoformat() if req.created_at else None,
+                "updated_at": req.updated_at.isoformat() if req.updated_at else None,
             }
+            if broker_registry:
+                broker = broker_registry.get(req.broker_id)
+                if broker:
+                    result["broker"] = {
+                        "name": broker.name,
+                        "domain": broker.domain,
+                        "dpo_email": broker.dpo_email,
+                        "removal_method": broker.removal_method.value,
+                        "country": broker.country,
+                        "language": broker.language,
+                    }
+            return result
         finally:
             db.close()
 

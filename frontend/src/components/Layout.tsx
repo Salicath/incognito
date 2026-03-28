@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut, Menu, X } from "lucide-react";
+import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut, Menu, X, Moon, Sun } from "lucide-react";
 import { api } from "../api/client";
 
 const navItems = [
@@ -13,6 +13,18 @@ const navItems = [
 
 export default function Layout({ onLock }: { onLock: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dark, setDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("theme") === "dark" ||
+        (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
 
   async function handleLock() {
     await api.lock();
@@ -67,17 +79,26 @@ export default function Layout({ onLock }: { onLock: () => void }) {
             </NavLink>
           ))}
         </nav>
-        <button
-          onClick={handleLock}
-          className="flex items-center gap-3 px-5 py-4 text-sm text-slate-400 hover:text-white border-t border-slate-700 transition"
-        >
-          <LogOut className="w-4 h-4" />
-          Lock
-        </button>
+        <div className="border-t border-slate-700">
+          <button
+            onClick={() => setDark(!dark)}
+            className="flex items-center gap-3 px-5 py-3 text-sm text-slate-400 hover:text-white w-full transition"
+          >
+            {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {dark ? "Light Mode" : "Dark Mode"}
+          </button>
+          <button
+            onClick={handleLock}
+            className="flex items-center gap-3 px-5 py-3 text-sm text-slate-400 hover:text-white w-full transition"
+          >
+            <LogOut className="w-4 h-4" />
+            Lock
+          </button>
+        </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 bg-gray-50 overflow-auto pt-14 lg:pt-0">
+      <main className="flex-1 bg-gray-50 dark:bg-gray-950 overflow-auto pt-14 lg:pt-0">
         <Outlet />
       </main>
     </div>

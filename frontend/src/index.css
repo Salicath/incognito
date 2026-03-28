@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Dark mode color overrides via CSS */
+.dark .bg-white { background-color: rgb(17 24 39) !important; }
+.dark .bg-gray-50 { background-color: rgb(3 7 18) !important; }
+.dark .border-gray-200 { border-color: rgb(31 41 55) !important; }
+.dark .border-gray-100 { border-color: rgb(31 41 55) !important; }
+.dark .text-gray-900 { color: rgb(243 244 246) !important; }
+.dark .text-gray-700 { color: rgb(209 213 219) !important; }
+.dark .text-gray-600 { color: rgb(156 163 175) !important; }
+.dark .text-gray-500 { color: rgb(156 163 175) !important; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(31 41 55) !important; }
+.dark input, .dark select { background-color: rgb(31 41 55) !important; border-color: rgb(55 65 81) !important; color: rgb(243 244 246) !important; }
+.dark input::placeholder { color: rgb(107 114 128) !important; }
+.dark .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.2) !important; }
