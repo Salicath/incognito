@@ -141,11 +141,12 @@ def create_blast_router(
                     results.append({"broker_id": req.broker_id, "status": "manual", "reason": f"requires {broker.removal_method}"})
                     continue
 
-                # Determine template
+                # Determine template and language
                 template_name = "access_request" if req.request_type == RequestType.ACCESS else "erasure_request"
 
-                rendered = renderer.render(
+                rendered = renderer.render_localized(
                     template_name,
+                    broker.language,
                     profile=profile,
                     reference_id=req.id[:8].upper(),
                     broker_name=broker.name,
