@@ -11,7 +11,7 @@ def create_setup_router(vault: ProfileVault, session_store: SessionStore) -> API
     class SetupRequest(BaseModel):
         password: str
         profile: Profile
-        smtp: SmtpConfig
+        smtp: SmtpConfig | None = None
 
     @r.post("/setup")
     def setup(req: SetupRequest, response: Response):

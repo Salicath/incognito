@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { Shield } from "lucide-react";
 
-type Step = "password" | "profile" | "smtp" | "confirm";
+type Step = "password" | "profile" | "confirm";
 
 export default function SetupWizard() {
   const navigate = useNavigate();
@@ -20,9 +20,7 @@ export default function SetupWizard() {
     phones: [""],
     addresses: [] as Array<{ street: string; city: string; postal_code: string; country: string }>,
   });
-  const [smtp, setSmtp] = useState({ host: "", port: 587, username: "", password: "" });
-
-  const steps: Step[] = ["password", "profile", "smtp", "confirm"];
+  const steps: Step[] = ["password", "profile", "confirm"];
   const currentIndex = steps.indexOf(step);
 
   async function handleSubmit() {
@@ -32,7 +30,6 @@ export default function SetupWizard() {
       await api.setup({
         password,
         profile: { ...profile, emails: profile.emails.filter((e) => e.trim()), phones: profile.phones.filter((p) => p.trim()) },
-        smtp,
       });
       navigate("/");
       window.location.reload();
@@ -79,22 +76,7 @@ export default function SetupWizard() {
             <input type="tel" placeholder="Phone (optional)" value={profile.phones[0]} onChange={(e) => setProfile({ ...profile, phones: [e.target.value] })} className={inputClass} />
             <div className="flex gap-3">
               <button onClick={() => setStep("password")} className="flex-1 border border-gray-300 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition">Back</button>
-              <button onClick={() => { if (!profile.full_name.trim()) { setError("Name is required"); return; } if (!profile.emails[0]?.trim()) { setError("At least one email is required"); return; } setError(""); setStep("smtp"); }} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Continue</button>
-            </div>
-          </div>
-        )}
-
-        {step === "smtp" && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Email Sending</h2>
-            <p className="text-sm text-gray-600">Used to send removal requests. Use an app password, not your main password.</p>
-            <input type="text" placeholder="SMTP server (e.g. smtp.gmail.com)" value={smtp.host} onChange={(e) => setSmtp({ ...smtp, host: e.target.value })} className={inputClass} />
-            <input type="number" placeholder="Port (587)" value={smtp.port} onChange={(e) => setSmtp({ ...smtp, port: parseInt(e.target.value) || 587 })} className={inputClass} />
-            <input type="text" placeholder="Username (email)" value={smtp.username} onChange={(e) => setSmtp({ ...smtp, username: e.target.value })} className={inputClass} />
-            <input type="password" placeholder="App password" value={smtp.password} onChange={(e) => setSmtp({ ...smtp, password: e.target.value })} className={inputClass} />
-            <div className="flex gap-3">
-              <button onClick={() => setStep("profile")} className="flex-1 border border-gray-300 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition">Back</button>
-              <button onClick={() => { if (!smtp.host.trim() || !smtp.username.trim() || !smtp.password.trim()) { setError("All SMTP fields are required"); return; } setError(""); setStep("confirm"); }} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Continue</button>
+              <button onClick={() => { if (!profile.full_name.trim()) { setError("Name is required"); return; } if (!profile.emails[0]?.trim()) { setError("At least one email is required"); return; } setError(""); setStep("confirm"); }} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Continue</button>
             </div>
           </div>
         )}
@@ -105,11 +87,10 @@ export default function SetupWizard() {
             <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-2">
               <p><span className="font-medium">Name:</span> {profile.full_name}</p>
               <p><span className="font-medium">Email:</span> {profile.emails.filter((e) => e.trim()).join(", ")}</p>
-              <p><span className="font-medium">SMTP:</span> {smtp.host}:{smtp.port}</p>
             </div>
             <p className="text-sm text-gray-600">Your profile will be encrypted with your master password and stored locally.</p>
             <div className="flex gap-3">
-              <button onClick={() => setStep("smtp")} className="flex-1 border border-gray-300 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition">Back</button>
+              <button onClick={() => setStep("profile")} className="flex-1 border border-gray-300 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition">Back</button>
               <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50">{loading ? "Setting up..." : "Complete Setup"}</button>
             </div>
           </div>

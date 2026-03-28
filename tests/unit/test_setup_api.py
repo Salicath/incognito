@@ -68,6 +68,26 @@ def test_setup_rejects_if_already_initialized(client, config):
     assert response.status_code == 400
 
 
+def test_setup_without_smtp(client, config):
+    response = client.post(
+        "/api/setup",
+        json={
+            "password": "master_password",
+            "profile": {
+                "full_name": "Malte Example",
+                "previous_names": [],
+                "date_of_birth": "1990-01-15",
+                "emails": ["malte@example.com"],
+                "phones": [],
+                "addresses": [],
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "initialized"
+    assert config.vault_path.exists()
+
+
 def test_setup_validates_profile(client):
     response = client.post(
         "/api/setup",

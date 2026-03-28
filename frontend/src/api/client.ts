@@ -21,7 +21,7 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   lock: () => request("/auth/lock", { method: "POST" }),
-  setup: (data: { password: string; profile: unknown; smtp: unknown }) =>
+  setup: (data: { password: string; profile: unknown; smtp?: unknown }) =>
     request("/setup", { method: "POST", body: JSON.stringify(data) }),
   getProfile: () => request<Record<string, unknown>>("/profile"),
   getBrokers: () => request<Array<Record<string, unknown>>>("/brokers"),

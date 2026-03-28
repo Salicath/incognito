@@ -111,6 +111,29 @@ def test_vault_exists(tmp_path: Path):
     assert vault.exists() is True
 
 
+def test_vault_save_without_smtp(tmp_path: Path):
+    vault_path = tmp_path / "profile.enc"
+    password = "test_master_password"
+
+    profile = Profile(
+        full_name="No SMTP User",
+        previous_names=[],
+        date_of_birth=date(1995, 3, 10),
+        emails=["nosmtp@test.com"],
+        phones=[],
+        addresses=[],
+    )
+
+    vault = ProfileVault(vault_path)
+    vault.save(profile, smtp=None, password=password)
+
+    assert vault_path.exists()
+
+    loaded_profile, loaded_smtp = vault.load(password)
+    assert loaded_profile == profile
+    assert loaded_smtp is None
+
+
 def test_address_formatted():
     addr = Address(street="Beispielstraße 42", city="Berlin", postal_code="10115", country="DE")
     assert "Beispielstraße 42" in addr.formatted
