@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
@@ -11,7 +13,7 @@ def create_setup_router(vault: ProfileVault, session_store: SessionStore) -> API
     class SetupRequest(BaseModel):
         password: str
         profile: Profile
-        smtp: SmtpConfig | None = None
+        smtp: Optional[SmtpConfig] = None
 
     @r.post("/setup")
     def setup(req: SetupRequest, response: Response):

@@ -1,8 +1,7 @@
-from __future__ import annotations
-
 import json
 from datetime import date
 from pathlib import Path
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -22,11 +21,11 @@ class Address(BaseModel):
 
 class Profile(BaseModel):
     full_name: str
-    previous_names: list[str]
-    date_of_birth: date
+    previous_names: list[str] = []
+    date_of_birth: Optional[date] = None
     emails: list[str]
-    phones: list[str]
-    addresses: list[Address]
+    phones: list[str] = []
+    addresses: list[Address] = []
 
 
 class SmtpConfig(BaseModel):
@@ -38,7 +37,7 @@ class SmtpConfig(BaseModel):
 
 class _VaultData(BaseModel):
     profile: Profile
-    smtp: SmtpConfig | None = None
+    smtp: Optional[SmtpConfig] = None
 
 
 class ProfileVault:
@@ -48,7 +47,7 @@ class ProfileVault:
     def exists(self) -> bool:
         return self._path.exists()
 
-    def save(self, profile: Profile, smtp: SmtpConfig | None = None, password: str = "") -> None:
+    def save(self, profile: Profile, smtp: Optional[SmtpConfig] = None, password: str = "") -> None:
         vault_data = _VaultData(profile=profile, smtp=smtp)
         plaintext = vault_data.model_dump_json().encode("utf-8")
 
@@ -58,7 +57,7 @@ class ProfileVault:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_bytes(salt + payload.to_bytes())
 
-    def load(self, password: str) -> tuple[Profile, SmtpConfig | None]:
+    def load(self, password: str) -> tuple[Profile, Optional[SmtpConfig]]:
         raw = self._path.read_bytes()
         salt = raw[:16]
         payload = EncryptedPayload.from_bytes(raw[16:])

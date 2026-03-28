@@ -29,7 +29,12 @@ export default function SetupWizard() {
     try {
       await api.setup({
         password,
-        profile: { ...profile, emails: profile.emails.filter((e) => e.trim()), phones: profile.phones.filter((p) => p.trim()) },
+        profile: {
+          ...profile,
+          emails: profile.emails.filter((e) => e.trim()),
+          phones: profile.phones.filter((p) => p.trim()),
+          date_of_birth: profile.date_of_birth || undefined,
+        },
       });
       navigate("/");
       window.location.reload();
