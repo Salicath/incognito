@@ -69,8 +69,8 @@ async def _search_ddg(query: str, client: httpx.AsyncClient) -> list[dict]:
                 "snippet": clean_snippet,
             })
         return results
-    except Exception:
-        return []
+    except Exception as exc:
+        raise RuntimeError(f"DuckDuckGo search failed: {type(exc).__name__}") from exc
 
 
 async def scan_profile(
@@ -100,7 +100,11 @@ async def scan_profile(
 
     async with httpx.AsyncClient() as client:
         for i, (query, domain, broker_name) in enumerate(queries):
-            results = await _search_ddg(query, client)
+            try:
+                results = await _search_ddg(query, client)
+            except RuntimeError as e:
+                report.errors.append(str(e))
+                results = []
             report.checked += 1
 
             for result in results:

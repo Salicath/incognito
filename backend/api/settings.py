@@ -91,8 +91,13 @@ def create_settings_router(
             raise HTTPException(status_code=400, detail="API key required")
         import os
         key_path = config.data_dir / "hibp_key.txt"
-        key_path.write_text(key)
-        os.chmod(key_path, 0o600)
+        tmp_path = key_path.with_suffix(".tmp")
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, key.encode())
+        finally:
+            os.close(fd)
+        os.replace(tmp_path, key_path)
         return {"status": "saved"}
 
     @r.delete("/hibp")

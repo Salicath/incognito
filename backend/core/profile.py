@@ -105,10 +105,15 @@ class ProfileVault:
         payload = encrypt(plaintext, key)
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_bytes(salt + payload.to_bytes())
 
-        # Restrict vault file permissions (owner-only read/write)
-        os.chmod(self._path, 0o600)
+        # Atomic write: write to temp file then rename (prevents corruption on crash)
+        tmp_path = self._path.with_suffix(".tmp")
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, salt + payload.to_bytes())
+        finally:
+            os.close(fd)
+        os.replace(tmp_path, self._path)
 
     def load(self, password: str) -> tuple[Profile, SmtpConfig | None, ImapConfig | None]:
         key, salt = self.derive_key_from_file(password)
