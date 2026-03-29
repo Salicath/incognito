@@ -33,9 +33,21 @@ class SmtpConfig(BaseModel):
     password: str
 
 
+class ImapConfig(BaseModel):
+    host: str
+    port: int = 993
+    username: str
+    password: str
+    folder: str = "INBOX"
+    poll_interval_minutes: int = 5
+    # True for Proton Bridge (port 1143), False for standard IMAPS (port 993)
+    starttls: bool = False
+
+
 class _VaultData(BaseModel):
     profile: Profile
     smtp: SmtpConfig | None = None
+    imap: ImapConfig | None = None
 
 
 class ProfileVault:
@@ -45,18 +57,22 @@ class ProfileVault:
     def exists(self) -> bool:
         return self._path.exists()
 
-    def save(self, profile: Profile, smtp: SmtpConfig | None = None, password: str = "") -> None:
+    def save(
+        self, profile: Profile, smtp: SmtpConfig | None = None,
+        password: str = "", *, imap: ImapConfig | None = None,
+    ) -> None:
         key, salt = derive_key(password, return_salt=True)
-        self.save_with_key(profile, smtp, key, salt)
+        self.save_with_key(profile, smtp, imap, key, salt)
 
     def create_initial(
         self, profile: Profile, smtp: SmtpConfig | None, password: str,
+        imap: ImapConfig | None = None,
     ) -> None:
         """Atomically create the vault. Raises FileExistsError if it already exists."""
         import os
 
         key, salt = derive_key(password, return_salt=True)
-        vault_data = _VaultData(profile=profile, smtp=smtp)
+        vault_data = _VaultData(profile=profile, smtp=smtp, imap=imap)
         plaintext = vault_data.model_dump_json().encode("utf-8")
         payload = encrypt(plaintext, key)
         data = salt + payload.to_bytes()
@@ -73,12 +89,13 @@ class ProfileVault:
         self,
         profile: Profile,
         smtp: SmtpConfig | None,
+        imap: ImapConfig | None,
         key: bytes,
         salt: bytes,
     ) -> None:
         import os
 
-        vault_data = _VaultData(profile=profile, smtp=smtp)
+        vault_data = _VaultData(profile=profile, smtp=smtp, imap=imap)
         plaintext = vault_data.model_dump_json().encode("utf-8")
 
         payload = encrypt(plaintext, key)
@@ -89,7 +106,7 @@ class ProfileVault:
         # Restrict vault file permissions (owner-only read/write)
         os.chmod(self._path, 0o600)
 
-    def load(self, password: str) -> tuple[Profile, SmtpConfig | None]:
+    def load(self, password: str) -> tuple[Profile, SmtpConfig | None, ImapConfig | None]:
         key, salt = self.derive_key_from_file(password)
         return self.load_with_key(key)
 
@@ -100,10 +117,10 @@ class ProfileVault:
         key = derive_key(password, salt=salt)
         return key, salt
 
-    def load_with_key(self, key: bytes) -> tuple[Profile, SmtpConfig | None]:
+    def load_with_key(self, key: bytes) -> tuple[Profile, SmtpConfig | None, ImapConfig | None]:
         """Load vault using a pre-derived key (avoids re-deriving from password)."""
         raw = self._path.read_bytes()
         payload = EncryptedPayload.from_bytes(raw[16:])
         plaintext = decrypt(payload, key)
         vault_data = _VaultData.model_validate_json(plaintext)
-        return vault_data.profile, vault_data.smtp
+        return vault_data.profile, vault_data.smtp, vault_data.imap
