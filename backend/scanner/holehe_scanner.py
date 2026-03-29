@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass, field
 
 import httpx
@@ -40,10 +41,8 @@ async def check_email_accounts(email: str, on_progress=None) -> AccountReport:
             out = []
 
             for website in websites:
-                try:
+                with contextlib.suppress(Exception):
                     await website(email, client, out)
-                except Exception:
-                    pass
 
                 checked += 1
                 report.checked = checked

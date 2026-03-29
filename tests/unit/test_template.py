@@ -77,7 +77,8 @@ def test_render_escalation_warning(renderer, profile):
         broker_name="Acxiom",
         original_date="2026-02-26",
     )
-    assert "supervisory authority" in result.lower() or "data protection authority" in result.lower()
+    lower = result.lower()
+    assert "supervisory authority" in lower or "data protection authority" in lower
 
 
 def test_render_dpa_complaint(renderer, profile):

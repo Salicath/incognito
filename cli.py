@@ -36,7 +36,9 @@ def status():
     config = get_config()
 
     if not config.vault_path.exists():
-        console.print("[yellow]Not initialized.[/] Run [bold]incognito serve[/] and complete setup.")
+        console.print(
+            "[yellow]Not initialized.[/] Run [bold]incognito serve[/] and complete setup."
+        )
         return
 
     from backend.db.models import Request, RequestStatus
@@ -69,7 +71,9 @@ def status():
 
 @app.command(name="follow-up")
 def follow_up(
-    auto: bool = typer.Option(False, "--auto", help="Automatically send follow-ups and escalations"),
+    auto: bool = typer.Option(
+        False, "--auto", help="Automatically send follow-ups and escalations",
+    ),
 ):
     """Check deadlines and send follow-ups for overdue requests."""
     import asyncio
@@ -146,14 +150,22 @@ def follow_up(
             if result.errors:
                 for err in result.errors:
                     console.print(f"[red]Error: {err}[/]")
-            if not result.newly_overdue and not result.follow_ups_sent and not result.escalations_sent:
+            no_actions = (
+                not result.newly_overdue
+                and not result.follow_ups_sent
+                and not result.escalations_sent
+            )
+            if no_actions:
                 console.print("[green]Nothing to do.[/]")
         else:
             # Just mark overdue without sending
             for req in overdue:
                 mgr.mark_overdue(req.id)
             if overdue:
-                console.print(f"[yellow]Marked {len(overdue)} as overdue. Run with --auto to send follow-ups.[/]")
+                console.print(
+                    f"[yellow]Marked {len(overdue)} as overdue. "
+                    "Run with --auto to send follow-ups.[/]"
+                )
     finally:
         session.close()
 

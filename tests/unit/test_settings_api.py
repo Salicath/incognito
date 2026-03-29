@@ -64,7 +64,10 @@ def test_get_smtp_not_configured(client_no_smtp):
 
 def test_update_smtp(client_no_smtp):
     resp = client_no_smtp.post("/api/settings/smtp", json={
-        "smtp": {"host": "smtp.new.com", "port": 465, "username": "new@test.com", "password": "newpass"},
+        "smtp": {
+            "host": "smtp.new.com", "port": 465,
+            "username": "new@test.com", "password": "newpass",
+        },
     })
     assert resp.status_code == 200
 

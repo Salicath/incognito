@@ -1,6 +1,7 @@
 from datetime import date
 from pathlib import Path
 
+import cryptography.exceptions
 import pytest
 
 from backend.core.profile import Address, Profile, ProfileVault, SmtpConfig
@@ -88,7 +89,7 @@ def test_vault_wrong_password(tmp_path: Path):
     vault = ProfileVault(vault_path)
     vault.save(profile, smtp, "correct_password")
 
-    with pytest.raises(Exception):
+    with pytest.raises(cryptography.exceptions.InvalidTag):
         vault.load("wrong_password")
 
 

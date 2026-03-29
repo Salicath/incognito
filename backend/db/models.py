@@ -9,7 +9,7 @@ class Base(DeclarativeBase):
     pass
 
 
-class RequestStatus(str, enum.Enum):
+class RequestStatus(enum.StrEnum):
     CREATED = "created"
     SENT = "sent"
     ACKNOWLEDGED = "acknowledged"
@@ -20,7 +20,7 @@ class RequestStatus(str, enum.Enum):
     MANUAL_ACTION_NEEDED = "manual_action_needed"
 
 
-class RequestType(str, enum.Enum):
+class RequestType(enum.StrEnum):
     ACCESS = "access"
     ERASURE = "erasure"
     FOLLOW_UP = "follow_up"

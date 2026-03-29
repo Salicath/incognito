@@ -33,13 +33,14 @@ async def test_check_email_returns_report():
 
 @pytest.mark.asyncio
 async def test_check_email_handles_import_error():
-    with patch.dict("sys.modules", {"holehe": None, "holehe.core": None, "holehe.modules": None}):
-        # Force ImportError by patching the import inside the function
-        with patch("backend.scanner.holehe_scanner.check_email_accounts") as mock:
-            # Just test the dataclass directly
-            report = AccountReport(email="test@example.com")
-            report.errors.append("holehe not installed")
-            assert len(report.errors) == 1
+    with (
+        patch.dict("sys.modules", {"holehe": None, "holehe.core": None, "holehe.modules": None}),
+        patch("backend.scanner.holehe_scanner.check_email_accounts"),
+    ):
+        # Just test the dataclass directly
+        report = AccountReport(email="test@example.com")
+        report.errors.append("holehe not installed")
+        assert len(report.errors) == 1
 
 
 def test_account_hit_model():

@@ -28,12 +28,12 @@ def create_scan_router(
     }
 
     # Auto-clear stuck scans after 10 minutes
-    STUCK_TIMEOUT = 600
+    stuck_timeout = 600
 
     def _is_stuck() -> bool:
         if not _state["running"]:
             return False
-        return (time.time() - _state["started_at"]) > STUCK_TIMEOUT
+        return (time.time() - _state["started_at"]) > stuck_timeout
 
     async def _run_scan(profile, broker_domains):
         try:
@@ -144,7 +144,8 @@ def create_scan_router(
         password = session_store.validate(session)
         profile, _ = vault.load(password)
 
-        if _account_state["running"] and not (time.time() - _account_state["started_at"] > STUCK_TIMEOUT):
+        elapsed = time.time() - _account_state["started_at"]
+        if _account_state["running"] and not (elapsed > stuck_timeout):
             raise HTTPException(status_code=409, detail="Account scan already running")
 
         target_email = email
@@ -187,7 +188,8 @@ def create_scan_router(
     @r.get("/accounts/status")
     def account_scan_status(session: str | None = Cookie(default=None)):
         session_store.validate(session)
-        running = _account_state["running"] and not (time.time() - _account_state["started_at"] > STUCK_TIMEOUT)
+        elapsed = time.time() - _account_state["started_at"]
+        running = _account_state["running"] and not (elapsed > stuck_timeout)
         return {
             "running": running,
             "progress": _account_state["progress"],
@@ -228,10 +230,14 @@ def create_scan_router(
         effective_config = config if config is not None else AppConfig()
         key_path = effective_config.data_dir / "hibp_key.txt"
         if not key_path.exists():
-            raise HTTPException(status_code=400, detail="HIBP API key not configured. Add it in Settings.")
+            raise HTTPException(
+                status_code=400,
+                detail="HIBP API key not configured. Add it in Settings.",
+            )
         api_key = key_path.read_text().strip()
 
-        if _breach_state["running"] and not (time.time() - _breach_state["started_at"] > STUCK_TIMEOUT):
+        elapsed = time.time() - _breach_state["started_at"]
+        if _breach_state["running"] and not (elapsed > stuck_timeout):
             raise HTTPException(status_code=409, detail="Breach check already running")
 
         target_email = email or (profile.emails[0] if profile.emails else None)
@@ -273,7 +279,8 @@ def create_scan_router(
     @r.get("/breaches/status")
     def breach_status(session: str | None = Cookie(default=None)):
         session_store.validate(session)
-        running = _breach_state["running"] and not (time.time() - _breach_state["started_at"] > STUCK_TIMEOUT)
+        elapsed = time.time() - _breach_state["started_at"]
+        running = _breach_state["running"] and not (elapsed > stuck_timeout)
         return {"running": running, "error": _breach_state.get("error")}
 
     return r

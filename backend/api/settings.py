@@ -65,7 +65,8 @@ def create_settings_router(
         key_path = config.data_dir / "hibp_key.txt"
         if key_path.exists():
             key = key_path.read_text().strip()
-            return {"configured": True, "key_preview": key[:4] + "..." + key[-4:] if len(key) > 8 else "***"}
+            preview = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
+            return {"configured": True, "key_preview": preview}
         return {"configured": False}
 
     @r.post("/hibp")
@@ -95,9 +96,14 @@ def create_settings_router(
 
         from backend.senders.email import EmailSender
         sender = EmailSender(smtp)
+        test_body = (
+            "Subject: Incognito SMTP Test\n\n"
+            "This is a test email from Incognito. "
+            "If you received this, your SMTP configuration is working correctly."
+        )
         result = await sender.send(
-            to_email=smtp.username,  # Send test to self
-            rendered_text="Subject: Incognito SMTP Test\n\nThis is a test email from Incognito. If you received this, your SMTP configuration is working correctly.",
+            to_email=smtp.username,
+            rendered_text=test_body,
         )
         if result.status.value == "success":
             return {"status": "success", "message": f"Test email sent to {smtp.username}"}
@@ -110,7 +116,7 @@ def create_settings_router(
         import base64
         import json
 
-        password = session_store.validate(session)
+        session_store.validate(session)
 
         # Read the encrypted vault file
         vault_bytes = config.vault_path.read_bytes() if config.vault_path.exists() else b""

@@ -8,7 +8,7 @@ import yaml
 from pydantic import BaseModel, computed_field
 
 
-class RemovalMethod(str, enum.Enum):
+class RemovalMethod(enum.StrEnum):
     EMAIL = "email"
     WEB_FORM = "web_form"
     API = "api"

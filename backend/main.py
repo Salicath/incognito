@@ -25,7 +25,12 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "http://localhost:5173",   # Vite dev server
+            "http://127.0.0.1:5173",
+            "http://localhost:8080",   # Production (same-origin)
+            "http://127.0.0.1:8080",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -54,11 +59,15 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.include_router(create_auth_router(vault, session_store))
     app.include_router(create_setup_router(vault, session_store))
     app.include_router(create_brokers_router(broker_registry, session_store))
-    app.include_router(
-        create_requests_router(db_session_factory, session_store, config.gdpr_deadline_days, broker_registry)
-    )
-    app.include_router(create_scan_router(vault, session_store, broker_registry, config))
-    app.include_router(create_blast_router(vault, session_store, broker_registry, db_session_factory, config))
+    app.include_router(create_requests_router(
+        db_session_factory, session_store, config.gdpr_deadline_days, broker_registry,
+    ))
+    app.include_router(create_scan_router(
+        vault, session_store, broker_registry, config,
+    ))
+    app.include_router(create_blast_router(
+        vault, session_store, broker_registry, db_session_factory, config,
+    ))
     app.include_router(create_settings_router(vault, session_store, broker_registry, config))
 
     @app.get("/api/profile")

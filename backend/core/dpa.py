@@ -98,7 +98,10 @@ DPA_REGISTRY: dict[str, dict] = {
         "email": None,
         "url": "https://www.ftc.gov/complaint",
         "language": "en",
-        "note": "The FTC handles data broker complaints in the US. Not GDPR, but can be used for US-based brokers.",
+        "note": (
+            "The FTC handles data broker complaints in the US. "
+            "Not GDPR, but can be used for US-based brokers."
+        ),
     },
 }
 

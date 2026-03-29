@@ -1,4 +1,4 @@
-from backend.core.dpa import get_dpa_for_country, DPA_REGISTRY
+from backend.core.dpa import DPA_REGISTRY, get_dpa_for_country
 
 
 def test_get_dpa_for_known_country():

@@ -1,4 +1,5 @@
 
+import cryptography.exceptions
 import pytest
 
 from backend.core.crypto import EncryptedPayload, decrypt, derive_key, encrypt
@@ -35,7 +36,7 @@ def test_decrypt_wrong_key_fails():
 
     payload = encrypt(plaintext, key1)
 
-    with pytest.raises(Exception):
+    with pytest.raises(cryptography.exceptions.InvalidTag):
         decrypt(payload, key2)
 
 

@@ -153,6 +153,11 @@ def test_event_trail():
     mgr.mark_acknowledged(req.id, "Got it")
     mgr.mark_completed(req.id)
 
-    events = session.query(RequestEvent).filter_by(request_id=req.id).order_by(RequestEvent.id).all()
+    events = (
+        session.query(RequestEvent)
+        .filter_by(request_id=req.id)
+        .order_by(RequestEvent.id)
+        .all()
+    )
     types = [e.event_type for e in events]
     assert types == ["created", "sent", "acknowledged", "completed"]

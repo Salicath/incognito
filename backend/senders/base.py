@@ -4,7 +4,7 @@ import enum
 from dataclasses import dataclass
 
 
-class SenderStatus(str, enum.Enum):
+class SenderStatus(enum.StrEnum):
     SUCCESS = "success"
     FAILURE = "failure"
     MANUAL_NEEDED = "manual_needed"

@@ -32,7 +32,12 @@ async def _search_ddg(query: str, client: httpx.AsyncClient) -> list[dict]:
         resp = await client.post(
             url,
             data={"q": query},
-            headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"},
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) "
+                    "Gecko/20100101 Firefox/128.0"
+                ),
+            },
             follow_redirects=True,
             timeout=15.0,
         )
@@ -104,7 +109,10 @@ async def scan_profile(
                 if domain == "*" or domain in result.get("url", ""):
                     report.hits.append(ScanHit(
                         broker_domain=domain if domain != "*" else _extract_domain(result["url"]),
-                        broker_name=broker_name if broker_name != "General" else _extract_domain(result["url"]),
+                        broker_name=(
+                            broker_name if broker_name != "General"
+                            else _extract_domain(result["url"])
+                        ),
                         query=query,
                         snippet=result.get("snippet", "")[:200],
                         url=result.get("url", ""),

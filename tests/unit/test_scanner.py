@@ -26,16 +26,22 @@ def profile():
 
 @pytest.mark.asyncio
 async def test_scan_profile_with_mock(profile):
-    mock_results = [
-        {"url": "https://www.spokeo.com/Test-User", "title": "Test User", "snippet": "Found profile for Test User"},
-    ]
+    mock_results = [{
+        "url": "https://www.spokeo.com/Test-User",
+        "title": "Test User",
+        "snippet": "Found profile for Test User",
+    }]
 
-    with patch("backend.scanner.duckduckgo._search_ddg", new_callable=AsyncMock, return_value=mock_results):
-        with patch("backend.scanner.duckduckgo.asyncio.sleep", new_callable=AsyncMock):
-            report = await scan_profile(
-                profile,
-                [("spokeo.com", "Spokeo")],
-            )
+    with (
+        patch("backend.scanner.duckduckgo._search_ddg",
+              new_callable=AsyncMock, return_value=mock_results),
+        patch("backend.scanner.duckduckgo.asyncio.sleep",
+              new_callable=AsyncMock),
+    ):
+        report = await scan_profile(
+            profile,
+            [("spokeo.com", "Spokeo")],
+        )
 
     assert report.checked >= 1
     assert isinstance(report, ScanReport)
@@ -43,9 +49,13 @@ async def test_scan_profile_with_mock(profile):
 
 @pytest.mark.asyncio
 async def test_scan_empty_results(profile):
-    with patch("backend.scanner.duckduckgo._search_ddg", new_callable=AsyncMock, return_value=[]):
-        with patch("backend.scanner.duckduckgo.asyncio.sleep", new_callable=AsyncMock):
-            report = await scan_profile(profile, [("example.com", "Example")])
+    with (
+        patch("backend.scanner.duckduckgo._search_ddg",
+              new_callable=AsyncMock, return_value=[]),
+        patch("backend.scanner.duckduckgo.asyncio.sleep",
+              new_callable=AsyncMock),
+    ):
+        report = await scan_profile(profile, [("example.com", "Example")])
 
     assert len(report.hits) == 0
     assert report.checked >= 1

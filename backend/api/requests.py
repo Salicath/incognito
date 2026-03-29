@@ -164,7 +164,7 @@ def create_requests_router(
             try:
                 req = fn(request_id)
             except InvalidTransitionError as e:
-                raise HTTPException(status_code=400, detail=str(e))
+                raise HTTPException(status_code=400, detail=str(e)) from e
             return {"id": req.id, "status": req.status.value}
         finally:
             db.close()

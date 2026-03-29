@@ -36,7 +36,7 @@ def create_blast_router(
         session: str | None = Cookie(default=None),
     ) -> dict:
         """Create requests for all brokers that don't already have an active request."""
-        password = session_store.validate(session)
+        session_store.validate(session)
 
         request_type = RequestType.ACCESS if body.request_type == "access" else RequestType.ERASURE
 
@@ -243,8 +243,9 @@ def create_blast_router(
         password = session_store.validate(session)
         profile, _ = vault.load(password)
 
-        from backend.core.dpa import get_dpa_for_country
         from pathlib import Path
+
+        from backend.core.dpa import get_dpa_for_country
 
         db = db_session_factory()
         try:

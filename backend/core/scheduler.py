@@ -82,9 +82,13 @@ async def run_follow_ups(
                         profile=profile,
                         reference_id=req.id[:8].upper(),
                         broker_name=broker.name,
-                        original_date=req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown",
+                        original_date=(
+                            req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown"
+                        ),
                     )
-                    send_result = await sender.send(to_email=broker.dpo_email, rendered_text=rendered)
+                    send_result = await sender.send(
+                        to_email=broker.dpo_email, rendered_text=rendered,
+                    )
 
                     if send_result.status.value == "success":
                         event = RequestEvent(
@@ -96,13 +100,19 @@ async def run_follow_ups(
                         session.commit()
                         result.follow_ups_sent += 1
                     else:
-                        result.errors.append(f"Failed to send follow-up to {broker.name}: {send_result.message}")
+                        result.errors.append(
+                            f"Failed to send follow-up to {broker.name}: {send_result.message}"
+                        )
                 except Exception as e:
-                    result.errors.append(f"Error sending follow-up to {broker.name}: {e}")
+                    result.errors.append(
+                        f"Error sending follow-up to {broker.name}: {e}"
+                    )
 
             elif "escalation_sent" not in event_types:
                 # Check if enough time has passed since the follow-up for escalation
-                follow_up_event = next((e for e in events if e.event_type == "follow_up_sent"), None)
+                follow_up_event = next(
+                    (e for e in events if e.event_type == "follow_up_sent"), None,
+                )
                 if follow_up_event and (now - follow_up_event.created_at).days >= escalation_days:
                     try:
                         rendered = renderer.render_localized(
@@ -111,9 +121,13 @@ async def run_follow_ups(
                             profile=profile,
                             reference_id=req.id[:8].upper(),
                             broker_name=broker.name,
-                            original_date=req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown",
+                            original_date=(
+                                req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown"
+                            ),
                         )
-                        send_result = await sender.send(to_email=broker.dpo_email, rendered_text=rendered)
+                        send_result = await sender.send(
+                            to_email=broker.dpo_email, rendered_text=rendered,
+                        )
 
                         if send_result.status.value == "success":
                             mgr.mark_escalated(req.id)
@@ -126,8 +140,13 @@ async def run_follow_ups(
                             session.commit()
                             result.escalations_sent += 1
                         else:
-                            result.errors.append(f"Failed to send escalation to {broker.name}: {send_result.message}")
+                            result.errors.append(
+                                f"Failed to send escalation to {broker.name}: "
+                                f"{send_result.message}"
+                            )
                     except Exception as e:
-                        result.errors.append(f"Error sending escalation to {broker.name}: {e}")
+                        result.errors.append(
+                            f"Error sending escalation to {broker.name}: {e}"
+                        )
 
     return result

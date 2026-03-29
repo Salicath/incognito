@@ -22,7 +22,7 @@ def create_auth_router(vault: ProfileVault, session_store: SessionStore) -> APIR
         try:
             vault.load(req.password)
         except Exception:
-            raise HTTPException(status_code=401, detail="Wrong password")
+            raise HTTPException(status_code=401, detail="Wrong password") from None
 
         token = session_store.create(req.password)
         response.set_cookie(
