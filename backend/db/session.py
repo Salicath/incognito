@@ -2,12 +2,14 @@ import logging
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.orm import sessionmaker
 
 from backend.db.models import Base
 
 log = logging.getLogger("incognito.db")
+
+ALEMBIC_INI = Path(__file__).parent.parent.parent / "alembic.ini"
 
 
 def get_engine(db_path: Path):
@@ -24,6 +26,31 @@ def get_engine(db_path: Path):
     return engine
 
 
+def _schema_matches_models(engine) -> bool:
+    """Check if the DB schema already has all tables and columns from models."""
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+
+    for table in Base.metadata.sorted_tables:
+        if table.name not in existing_tables:
+            return False
+        existing_cols = {c["name"] for c in inspector.get_columns(table.name)}
+        model_cols = {c.name for c in table.columns}
+        if not model_cols.issubset(existing_cols):
+            return False
+    return True
+
+
+def _get_alembic_cfg(db_path: Path):
+    """Get Alembic config pointing at the given DB, or None if alembic.ini doesn't exist."""
+    if not ALEMBIC_INI.exists():
+        return None
+    from alembic.config import Config
+    cfg = Config(str(ALEMBIC_INI))
+    cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+    return cfg
+
+
 def init_db(db_path: Path) -> sessionmaker:
     is_new = not db_path.exists()
     engine = get_engine(db_path)
@@ -31,24 +58,31 @@ def init_db(db_path: Path) -> sessionmaker:
     if is_new:
         # Fresh install: create all tables and stamp as current migration
         Base.metadata.create_all(engine)
-        try:
+        alembic_cfg = _get_alembic_cfg(db_path)
+        if alembic_cfg:
             from alembic import command
-            from alembic.config import Config
-            alembic_cfg = Config(str(Path(__file__).parent.parent.parent / "alembic.ini"))
             command.stamp(alembic_cfg, "head")
             log.info("New database created and stamped at current migration")
-        except Exception:
+        else:
             log.debug("Alembic stamp skipped (alembic.ini not found)")
     else:
         # Existing install: run pending migrations
-        try:
+        alembic_cfg = _get_alembic_cfg(db_path)
+        if alembic_cfg:
             from alembic import command
-            from alembic.config import Config
-            alembic_cfg = Config(str(Path(__file__).parent.parent.parent / "alembic.ini"))
-            command.upgrade(alembic_cfg, "head")
-            log.info("Database migrations applied")
-        except Exception:
-            # Fallback: ensure tables exist (e.g. in tests without alembic.ini)
+            try:
+                command.upgrade(alembic_cfg, "head")
+                log.info("Database migrations applied")
+            except Exception:
+                # Schema may already match models (e.g. created with create_all()
+                # but stamped at an older migration). Re-stamp instead of failing.
+                if _schema_matches_models(engine):
+                    command.stamp(alembic_cfg, "head")
+                    log.info("Schema already up to date, re-stamped migration head")
+                else:
+                    raise
+        else:
+            # No alembic.ini (e.g. tests): ensure tables exist
             Base.metadata.create_all(engine)
 
     # Restrict database file permissions (owner-only read/write)

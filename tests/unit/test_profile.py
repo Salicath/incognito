@@ -140,3 +140,15 @@ def test_address_formatted():
     assert "Berlin" in addr.formatted
     assert "10115" in addr.formatted
     assert "DE" in addr.formatted
+
+
+def test_vault_rejects_empty_password(tmp_path: Path):
+    vault = ProfileVault(tmp_path / "profile.enc")
+    profile = Profile(
+        full_name="Test", previous_names=[], emails=["t@t.com"],
+    )
+    with pytest.raises(ValueError, match="Password must not be empty"):
+        vault.save(profile, password="")
+
+    with pytest.raises(ValueError, match="Password must not be empty"):
+        vault.create_initial(profile, smtp=None, password="")

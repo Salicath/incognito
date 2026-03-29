@@ -1,7 +1,9 @@
 [Unit]
 Description=Incognito IMAP reply checker
+Requires=incognito.service
+After=incognito.service
 
 [Service]
 Type=oneshot
-# INCOGNITO_PASSWORD must be set in the container environment for non-interactive use.
-ExecStart=podman exec incognito incognito check-replies
+EnvironmentFile=-%h/.config/incognito/env
+ExecStart=podman exec --env INCOGNITO_PASSWORD incognito incognito check-replies

@@ -61,6 +61,8 @@ class ProfileVault:
         self, profile: Profile, smtp: SmtpConfig | None = None,
         password: str = "", *, imap: ImapConfig | None = None,
     ) -> None:
+        if not password:
+            raise ValueError("Password must not be empty")
         key, salt = derive_key(password, return_salt=True)
         self.save_with_key(profile, smtp, imap, key, salt)
 
@@ -71,6 +73,8 @@ class ProfileVault:
         """Atomically create the vault. Raises FileExistsError if it already exists."""
         import os
 
+        if not password:
+            raise ValueError("Password must not be empty")
         key, salt = derive_key(password, return_salt=True)
         vault_data = _VaultData(profile=profile, smtp=smtp, imap=imap)
         plaintext = vault_data.model_dump_json().encode("utf-8")

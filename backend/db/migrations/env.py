@@ -14,9 +14,11 @@ if config.config_file_name is not None:
 # Use our app's models for autogenerate
 target_metadata = Base.metadata
 
-# Set the database URL dynamically from our config
-app_config = AppConfig()
-config.set_main_option("sqlalchemy.url", f"sqlite:///{app_config.db_path}")
+# Set the database URL dynamically from our config, unless already set by init_db()
+url = config.get_main_option("sqlalchemy.url")
+if not url or url == "driver://user:pass@localhost/dbname":
+    app_config = AppConfig()
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{app_config.db_path}")
 
 
 def run_migrations_offline() -> None:
