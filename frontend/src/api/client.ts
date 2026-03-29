@@ -101,4 +101,11 @@ export const api = {
   deleteImap: () => request("/settings/imap", { method: "DELETE" }),
   testImap: () => request<{ status: string; folders: string[] }>("/settings/imap/test", { method: "POST" }),
   getImapPollerStatus: () => request<{ enabled: boolean; last_check: string | null; matched_count: number; unmatched_count: number; poll_interval_minutes: number | null; last_error: string | null }>("/settings/imap/status"),
+  getSmtpStatus: () => request<{ configured: boolean; host?: string; port?: number; username?: string }>("/settings/smtp"),
+  saveSmtp: (smtp: { host: string; port: number; username: string; password: string }) =>
+    request("/settings/smtp", { method: "POST", body: JSON.stringify({ smtp }) }),
+  getAppInfo: () => request<{ broker_count: number; data_dir: string; version: string }>("/settings/info"),
+  saveProfile: (profile: { full_name: string; emails: string[]; phones: string[]; date_of_birth?: string }) =>
+    request("/settings/profile", { method: "POST", body: JSON.stringify({ profile }) }),
+  testSmtp: () => request<{ status: string; message: string }>("/settings/test-smtp", { method: "POST" }),
 };

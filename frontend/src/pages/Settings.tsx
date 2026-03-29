@@ -1,28 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { useSettingsSection } from "../hooks/useSettingsSection";
 import { Mail, Inbox, User, Info, CheckCircle, Loader2, ShieldAlert, Download, Upload } from "lucide-react";
-
-const BASE = "/api";
-
-async function settingsRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    const message = typeof body.detail === "string" ? body.detail : res.statusText;
-    throw new Error(message);
-  }
-  return res.json();
-}
 
 interface SmtpStatus {
   configured: boolean;
   host?: string;
   port?: number;
   username?: string;
+}
+
+interface ImapStatus {
+  configured: boolean;
+  host?: string;
+  port?: number;
+  username?: string;
+  folder?: string;
+  poll_interval_minutes?: number;
+  starttls?: boolean;
 }
 
 interface HibpStatus {
@@ -36,32 +31,31 @@ interface AppInfo {
   version: string;
 }
 
+function SettingsMessage({ message }: { message: { type: string; text: string } }) {
+  if (!message.text) return null;
+  return (
+    <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${message.type === "success" ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+      {message.text}
+    </div>
+  );
+}
+
 export default function Settings() {
-  const [smtpStatus, setSmtpStatus] = useState<SmtpStatus | null>(null);
+  const smtp = useSettingsSection<SmtpStatus>();
+  const imap = useSettingsSection<ImapStatus>();
+  const hibp = useSettingsSection<HibpStatus>();
+
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
 
   const [smtpForm, setSmtpForm] = useState({ host: "", port: 587, username: "", password: "" });
-  const [showSmtpForm, setShowSmtpForm] = useState(false);
-  const [smtpSaving, setSmtpSaving] = useState(false);
   const [smtpTesting, setSmtpTesting] = useState(false);
-  const [smtpMessage, setSmtpMessage] = useState({ type: "", text: "" });
 
-  // IMAP state
-  const [imapStatus, setImapStatus] = useState<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean } | null>(null);
   const [imapForm, setImapForm] = useState({ host: "", port: 993, username: "", password: "", folder: "INBOX", poll_interval_minutes: 5, starttls: false });
-  const [showImapForm, setShowImapForm] = useState(false);
-  const [imapSaving, setImapSaving] = useState(false);
   const [imapTesting, setImapTesting] = useState(false);
-  const [imapMessage, setImapMessage] = useState({ type: "", text: "" });
 
-  // HIBP state
-  const [hibpStatus, setHibpStatus] = useState<HibpStatus | null>(null);
   const [hibpKeyInput, setHibpKeyInput] = useState("");
-  const [showHibpForm, setShowHibpForm] = useState(false);
-  const [hibpSaving, setHibpSaving] = useState(false);
   const [hibpDeleting, setHibpDeleting] = useState(false);
-  const [hibpMessage, setHibpMessage] = useState({ type: "", text: "" });
 
   // Backup state
   const [backupExporting, setBackupExporting] = useState(false);
@@ -84,28 +78,28 @@ export default function Settings() {
 
   async function loadData() {
     try {
-      const [smtp, info, prof, hibp, imap] = await Promise.all([
-        settingsRequest<SmtpStatus>("/settings/smtp"),
-        settingsRequest<AppInfo>("/settings/info"),
+      const [smtpData, info, prof, hibpData, imapData] = await Promise.all([
+        api.getSmtpStatus(),
+        api.getAppInfo(),
         api.getProfile(),
         api.getHibpStatus(),
         api.getImapStatus(),
       ]);
-      setSmtpStatus(smtp);
+      smtp.setStatus(smtpData);
       setAppInfo(info);
       setProfile(prof);
-      setHibpStatus(hibp);
-      setImapStatus(imap);
-      if (imap.configured) {
-        setImapForm({ host: imap.host || "", port: imap.port || 993, username: imap.username || "", password: "", folder: imap.folder || "INBOX", poll_interval_minutes: imap.poll_interval_minutes || 5, starttls: imap.starttls ?? false });
+      hibp.setStatus(hibpData);
+      imap.setStatus(imapData);
+      if (imapData.configured) {
+        setImapForm({ host: imapData.host || "", port: imapData.port || 993, username: imapData.username || "", password: "", folder: imapData.folder || "INBOX", poll_interval_minutes: imapData.poll_interval_minutes || 5, starttls: imapData.starttls ?? false });
       }
       // Populate profile edit fields with current values
       setEditName((prof.full_name as string) || "");
       setEditEmail(((prof.emails as string[]) || [])[0] || "");
       setEditPhone(((prof.phones as string[]) || [])[0] || "");
       setEditDob((prof.date_of_birth as string) || "");
-      if (smtp.configured) {
-        setSmtpForm({ host: smtp.host || "", port: smtp.port || 587, username: smtp.username || "", password: "" });
+      if (smtpData.configured) {
+        setSmtpForm({ host: smtpData.host || "", port: smtpData.port || 587, username: smtpData.username || "", password: "" });
       }
     } catch {
       // ignore
@@ -113,122 +107,90 @@ export default function Settings() {
   }
 
   async function handleSaveHibpKey() {
-    setHibpSaving(true);
-    setHibpMessage({ type: "", text: "" });
-    try {
+    await hibp.withSaving(async () => {
       await api.saveHibpKey(hibpKeyInput.trim());
-      setHibpMessage({ type: "success", text: "API key saved." });
-      setShowHibpForm(false);
+      hibp.setMessage({ type: "success", text: "API key saved." });
+      hibp.setShowForm(false);
       setHibpKeyInput("");
       loadData();
-    } catch (e) {
-      setHibpMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to save" });
-    } finally {
-      setHibpSaving(false);
-    }
+    });
   }
 
   async function handleDeleteHibpKey() {
     setHibpDeleting(true);
-    setHibpMessage({ type: "", text: "" });
+    hibp.setMessage({ type: "", text: "" });
     try {
       await api.deleteHibpKey();
-      setHibpMessage({ type: "success", text: "API key removed." });
+      hibp.setMessage({ type: "success", text: "API key removed." });
       loadData();
     } catch (e) {
-      setHibpMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
+      hibp.setMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
     } finally {
       setHibpDeleting(false);
     }
   }
 
   async function handleSaveSmtp() {
-    setSmtpSaving(true);
-    setSmtpMessage({ type: "", text: "" });
-    try {
-      await settingsRequest("/settings/smtp", {
-        method: "POST",
-        body: JSON.stringify({ smtp: smtpForm }),
-      });
-      setSmtpMessage({ type: "success", text: "SMTP settings saved." });
-      setShowSmtpForm(false);
+    await smtp.withSaving(async () => {
+      await api.saveSmtp(smtpForm);
+      smtp.setMessage({ type: "success", text: "SMTP settings saved." });
+      smtp.setShowForm(false);
       loadData();
-    } catch (e) {
-      setSmtpMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to save" });
-    } finally {
-      setSmtpSaving(false);
-    }
+    });
   }
 
   async function handleTestSmtp() {
     setSmtpTesting(true);
-    setSmtpMessage({ type: "", text: "" });
+    smtp.setMessage({ type: "", text: "" });
     try {
-      const result = await settingsRequest<{ message: string }>("/settings/test-smtp", { method: "POST" });
-      setSmtpMessage({ type: "success", text: result.message });
+      const result = await api.testSmtp();
+      smtp.setMessage({ type: "success", text: result.message });
     } catch (e) {
-      setSmtpMessage({ type: "error", text: e instanceof Error ? e.message : "Test failed" });
+      smtp.setMessage({ type: "error", text: e instanceof Error ? e.message : "Test failed" });
     } finally {
       setSmtpTesting(false);
     }
   }
 
   async function handleSaveImap() {
-    setImapSaving(true);
-    setImapMessage({ type: "", text: "" });
-    try {
+    await imap.withSaving(async () => {
       await api.saveImap(imapForm);
-      setImapMessage({ type: "success", text: "IMAP settings saved. Monitoring started." });
-      setShowImapForm(false);
+      imap.setMessage({ type: "success", text: "IMAP settings saved. Monitoring started." });
+      imap.setShowForm(false);
       loadData();
-    } catch (e) {
-      setImapMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to save" });
-    } finally {
-      setImapSaving(false);
-    }
+    });
   }
 
   async function handleTestImap() {
     setImapTesting(true);
-    setImapMessage({ type: "", text: "" });
+    imap.setMessage({ type: "", text: "" });
     try {
       const result = await api.testImap();
-      setImapMessage({ type: "success", text: `Connected successfully. Folders: ${result.folders.join(", ")}` });
+      imap.setMessage({ type: "success", text: `Connected successfully. Folders: ${result.folders.join(", ")}` });
     } catch (e) {
-      setImapMessage({ type: "error", text: e instanceof Error ? e.message : "Test failed" });
+      imap.setMessage({ type: "error", text: e instanceof Error ? e.message : "Test failed" });
     } finally {
       setImapTesting(false);
     }
   }
 
   async function handleDeleteImap() {
-    setImapSaving(true);
-    setImapMessage({ type: "", text: "" });
-    try {
+    await imap.withSaving(async () => {
       await api.deleteImap();
-      setImapMessage({ type: "success", text: "IMAP monitoring disabled." });
+      imap.setMessage({ type: "success", text: "IMAP monitoring disabled." });
       loadData();
-    } catch (e) {
-      setImapMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
-    } finally {
-      setImapSaving(false);
-    }
+    });
   }
 
   async function handleSaveProfile() {
     setProfileSaving(true);
     setProfileMessage({ type: "", text: "" });
     try {
-      await settingsRequest("/settings/profile", {
-        method: "POST",
-        body: JSON.stringify({
-          profile: {
-            full_name: editName,
-            emails: [editEmail].filter((e) => e.trim()),
-            phones: [editPhone].filter((p) => p.trim()),
-            date_of_birth: editDob || undefined,
-          },
-        }),
+      await api.saveProfile({
+        full_name: editName,
+        emails: [editEmail].filter((e) => e.trim()),
+        phones: [editPhone].filter((p) => p.trim()),
+        date_of_birth: editDob || undefined,
       });
       setProfileMessage({ type: "success", text: "Profile saved." });
       setEditingProfile(false);
@@ -315,30 +277,30 @@ export default function Settings() {
           <h2 className="font-semibold">Email (SMTP)</h2>
         </div>
         <div className="p-5">
-          {smtpStatus && !smtpStatus.configured && !showSmtpForm && (
+          {smtp.status && !smtp.status.configured && !smtp.showForm && (
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 SMTP is required to send GDPR requests via email. Configure your email provider's SMTP settings.
               </p>
-              <button onClick={() => setShowSmtpForm(true)}
+              <button onClick={() => smtp.setShowForm(true)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
                 Configure SMTP
               </button>
             </div>
           )}
 
-          {smtpStatus && smtpStatus.configured && !showSmtpForm && (
+          {smtp.status && smtp.status.configured && !smtp.showForm && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-green-700 font-medium">SMTP configured</span>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-4">
-                <p><span className="font-medium">Server:</span> {smtpStatus.host}:{smtpStatus.port}</p>
-                <p><span className="font-medium">Username:</span> {smtpStatus.username}</p>
+                <p><span className="font-medium">Server:</span> {smtp.status.host}:{smtp.status.port}</p>
+                <p><span className="font-medium">Username:</span> {smtp.status.username}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setShowSmtpForm(true)}
+                <button onClick={() => smtp.setShowForm(true)}
                   className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Update
                 </button>
@@ -351,7 +313,7 @@ export default function Settings() {
             </div>
           )}
 
-          {showSmtpForm && (
+          {smtp.showForm && (
             <div className="space-y-3">
               <input type="text" placeholder="SMTP server (e.g. smtp.protonmail.ch)" value={smtpForm.host}
                 onChange={(e) => setSmtpForm({ ...smtpForm, host: e.target.value })} className={inputClass} />
@@ -362,12 +324,12 @@ export default function Settings() {
               <input type="password" placeholder="Password / App password" value={smtpForm.password}
                 onChange={(e) => setSmtpForm({ ...smtpForm, password: e.target.value })} className={inputClass} />
               <div className="flex gap-2">
-                <button onClick={handleSaveSmtp} disabled={smtpSaving}
+                <button onClick={handleSaveSmtp} disabled={smtp.saving}
                   className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50">
-                  {smtpSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  {smtp.saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                   Save
                 </button>
-                <button onClick={() => { setShowSmtpForm(false); setSmtpMessage({ type: "", text: "" }); }}
+                <button onClick={() => { smtp.setShowForm(false); smtp.setMessage({ type: "", text: "" }); }}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Cancel
                 </button>
@@ -375,11 +337,7 @@ export default function Settings() {
             </div>
           )}
 
-          {smtpMessage.text && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${smtpMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-              {smtpMessage.text}
-            </div>
-          )}
+          <SettingsMessage message={smtp.message} />
         </div>
       </div>
 
@@ -390,33 +348,33 @@ export default function Settings() {
           <h2 className="font-semibold">Reply Monitoring (IMAP)</h2>
         </div>
         <div className="p-5">
-          {imapStatus && !imapStatus.configured && !showImapForm && (
+          {imap.status && !imap.status.configured && !imap.showForm && (
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 Automatically monitor your inbox for broker replies. Incognito will match incoming emails to your requests and update their status.
               </p>
-              <button onClick={() => setShowImapForm(true)}
+              <button onClick={() => imap.setShowForm(true)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
                 Configure IMAP
               </button>
             </div>
           )}
 
-          {imapStatus && imapStatus.configured && !showImapForm && (
+          {imap.status && imap.status.configured && !imap.showForm && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-green-700 font-medium">IMAP monitoring active</span>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-4">
-                <p><span className="font-medium">Server:</span> {imapStatus.host}:{imapStatus.port}</p>
-                <p><span className="font-medium">Username:</span> {imapStatus.username}</p>
-                <p><span className="font-medium">Folder:</span> {imapStatus.folder || "INBOX"}</p>
-                <p><span className="font-medium">Poll interval:</span> {imapStatus.poll_interval_minutes || 5} minutes</p>
-                <p><span className="font-medium">STARTTLS:</span> {imapStatus.starttls ? "Yes" : "No"}</p>
+                <p><span className="font-medium">Server:</span> {imap.status.host}:{imap.status.port}</p>
+                <p><span className="font-medium">Username:</span> {imap.status.username}</p>
+                <p><span className="font-medium">Folder:</span> {imap.status.folder || "INBOX"}</p>
+                <p><span className="font-medium">Poll interval:</span> {imap.status.poll_interval_minutes || 5} minutes</p>
+                <p><span className="font-medium">STARTTLS:</span> {imap.status.starttls ? "Yes" : "No"}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setShowImapForm(true)}
+                <button onClick={() => imap.setShowForm(true)}
                   className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Update
                 </button>
@@ -425,16 +383,16 @@ export default function Settings() {
                   {imapTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                   Test Connection
                 </button>
-                <button onClick={handleDeleteImap} disabled={imapSaving}
+                <button onClick={handleDeleteImap} disabled={imap.saving}
                   className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition disabled:opacity-50">
-                  {imapSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  {imap.saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                   Disable
                 </button>
               </div>
             </div>
           )}
 
-          {showImapForm && (
+          {imap.showForm && (
             <div className="space-y-3">
               <input type="text" placeholder="IMAP server (127.0.0.1 for Proton Bridge)" value={imapForm.host}
                 onChange={(e) => setImapForm({ ...imapForm, host: e.target.value })} className={inputClass} />
@@ -465,12 +423,12 @@ export default function Settings() {
                 Use STARTTLS (enable for Proton Bridge)
               </label>
               <div className="flex gap-2">
-                <button onClick={handleSaveImap} disabled={imapSaving}
+                <button onClick={handleSaveImap} disabled={imap.saving}
                   className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50">
-                  {imapSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  {imap.saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                   Save
                 </button>
-                <button onClick={() => { setShowImapForm(false); setImapMessage({ type: "", text: "" }); }}
+                <button onClick={() => { imap.setShowForm(false); imap.setMessage({ type: "", text: "" }); }}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Cancel
                 </button>
@@ -478,11 +436,7 @@ export default function Settings() {
             </div>
           )}
 
-          {imapMessage.text && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${imapMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-              {imapMessage.text}
-            </div>
-          )}
+          <SettingsMessage message={imap.message} />
         </div>
       </div>
 
@@ -493,7 +447,7 @@ export default function Settings() {
           <h2 className="font-semibold">Have I Been Pwned (HIBP)</h2>
         </div>
         <div className="p-5">
-          {hibpStatus && !hibpStatus.configured && !showHibpForm && (
+          {hibp.status && !hibp.status.configured && !hibp.showForm && (
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 Optional: enter a{" "}
@@ -503,24 +457,24 @@ export default function Settings() {
                 </a>{" "}
                 to check whether your email has appeared in known data breaches.
               </p>
-              <button onClick={() => setShowHibpForm(true)}
+              <button onClick={() => hibp.setShowForm(true)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
                 Add API Key
               </button>
             </div>
           )}
 
-          {hibpStatus && hibpStatus.configured && !showHibpForm && (
+          {hibp.status && hibp.status.configured && !hibp.showForm && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-green-700 font-medium">HIBP API key configured</span>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                <p><span className="font-medium">Key:</span> {hibpStatus.key_preview}</p>
+                <p><span className="font-medium">Key:</span> {hibp.status.key_preview}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setShowHibpForm(true)}
+                <button onClick={() => hibp.setShowForm(true)}
                   className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Update
                 </button>
@@ -533,7 +487,7 @@ export default function Settings() {
             </div>
           )}
 
-          {showHibpForm && (
+          {hibp.showForm && (
             <div className="space-y-3">
               <input
                 type="password"
@@ -550,12 +504,12 @@ export default function Settings() {
                 </a>. The key is stored in plain text in your data directory.
               </p>
               <div className="flex gap-2">
-                <button onClick={handleSaveHibpKey} disabled={hibpSaving || !hibpKeyInput.trim()}
+                <button onClick={handleSaveHibpKey} disabled={hibp.saving || !hibpKeyInput.trim()}
                   className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50">
-                  {hibpSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  {hibp.saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                   Save
                 </button>
-                <button onClick={() => { setShowHibpForm(false); setHibpKeyInput(""); setHibpMessage({ type: "", text: "" }); }}
+                <button onClick={() => { hibp.setShowForm(false); setHibpKeyInput(""); hibp.setMessage({ type: "", text: "" }); }}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Cancel
                 </button>
@@ -563,11 +517,7 @@ export default function Settings() {
             </div>
           )}
 
-          {hibpMessage.text && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${hibpMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-              {hibpMessage.text}
-            </div>
-          )}
+          <SettingsMessage message={hibp.message} />
         </div>
       </div>
 
@@ -647,11 +597,7 @@ export default function Settings() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
           )}
 
-          {profileMessage.text && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${profileMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-              {profileMessage.text}
-            </div>
-          )}
+          <SettingsMessage message={profileMessage} />
         </div>
       </div>
 
@@ -712,11 +658,7 @@ export default function Settings() {
               }}
             />
           </div>
-          {backupMessage.text && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${backupMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-              {backupMessage.text}
-            </div>
-          )}
+          <SettingsMessage message={backupMessage} />
         </div>
       </div>
     </div>
