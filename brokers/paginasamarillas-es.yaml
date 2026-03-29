@@ -1,0 +1,12 @@
+name: Paginas Amarillas
+domain: paginasamarillas.es
+category: people_search
+dpo_email: dpo@paginasamarillas.es
+removal_method: email
+removal_url: null
+country: ES
+gdpr_applies: true
+verification_required: false
+language: es
+last_verified: "2026-03-29"
+notes: "Spanish yellow and white pages directory operated by Directories Vox. Lists business and residential phone numbers sourced from Spanish telcos and public registries."

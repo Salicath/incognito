@@ -1,0 +1,12 @@
+name: Telemovel
+domain: telemovel.com
+category: people_search
+dpo_email: privacy@telemovel.com
+removal_method: email
+removal_url: null
+country: PT
+gdpr_applies: true
+verification_required: false
+language: pt
+last_verified: "2026-03-29"
+notes: "Portuguese people search and reverse phone lookup service. Aggregates phone numbers and personal data from public sources and user contributions."

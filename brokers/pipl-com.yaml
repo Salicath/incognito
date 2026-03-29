@@ -1,0 +1,12 @@
+name: Pipl
+domain: pipl.com
+category: data_broker
+dpo_email: privacy@pipl.com
+removal_method: email
+removal_url: null
+country: US
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-29"
+notes: "People search API provider aggregating identity data from public records, social networks, and web sources. Primarily B2B. GDPR applies as it holds EU residents' data. Acquired by Lusha in 2024."
