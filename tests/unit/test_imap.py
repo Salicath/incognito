@@ -221,3 +221,78 @@ def test_no_match():
         broker_domains=set(),
     )
     assert result is None
+
+
+from unittest.mock import MagicMock
+from datetime import datetime, UTC
+
+from backend.core.imap import ImapPoller
+from backend.core.profile import ImapConfig
+from backend.db.models import Base, Request, RequestStatus, RequestType, EmailMessage, EmailDirection, RequestEvent
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+
+def _make_db():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine)
+
+
+def test_poller_processes_matched_reply():
+    """Poller stores email and transitions request to ACKNOWLEDGED."""
+    db_factory = _make_db()
+    db = db_factory()
+
+    req = Request(
+        id="req-poll-001",
+        broker_id="broker-com",
+        request_type=RequestType.ERASURE,
+        status=RequestStatus.SENT,
+        message_id="<req-poll-001@incognito.local>",
+        sent_at=datetime.now(UTC),
+        deadline_at=datetime.now(UTC),
+    )
+    db.add(req)
+    db.commit()
+
+    broker_domains = {"broker.com"}
+    imap_config = ImapConfig(host="localhost", username="u", password="p")
+
+    poller = ImapPoller(
+        imap_config=imap_config,
+        db_session_factory=db_factory,
+        broker_domains=broker_domains,
+    )
+
+    # Simulate a fetched email (imap_tools message has these attributes)
+    mock_msg = MagicMock()
+    mock_msg.headers = {
+        "in-reply-to": ("<req-poll-001@incognito.local>",),
+        "references": ("",),
+    }
+    mock_msg.subject = "Re: Data Erasure Request [REF-REQPOLL0]"
+    mock_msg.from_ = "dpo@broker.com"
+    mock_msg.to = ("user@proton.me",)
+    mock_msg.text = "Your data has been deleted."
+    mock_msg.date = datetime.now(UTC)
+    mock_msg.uid = "123"
+
+    poller.process_message(mock_msg)
+
+    db2 = db_factory()
+    updated_req = db2.get(Request, "req-poll-001")
+    assert updated_req.status == RequestStatus.ACKNOWLEDGED
+    assert updated_req.response_at is not None
+    assert "deleted" in updated_req.response_body
+
+    emails = db2.query(EmailMessage).filter_by(request_id="req-poll-001").all()
+    assert len(emails) == 1
+    assert emails[0].direction == EmailDirection.INBOUND
+
+    events = db2.query(RequestEvent).filter_by(request_id="req-poll-001").all()
+    response_events = [e for e in events if e.event_type == "response_detected"]
+    assert len(response_events) == 1
+
+    db.close()
+    db2.close()
