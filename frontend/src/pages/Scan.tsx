@@ -47,6 +47,8 @@ interface BreachResults {
 }
 
 export default function Scan() {
+  const [profileEmails, setProfileEmails] = useState<string[]>([]);
+
   const scan = useAsyncTask<ScanResults>({
     startFn: () => api.startScan(),
     statusFn: api.getScanStatus,
@@ -82,6 +84,10 @@ export default function Scan() {
 
   useEffect(() => {
     api.getHibpStatus().then((s) => setHibpConfigured(s.configured)).catch(() => setHibpConfigured(false));
+    api.getProfile().then((p) => {
+      const emails = (p as Record<string, unknown>).emails as string[] | undefined;
+      if (emails && emails.length > 0) setProfileEmails(emails);
+    }).catch(() => {});
     api.getRescanReport().then((r) => {
       if (r.has_results) {
         setRescanReappeared(r.reappeared);
@@ -347,15 +353,25 @@ export default function Scan() {
           )}
 
           <div className="flex gap-3">
-            <input
-              type="email"
-              placeholder="Enter email to check (leave empty for profile email)"
-              value={breachEmailInput}
-              onChange={(e) => setBreachEmailInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !breach.running && hibpConfigured && breach.start(breachEmailInput.trim() || undefined)}
-              disabled={!hibpConfigured}
-              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+            <div className="flex-1">
+              <input
+                type="email"
+                placeholder="Enter email to check (leave empty for profile email)"
+                value={breachEmailInput}
+                onChange={(e) => setBreachEmailInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !breach.running && hibpConfigured && breach.start(breachEmailInput.trim() || undefined)}
+                disabled={!hibpConfigured}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {profileEmails.length > 1 && (
+                <div className="flex gap-1.5 mt-1.5">
+                  {profileEmails.map((em) => (
+                    <button key={em} onClick={() => setBreachEmailInput(em)}
+                      className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition truncate max-w-[200px]">{em}</button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => breach.start(breachEmailInput.trim() || undefined)}
               disabled={breach.running || !hibpConfigured}
@@ -480,14 +496,24 @@ export default function Scan() {
             Check which online services have an account registered with an email address
           </p>
           <div className="flex gap-3">
-            <input
-              type="email"
-              placeholder="Enter email to check (leave empty for profile email)"
-              value={accountEmailInput}
-              onChange={(e) => setAccountEmailInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !account.running && account.start(accountEmailInput.trim() || undefined)}
-              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none text-sm"
-            />
+            <div className="flex-1">
+              <input
+                type="email"
+                placeholder="Enter email to check (leave empty for profile email)"
+                value={accountEmailInput}
+                onChange={(e) => setAccountEmailInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !account.running && account.start(accountEmailInput.trim() || undefined)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none text-sm"
+              />
+              {profileEmails.length > 1 && (
+                <div className="flex gap-1.5 mt-1.5">
+                  {profileEmails.map((em) => (
+                    <button key={em} onClick={() => setAccountEmailInput(em)}
+                      className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition truncate max-w-[200px]">{em}</button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => account.start(accountEmailInput.trim() || undefined)}
               disabled={account.running}

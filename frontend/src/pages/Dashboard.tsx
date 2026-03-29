@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [followUpResult, setFollowUpResult] = useState<{ newly_overdue: number; follow_ups_sent: number; escalations_sent: number } | null>(null);
   const [error, setError] = useState("");
+  const [confirmBlast, setConfirmBlast] = useState<{ type: string; count: number } | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -37,14 +38,29 @@ export default function Dashboard() {
     api.getRequests().then((r) => setRecentRequests(r.slice(0, 10)));
   }
 
-  async function handleBlast(type: string) {
+  async function handleBlastPreview(type: string) {
+    setBlastLoading(true);
+    setError("");
+    try {
+      const result = await api.blastCreate(type, true);
+      setConfirmBlast({ type, count: result.created });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to preview requests");
+    } finally {
+      setBlastLoading(false);
+    }
+  }
+
+  async function handleBlastConfirm() {
+    if (!confirmBlast) return;
     setBlastLoading(true);
     setError("");
     setBlastResult(null);
     setSendResult(null);
     try {
-      const result = await api.blastCreate(type, false);
+      const result = await api.blastCreate(confirmBlast.type, false);
       setBlastResult({ created: result.created, skipped: result.skipped });
+      setConfirmBlast(null);
       loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create requests");
@@ -194,7 +210,7 @@ export default function Dashboard() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => handleBlast("access")}
+                  onClick={() => handleBlastPreview("access")}
                   disabled={blastLoading}
                   className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 rounded-lg font-medium hover:bg-indigo-50 transition disabled:opacity-50"
                 >
@@ -202,7 +218,7 @@ export default function Dashboard() {
                   Send Art. 15 to all brokers
                 </button>
                 <button
-                  onClick={() => handleBlast("erasure")}
+                  onClick={() => handleBlastPreview("erasure")}
                   disabled={blastLoading}
                   className="flex items-center gap-2 px-5 py-2.5 bg-white/10 text-white border border-white/20 rounded-lg font-medium hover:bg-white/20 transition disabled:opacity-50"
                 >
@@ -219,6 +235,43 @@ export default function Dashboard() {
 
       {error && (
         <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
+      )}
+
+      {/* Blast confirmation dialog */}
+      {confirmBlast && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl px-5 py-5 mb-6">
+          <h3 className="font-semibold text-amber-900 mb-2">
+            Confirm: Send {confirmBlast.type === "access" ? "Art. 15" : "Art. 17"} to {confirmBlast.count} brokers?
+          </h3>
+          <p className="text-sm text-amber-800 mb-4">
+            This will create {confirmBlast.type === "access" ? "data access" : "data deletion"} requests
+            for all {confirmBlast.count} brokers in the registry. Note: sending requests to brokers who
+            don't have your data may expose your identity to them. Consider running a scan first to
+            identify which brokers actually have your data.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={handleBlastConfirm}
+              disabled={blastLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition disabled:opacity-50"
+            >
+              {blastLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              Yes, create {confirmBlast.count} requests
+            </button>
+            <button
+              onClick={() => setConfirmBlast(null)}
+              className="px-4 py-2 border border-amber-300 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-100 transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { setConfirmBlast(null); navigate("/scan"); }}
+              className="flex items-center gap-1 px-4 py-2 text-sm text-amber-700 hover:underline"
+            >
+              <Search className="w-3.5 h-3.5" /> Scan first instead
+            </button>
+          </div>
+        </div>
       )}
 
       {blastResult && (
@@ -300,7 +353,7 @@ export default function Dashboard() {
       {!hasNoRequests && !hasPending && (
         <div className="flex gap-3 mb-6">
           <button
-            onClick={() => handleBlast("access")}
+            onClick={() => handleBlastPreview("access")}
             disabled={blastLoading}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50"
           >
@@ -308,7 +361,7 @@ export default function Dashboard() {
             Blast Art. 15 to all
           </button>
           <button
-            onClick={() => handleBlast("erasure")}
+            onClick={() => handleBlastPreview("erasure")}
             disabled={blastLoading}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition disabled:opacity-50"
           >
