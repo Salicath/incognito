@@ -388,6 +388,7 @@ def brokers_update(
     existing = set(p.name for p in target_dir.glob("*.yaml"))
     added = 0
     updated = 0
+    failed = 0
 
     with tempfile.TemporaryDirectory() as tmp:
         for file_info in yaml_files:
@@ -401,6 +402,7 @@ def brokers_update(
                 file_resp.raise_for_status()
             except httpx.HTTPError:
                 console.print(f"  [yellow]Skipped {name} (download failed)[/]")
+                failed += 1
                 continue
 
             # Validate YAML before saving
@@ -427,7 +429,11 @@ def brokers_update(
 
     total = len(list(target_dir.glob("*.yaml")))
     console.print("\n[bold green]Broker registry updated:[/]")
-    console.print(f"  {added} new, {updated} updated, {total} total")
+    parts = [f"{added} new", f"{updated} updated"]
+    if failed:
+        parts.append(f"[yellow]{failed} failed[/]")
+    parts.append(f"{total} total")
+    console.print(f"  {', '.join(parts)}")
     if added > 0:
         console.print(
             "[dim]Restart the server to load new brokers.[/]"

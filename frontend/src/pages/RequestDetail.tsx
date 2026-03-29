@@ -290,7 +290,7 @@ export default function RequestDetailPage() {
       )}
 
       {/* DPA Complaint — for escalated/overdue/refused requests */}
-      {(request.status === "escalated" || request.status === "overdue" || request.status === "refused") && (
+      {(request.status === "escalated" || request.status === "overdue" || request.status === "refused" || request.status === "manual_action_needed") && (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">DPA Complaint</h2>
