@@ -1,0 +1,12 @@
+name: Telefoonboek.nl
+domain: telefoonboek.nl
+category: people_search
+dpo_email: privacy@youvia.nl
+removal_method: web_form
+removal_url: https://www.telefoonboek.nl/privacy-statement/
+country: NL
+gdpr_applies: true
+verification_required: true
+language: nl
+last_verified: "2026-03-29"
+notes: "Dutch phone book directory operated by Youvia."

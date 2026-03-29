@@ -1,0 +1,12 @@
+name: Tiresias
+domain: tiresias.gr
+category: credit_agency
+dpo_email: tiresias@tiresias.gr
+removal_method: email
+removal_url: null
+country: GR
+gdpr_applies: true
+verification_required: true
+language: el
+last_verified: "2026-03-29"
+notes: "Greece's only credit bureau, owned by Greek banks."

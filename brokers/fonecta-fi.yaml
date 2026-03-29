@@ -1,0 +1,12 @@
+name: Fonecta
+domain: fonecta.fi
+category: people_search
+dpo_email: tietosuoja@fonecta.com
+removal_method: email
+removal_url: null
+country: FI
+gdpr_applies: true
+verification_required: true
+language: fi
+last_verified: "2026-03-29"
+notes: "Finnish directory service. Data from Population Register Centre."

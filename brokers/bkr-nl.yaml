@@ -1,0 +1,12 @@
+name: BKR (Bureau Krediet Registratie)
+domain: bkr.nl
+category: credit_agency
+dpo_email: privacy@bkr.nl
+removal_method: email
+removal_url: null
+country: NL
+gdpr_applies: true
+verification_required: true
+language: nl
+last_verified: "2026-03-29"
+notes: "Dutch national credit bureau. Fined EUR 830,000 by Dutch DPA in 2020."

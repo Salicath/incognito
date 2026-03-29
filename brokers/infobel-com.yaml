@@ -1,0 +1,12 @@
+name: Infobel
+domain: infobel.com
+category: people_search
+dpo_email: dpo@infobel.com
+removal_method: email
+removal_url: null
+country: BE
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-29"
+notes: "Brussels-based global directory and data intelligence company."

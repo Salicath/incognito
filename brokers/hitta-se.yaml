@@ -1,0 +1,12 @@
+name: Hitta.se
+domain: hitta.se
+category: people_search
+dpo_email: support@hitta.zendesk.com
+removal_method: web_form
+removal_url: https://www.hitta.se/din-integritet
+country: SE
+gdpr_applies: true
+verification_required: true
+language: sv
+last_verified: "2026-03-29"
+notes: "Swedish people search. Claims partial GDPR exemption via publishing certificate."

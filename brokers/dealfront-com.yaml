@@ -1,0 +1,12 @@
+name: Dealfront
+domain: dealfront.com
+category: data_broker
+dpo_email: dpo@dealfront.com
+removal_method: email
+removal_url: null
+country: FI
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-03-29"
+notes: "B2B sales intelligence platform (merged Leadfeeder + Echobot)."

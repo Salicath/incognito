@@ -1,0 +1,12 @@
+name: Dun & Bradstreet UK
+domain: dnb.co.uk
+category: data_broker
+dpo_email: privacyofficer@dnb.com
+removal_method: web_form
+removal_url: https://www.dnb.co.uk/utility-pages/privacy-policy/subject-access-requests.html
+country: GB
+gdpr_applies: true
+verification_required: true
+language: en
+last_verified: "2026-03-29"
+notes: "Business data and commercial credit information."

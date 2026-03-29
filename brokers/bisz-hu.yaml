@@ -1,0 +1,12 @@
+name: BISZ (Central Credit Information)
+domain: bisz.hu
+category: credit_agency
+dpo_email: info@bisz.hu
+removal_method: email
+removal_url: null
+country: HU
+gdpr_applies: true
+verification_required: true
+language: hu
+last_verified: "2026-03-29"
+notes: "Hungary's central credit information system (KHR)."

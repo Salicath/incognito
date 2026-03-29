@@ -1,0 +1,12 @@
+name: Paginas Amarelas
+domain: pai.pt
+category: people_search
+dpo_email: DPO@paginasamarelas.pt
+removal_method: email
+removal_url: null
+country: PT
+gdpr_applies: true
+verification_required: false
+language: pt
+last_verified: "2026-03-29"
+notes: "Portuguese yellow/white pages directory."

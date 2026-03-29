@@ -1,0 +1,12 @@
+name: Upplysning.se
+domain: upplysning.se
+category: people_search
+dpo_email: kundservice@upplysning.se
+removal_method: email
+removal_url: null
+country: SE
+gdpr_applies: true
+verification_required: false
+language: sv
+last_verified: "2026-03-29"
+notes: "Swedish people search and credit reports. Claims publishing certificate exemption."

@@ -1,0 +1,12 @@
+name: KSV1870
+domain: ksv.at
+category: credit_agency
+dpo_email: ksv1870.datenschutzbeauftragter@ksv.at
+removal_method: email
+removal_url: null
+country: AT
+gdpr_applies: true
+verification_required: true
+language: de
+last_verified: "2026-03-29"
+notes: "Austria's primary credit bureau. Multiple noyb complaints."

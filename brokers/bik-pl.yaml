@@ -1,0 +1,12 @@
+name: BIK (Biuro Informacji Kredytowej)
+domain: bik.pl
+category: credit_agency
+dpo_email: iod@bik.pl
+removal_method: email
+removal_url: null
+country: PL
+gdpr_applies: true
+verification_required: true
+language: pl
+last_verified: "2026-03-29"
+notes: "Poland's primary credit bureau."

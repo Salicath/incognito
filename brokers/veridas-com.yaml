@@ -1,0 +1,12 @@
+name: Veridas
+domain: veridas.com
+category: data_broker
+dpo_email: dpo@veridas.com
+removal_method: email
+removal_url: null
+country: ES
+gdpr_applies: true
+verification_required: true
+language: es
+last_verified: "2026-03-29"
+notes: "Identity verification and biometric data company."
