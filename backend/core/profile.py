@@ -49,6 +49,26 @@ class ProfileVault:
         key, salt = derive_key(password, return_salt=True)
         self.save_with_key(profile, smtp, key, salt)
 
+    def create_initial(
+        self, profile: Profile, smtp: SmtpConfig | None, password: str,
+    ) -> None:
+        """Atomically create the vault. Raises FileExistsError if it already exists."""
+        import os
+
+        key, salt = derive_key(password, return_salt=True)
+        vault_data = _VaultData(profile=profile, smtp=smtp)
+        plaintext = vault_data.model_dump_json().encode("utf-8")
+        payload = encrypt(plaintext, key)
+        data = salt + payload.to_bytes()
+
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        # O_CREAT | O_EXCL: fails atomically if file already exists
+        fd = os.open(str(self._path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            os.write(fd, data)
+        finally:
+            os.close(fd)
+
     def save_with_key(
         self,
         profile: Profile,

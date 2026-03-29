@@ -21,16 +21,16 @@ def create_setup_router(
 
     @r.post("/setup")
     def setup(req: SetupRequest, response: Response):
-        if vault.exists():
-            raise HTTPException(status_code=400, detail="Already initialized")
-
         if len(req.password) < 8:
             raise HTTPException(
                 status_code=400,
                 detail="Password must be at least 8 characters",
             )
 
-        vault.save(req.profile, req.smtp, req.password)
+        try:
+            vault.create_initial(req.profile, req.smtp, req.password)
+        except FileExistsError:
+            raise HTTPException(status_code=400, detail="Already initialized") from None
 
         # Derive key for session (don't store raw password)
         derived_key, salt = vault.derive_key_from_file(req.password)

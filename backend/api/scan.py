@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
@@ -11,6 +12,20 @@ from backend.core.profile import ProfileVault
 from backend.scanner.duckduckgo import scan_profile
 
 log = logging.getLogger("incognito.scan")
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _validate_email(email: str | None) -> str | None:
+    """Validate email format if provided. Returns cleaned email or raises."""
+    if email is None:
+        return None
+    email = email.strip()
+    if not email:
+        return None
+    if not _EMAIL_RE.match(email) or len(email) > 254:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    return email
 
 
 def create_scan_router(
@@ -153,7 +168,8 @@ def create_scan_router(
         if _account_state["running"] and not (elapsed > stuck_timeout):
             raise HTTPException(status_code=409, detail="Account scan already running")
 
-        target_email = email
+        validated = _validate_email(email)
+        target_email = validated
         if not target_email:
             if not profile.emails:
                 raise HTTPException(status_code=400, detail="No email addresses provided")
@@ -246,7 +262,8 @@ def create_scan_router(
         if _breach_state["running"] and not (elapsed > stuck_timeout):
             raise HTTPException(status_code=409, detail="Breach check already running")
 
-        target_email = email or (profile.emails[0] if profile.emails else None)
+        validated = _validate_email(email)
+        target_email = validated or (profile.emails[0] if profile.emails else None)
         if not target_email:
             raise HTTPException(status_code=400, detail="No email provided")
 

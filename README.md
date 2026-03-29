@@ -50,7 +50,8 @@ Open http://localhost:8080
 # Backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e .              # core (GDPR blast, scanning, tracking)
+pip install -e ".[scanner]"   # optional: holehe account discovery
 
 # Frontend
 cd frontend && npm ci && npm run build && cd ..

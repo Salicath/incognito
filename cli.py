@@ -7,11 +7,24 @@ from rich.table import Table
 from backend.core.config import AppConfig
 
 app = typer.Typer(name="incognito", help="Self-hosted GDPR personal data removal tool.")
+brokers_app = typer.Typer(help="Manage the broker registry.")
+app.add_typer(brokers_app, name="brokers")
 console = Console()
 
 
 def get_config() -> AppConfig:
     return AppConfig()
+
+
+def _load_broker_registry(config: AppConfig):
+    from pathlib import Path
+
+    from backend.core.broker import BrokerRegistry
+
+    brokers_dir = config.brokers_dir
+    if not brokers_dir.exists():
+        brokers_dir = Path(__file__).parent / "brokers"
+    return BrokerRegistry.load(brokers_dir)
 
 
 @app.command()
@@ -102,18 +115,18 @@ def follow_up(
         if overdue:
             console.print(f"[yellow]{len(overdue)} request(s) past their 30-day deadline.[/]")
             for req in overdue:
-                console.print(f"  - {req.broker_id} ({req.request_type.value}) sent {req.sent_at}")
+                console.print(
+                    f"  - {req.broker_id} ({req.request_type.value}) sent {req.sent_at}"
+                )
 
         if auto:
             from pathlib import Path
 
-            from backend.core.broker import BrokerRegistry
             from backend.core.scheduler import run_follow_ups
             from backend.core.template import TemplateRenderer
 
             vault = ProfileVault(config.vault_path)
 
-            # Need password from environment or prompt
             import os
             password = os.environ.get("INCOGNITO_PASSWORD", "")
             if not password:
@@ -127,10 +140,7 @@ def follow_up(
                 templates_dir = config.data_dir / "templates"
             renderer = TemplateRenderer(templates_dir)
 
-            brokers_dir = config.brokers_dir
-            if not brokers_dir.exists():
-                brokers_dir = Path(__file__).parent / "brokers"
-            broker_registry = BrokerRegistry.load(brokers_dir)
+            broker_registry = _load_broker_registry(config)
 
             result = asyncio.run(run_follow_ups(
                 session=session,
@@ -142,11 +152,17 @@ def follow_up(
             ))
 
             if result.newly_overdue:
-                console.print(f"[yellow]Marked {result.newly_overdue} request(s) as overdue.[/]")
+                console.print(
+                    f"[yellow]Marked {result.newly_overdue} request(s) as overdue.[/]"
+                )
             if result.follow_ups_sent:
-                console.print(f"[blue]Sent {result.follow_ups_sent} follow-up email(s).[/]")
+                console.print(
+                    f"[blue]Sent {result.follow_ups_sent} follow-up email(s).[/]"
+                )
             if result.escalations_sent:
-                console.print(f"[red]Sent {result.escalations_sent} escalation warning(s).[/]")
+                console.print(
+                    f"[red]Sent {result.escalations_sent} escalation warning(s).[/]"
+                )
             if result.errors:
                 for err in result.errors:
                     console.print(f"[red]Error: {err}[/]")
@@ -158,7 +174,6 @@ def follow_up(
             if no_actions:
                 console.print("[green]Nothing to do.[/]")
         else:
-            # Just mark overdue without sending
             for req in overdue:
                 mgr.mark_overdue(req.id)
             if overdue:
@@ -166,6 +181,136 @@ def follow_up(
                     f"[yellow]Marked {len(overdue)} as overdue. "
                     "Run with --auto to send follow-ups.[/]"
                 )
+    finally:
+        session.close()
+
+
+@brokers_app.command("list")
+def brokers_list(
+    country: str = typer.Option(None, help="Filter by country code (e.g. DE, US)"),
+    method: str = typer.Option(None, help="Filter by removal method (email, web_form, api)"),
+):
+    """List all brokers in the registry."""
+    config = get_config()
+    registry = _load_broker_registry(config)
+
+    brokers = registry.brokers
+    if country:
+        brokers = [b for b in brokers if b.country.upper() == country.upper()]
+    if method:
+        brokers = [b for b in brokers if b.removal_method.value == method]
+
+    table = Table(title=f"Broker Registry ({len(brokers)} brokers)")
+    table.add_column("Name", style="bold")
+    table.add_column("Domain")
+    table.add_column("Country")
+    table.add_column("Method")
+    table.add_column("DPO Email", style="dim")
+
+    for b in brokers:
+        table.add_row(b.name, b.domain, b.country, b.removal_method.value, b.dpo_email)
+
+    console.print(table)
+
+
+@brokers_app.command("stats")
+def brokers_stats():
+    """Show broker registry statistics."""
+    from collections import Counter
+
+    config = get_config()
+    registry = _load_broker_registry(config)
+
+    countries = Counter(b.country for b in registry.brokers)
+    methods = Counter(b.removal_method.value for b in registry.brokers)
+    categories = Counter(b.category for b in registry.brokers)
+
+    console.print(f"\n[bold]Total brokers:[/] {len(registry.brokers)}\n")
+
+    table = Table(title="By Country")
+    table.add_column("Country")
+    table.add_column("Count", justify="right")
+    for country, count in countries.most_common():
+        table.add_row(country, str(count))
+    console.print(table)
+
+    table = Table(title="By Removal Method")
+    table.add_column("Method")
+    table.add_column("Count", justify="right")
+    for method_name, count in methods.most_common():
+        table.add_row(method_name, str(count))
+    console.print(table)
+
+    table = Table(title="By Category")
+    table.add_column("Category")
+    table.add_column("Count", justify="right")
+    for cat, count in categories.most_common():
+        table.add_row(cat, str(count))
+    console.print(table)
+
+
+@app.command()
+def send(
+    dry_run: bool = typer.Option(
+        True, help="Preview what would be sent without actually sending",
+    ),
+    request_type: str = typer.Option(
+        "erasure", help="Request type: access or erasure",
+    ),
+):
+    """Create and optionally send GDPR requests to all brokers."""
+
+    config = get_config()
+
+    if not config.vault_path.exists():
+        console.print("[yellow]Not initialized.[/]")
+        return
+
+    from backend.core.request import RequestManager
+    from backend.db.models import Request, RequestStatus, RequestType
+    from backend.db.session import init_db
+
+    session_factory = init_db(config.db_path)
+    session = session_factory()
+    registry = _load_broker_registry(config)
+
+    try:
+        rtype = RequestType.ACCESS if request_type == "access" else RequestType.ERASURE
+        mgr = RequestManager(session, config.gdpr_deadline_days)
+
+        existing = session.query(Request).filter(
+            Request.request_type == rtype,
+            Request.status.in_([
+                RequestStatus.CREATED, RequestStatus.SENT, RequestStatus.ACKNOWLEDGED,
+            ]),
+        ).all()
+        existing_ids = {r.broker_id for r in existing}
+
+        created = 0
+        skipped = 0
+        for broker in registry.brokers:
+            if broker.id in existing_ids:
+                skipped += 1
+                continue
+            if not dry_run:
+                mgr.create(broker.id, rtype)
+            created += 1
+
+        action = "Would create" if dry_run else "Created"
+        console.print(f"[green]{action} {created} {request_type} requests[/]")
+        if skipped:
+            console.print(f"[dim]Skipped {skipped} (already have active requests)[/]")
+        if dry_run and created > 0:
+            console.print("[yellow]Run with --no-dry-run to actually create them.[/]")
+
+        if not dry_run and created > 0:
+            pending = session.query(Request).filter(
+                Request.status == RequestStatus.CREATED,
+            ).count()
+            console.print(
+                f"\n{pending} requests ready to send. "
+                "Use the web UI or configure SMTP to send them."
+            )
     finally:
         session.close()
 

@@ -18,7 +18,6 @@ dependencies = [
     "typer>=0.15.0",
     "rich>=13.9.0",
     "httpx>=0.28.0",
-    "holehe>=1.61",
     "aiosmtplib>=3.0.0",
 ]
 
@@ -30,6 +29,11 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "aiosmtpd>=1.4.0",
+]
+
+# Account discovery scanner (holehe probes 120+ services)
+scanner = [
+    "holehe>=1.61",
 ]
 
 # Web form automation (adds ~400MB — install only when needed)

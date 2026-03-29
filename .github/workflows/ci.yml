@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,scanner]"
 
       - name: Lint
         run: ruff check .
@@ -107,3 +107,20 @@ jobs:
               sys.exit(1)
           print('All broker files valid')
           "
+
+  container:
+    runs-on: ubuntu-latest
+    needs: [test, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build -f deploy/Containerfile -t incognito:test .
+
+      - name: Verify container starts
+        run: |
+          docker run --rm -d --name incognito-test -p 8080:8080 incognito:test
+          sleep 3
+          curl -sf http://localhost:8080/api/auth/status | grep -q initialized
+          docker stop incognito-test
