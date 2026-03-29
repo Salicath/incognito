@@ -1,12 +1,13 @@
 from pathlib import Path
 
-from fastapi import Cookie, FastAPI
+from fastapi import Cookie, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.api.auth import create_auth_router
 from backend.api.blast import create_blast_router
 from backend.api.brokers import create_brokers_router
-from backend.api.deps import SessionStore
+from backend.api.deps import LoginRateLimiter, SessionStore
 from backend.api.requests import create_requests_router
 from backend.api.scan import create_scan_router
 from backend.api.settings import create_settings_router
@@ -17,12 +18,28 @@ from backend.core.profile import ProfileVault
 from backend.db.session import init_db
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=(), payment=()"
+        )
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+
 def create_app(config: AppConfig | None = None) -> FastAPI:
     if config is None:
         config = AppConfig()
 
-    app = FastAPI(title="Incognito", version="0.1.0")
+    app = FastAPI(title="Incognito", version="0.1.0", docs_url=None, redoc_url=None)
 
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -36,10 +53,13 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    import os
     config.data_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(config.data_dir, 0o700)
 
     vault = ProfileVault(config.vault_path)
     session_store = SessionStore(config.session_timeout_minutes)
+    rate_limiter = LoginRateLimiter()
     db_session_factory = init_db(config.db_path)
 
     app.state.config = config
@@ -56,7 +76,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     broker_registry = BrokerRegistry.load(brokers_dir)
     app.state.broker_registry = broker_registry
 
-    app.include_router(create_auth_router(vault, session_store))
+    app.include_router(create_auth_router(vault, session_store, rate_limiter))
     app.include_router(create_setup_router(vault, session_store))
     app.include_router(create_brokers_router(broker_registry, session_store))
     app.include_router(create_requests_router(
@@ -86,8 +106,13 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
         @app.get("/{full_path:path}")
         async def serve_spa(full_path: str):
-            file_path = frontend_dist / full_path
-            if file_path.exists() and file_path.is_file():
+            file_path = (frontend_dist / full_path).resolve()
+            # Prevent path traversal — resolved path must stay within dist
+            if (
+                file_path.is_relative_to(frontend_dist.resolve())
+                and file_path.exists()
+                and file_path.is_file()
+            ):
                 return FileResponse(str(file_path))
             return FileResponse(str(frontend_dist / "index.html"))
 

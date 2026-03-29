@@ -19,6 +19,12 @@ def create_setup_router(vault: ProfileVault, session_store: SessionStore) -> API
         if vault.exists():
             raise HTTPException(status_code=400, detail="Already initialized")
 
+        if len(req.password) < 8:
+            raise HTTPException(
+                status_code=400,
+                detail="Password must be at least 8 characters",
+            )
+
         vault.save(req.profile, req.smtp, req.password)
 
         token = session_store.create(req.password)

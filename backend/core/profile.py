@@ -46,6 +46,8 @@ class ProfileVault:
         return self._path.exists()
 
     def save(self, profile: Profile, smtp: SmtpConfig | None = None, password: str = "") -> None:
+        import os
+
         vault_data = _VaultData(profile=profile, smtp=smtp)
         plaintext = vault_data.model_dump_json().encode("utf-8")
 
@@ -54,6 +56,9 @@ class ProfileVault:
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_bytes(salt + payload.to_bytes())
+
+        # Restrict vault file permissions (owner-only read/write)
+        os.chmod(self._path, 0o600)
 
     def load(self, password: str) -> tuple[Profile, SmtpConfig | None]:
         raw = self._path.read_bytes()

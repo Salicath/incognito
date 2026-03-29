@@ -186,11 +186,22 @@ export default function Settings() {
   }
 
   async function handleExport() {
+    const password = prompt("Enter your master password to export backup:");
+    if (!password) return;
+
     setBackupExporting(true);
     setBackupMessage({ type: "", text: "" });
     try {
-      const res = await fetch("/api/settings/backup/export", { credentials: "include" });
-      if (!res.ok) throw new Error("Export failed");
+      const res = await fetch("/api/settings/backup/export", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(typeof body.detail === "string" ? body.detail : res.statusText);
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -207,11 +218,15 @@ export default function Settings() {
   }
 
   async function handleImport(file: File) {
+    const password = prompt("Enter your master password to confirm import (this will overwrite current data):");
+    if (!password) return;
+
     setBackupImporting(true);
     setBackupMessage({ type: "", text: "" });
     try {
       const text = await file.text();
       const data = JSON.parse(text);
+      data.password = password;
       const res = await fetch("/api/settings/backup/import", {
         method: "POST",
         credentials: "include",

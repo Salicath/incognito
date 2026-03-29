@@ -26,7 +26,10 @@ def client(config):
 
 
 def test_export_backup(client):
-    resp = client.get("/api/settings/backup/export")
+    resp = client.post(
+        "/api/settings/backup/export",
+        json={"password": "password"},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert "version" in data
@@ -34,12 +37,41 @@ def test_export_backup(client):
     assert "database" in data
 
 
+def test_export_backup_wrong_password(client):
+    resp = client.post(
+        "/api/settings/backup/export",
+        json={"password": "wrong"},
+    )
+    assert resp.status_code == 401
+
+
+def test_export_backup_no_password(client):
+    resp = client.post("/api/settings/backup/export", json={})
+    assert resp.status_code == 422  # validation error — password required
+
+
 def test_import_backup(client, config):
     # Export first
-    resp = client.get("/api/settings/backup/export")
+    resp = client.post(
+        "/api/settings/backup/export",
+        json={"password": "password"},
+    )
     backup = resp.json()
 
-    # Import
+    # Import with password
+    backup["password"] = "password"
     resp = client.post("/api/settings/backup/import", json=backup)
     assert resp.status_code == 200
     assert resp.json()["status"] == "imported"
+
+
+def test_import_backup_wrong_password(client, config):
+    resp = client.post(
+        "/api/settings/backup/export",
+        json={"password": "password"},
+    )
+    backup = resp.json()
+
+    backup["password"] = "wrong"
+    resp = client.post("/api/settings/backup/import", json=backup)
+    assert resp.status_code == 401

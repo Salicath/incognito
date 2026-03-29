@@ -88,3 +88,19 @@ def test_setup_status_initialized(client):
     response = client.get("/api/auth/status")
     assert response.status_code == 200
     assert response.json()["initialized"] is True
+
+
+def test_rate_limiting_after_failed_attempts(client):
+    # 5 failures should trigger a lockout
+    for _ in range(5):
+        resp = client.post("/api/auth/unlock", json={"password": "wrong"})
+        assert resp.status_code == 401
+
+    # 6th attempt should be rate limited
+    resp = client.post("/api/auth/unlock", json={"password": "wrong"})
+    assert resp.status_code == 429
+    assert "Too many failed attempts" in resp.json()["detail"]
+
+    # Even correct password should be blocked during lockout
+    resp = client.post("/api/auth/unlock", json={"password": "master_password"})
+    assert resp.status_code == 429

@@ -110,13 +110,24 @@ def create_settings_router(
         else:
             raise HTTPException(status_code=400, detail=f"SMTP test failed: {result.message}")
 
-    @r.get("/backup/export")
-    def export_backup(session: str | None = Cookie(default=None)):
-        """Export encrypted backup of all data."""
+    class BackupRequest(BaseModel):
+        password: str
+
+    @r.post("/backup/export")
+    def export_backup(body: BackupRequest, session: str | None = Cookie(default=None)):
+        """Export encrypted backup of all data. Requires password confirmation."""
         import base64
         import json
 
         session_store.validate(session)
+
+        # Verify password before allowing export
+        try:
+            vault.load(body.password)
+        except Exception:
+            raise HTTPException(
+                status_code=401, detail="Password required to export backup",
+            ) from None
 
         # Read the encrypted vault file
         vault_bytes = config.vault_path.read_bytes() if config.vault_path.exists() else b""
@@ -147,10 +158,23 @@ def create_settings_router(
 
     @r.post("/backup/import")
     async def import_backup(body: dict, session: str | None = Cookie(default=None)):
-        """Import a backup file."""
+        """Import a backup file. Requires password confirmation."""
         import base64
 
         session_store.validate(session)
+
+        # Verify password before allowing destructive import
+        confirm_password = body.get("password", "")
+        if not confirm_password:
+            raise HTTPException(
+                status_code=400, detail="Password required to import backup",
+            )
+        try:
+            vault.load(confirm_password)
+        except Exception:
+            raise HTTPException(
+                status_code=401, detail="Wrong password",
+            ) from None
 
         version = body.get("version")
         if not version:

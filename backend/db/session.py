@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
@@ -23,4 +24,9 @@ def get_engine(db_path: Path):
 def init_db(db_path: Path) -> sessionmaker:
     engine = get_engine(db_path)
     Base.metadata.create_all(engine)
+
+    # Restrict database file permissions (owner-only read/write)
+    if db_path.exists():
+        os.chmod(db_path, 0o600)
+
     return sessionmaker(bind=engine)
