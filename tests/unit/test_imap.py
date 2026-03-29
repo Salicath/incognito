@@ -124,3 +124,100 @@ def test_email_sender_sets_message_id_and_ref():
     assert "[REF-A1B2C3D4]" in msg["Subject"]
     assert msg["To"] == "dpo@broker.com"
     assert msg["From"] == "user@test.com"
+
+
+from backend.core.imap import match_reply, MatchResult, MatchTier
+
+
+def test_match_by_message_id_threading():
+    """Tier 1: In-Reply-To matches a stored outbound Message-ID."""
+    outbound_ids = {"<req-001@incognito.local>": "req-001"}
+    result = match_reply(
+        in_reply_to="<req-001@incognito.local>",
+        references="",
+        subject="Re: Data Erasure Request [REF-REQ00001]",
+        from_address="dpo@broker.com",
+        outbound_message_ids=outbound_ids,
+        broker_domains={"broker.com"},
+    )
+    assert result is not None
+    assert result.request_id == "req-001"
+    assert result.tier == MatchTier.MESSAGE_ID
+
+
+def test_match_by_references_header():
+    """Tier 1: References header contains a stored outbound Message-ID."""
+    outbound_ids = {"<req-002@incognito.local>": "req-002"}
+    result = match_reply(
+        in_reply_to="<some-other-id@broker.com>",
+        references="<some-other-id@broker.com> <req-002@incognito.local>",
+        subject="Re: Something",
+        from_address="dpo@broker.com",
+        outbound_message_ids=outbound_ids,
+        broker_domains={"broker.com"},
+    )
+    assert result is not None
+    assert result.request_id == "req-002"
+    assert result.tier == MatchTier.MESSAGE_ID
+
+
+def test_match_by_subject_ref_code():
+    """Tier 2: Subject contains [REF-XXXXXXXX] and sender domain matches a broker."""
+    ref_code_map = {"A1B2C3D4": "req-003"}
+    result = match_reply(
+        in_reply_to="",
+        references="",
+        subject="Re: Data Erasure Request [REF-A1B2C3D4]",
+        from_address="privacy@databroker.eu",
+        outbound_message_ids={},
+        broker_domains={"databroker.eu"},
+        ref_code_map=ref_code_map,
+    )
+    assert result is not None
+    assert result.request_id == "req-003"
+    assert result.tier == MatchTier.REFERENCE_CODE
+
+
+def test_match_by_subject_ref_code_wrong_domain():
+    """Tier 2: Subject matches but sender domain is not a known broker — no match."""
+    ref_code_map = {"A1B2C3D4": "req-003"}
+    result = match_reply(
+        in_reply_to="",
+        references="",
+        subject="Re: Data Erasure Request [REF-A1B2C3D4]",
+        from_address="random@unknown.com",
+        outbound_message_ids={},
+        broker_domains={"databroker.eu"},
+        ref_code_map=ref_code_map,
+    )
+    assert result is None
+
+
+def test_match_by_sender_domain():
+    """Tier 3: Sender domain matches a broker with active request — low confidence."""
+    domain_request_map = {"broker.com": "req-004"}
+    result = match_reply(
+        in_reply_to="",
+        references="",
+        subject="Your privacy request",
+        from_address="noreply@broker.com",
+        outbound_message_ids={},
+        broker_domains={"broker.com"},
+        domain_request_map=domain_request_map,
+    )
+    assert result is not None
+    assert result.request_id == "req-004"
+    assert result.tier == MatchTier.DOMAIN_ONLY
+
+
+def test_no_match():
+    """No matching strategy succeeds — returns None."""
+    result = match_reply(
+        in_reply_to="",
+        references="",
+        subject="Unrelated email",
+        from_address="someone@random.com",
+        outbound_message_ids={},
+        broker_domains=set(),
+    )
+    assert result is None
