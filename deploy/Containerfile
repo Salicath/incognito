@@ -13,9 +13,6 @@ WORKDIR /app
 RUN groupadd -g 1000 incognito && \
     useradd -u 1000 -g incognito -m incognito
 
-RUN pip install --no-cache-dir playwright && \
-    playwright install --with-deps chromium
-
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 

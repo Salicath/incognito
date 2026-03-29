@@ -46,12 +46,21 @@ class ProfileVault:
         return self._path.exists()
 
     def save(self, profile: Profile, smtp: SmtpConfig | None = None, password: str = "") -> None:
+        key, salt = derive_key(password, return_salt=True)
+        self.save_with_key(profile, smtp, key, salt)
+
+    def save_with_key(
+        self,
+        profile: Profile,
+        smtp: SmtpConfig | None,
+        key: bytes,
+        salt: bytes,
+    ) -> None:
         import os
 
         vault_data = _VaultData(profile=profile, smtp=smtp)
         plaintext = vault_data.model_dump_json().encode("utf-8")
 
-        key, salt = derive_key(password, return_salt=True)
         payload = encrypt(plaintext, key)
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -61,12 +70,20 @@ class ProfileVault:
         os.chmod(self._path, 0o600)
 
     def load(self, password: str) -> tuple[Profile, SmtpConfig | None]:
+        key, salt = self.derive_key_from_file(password)
+        return self.load_with_key(key)
+
+    def derive_key_from_file(self, password: str) -> tuple[bytes, bytes]:
+        """Derive the encryption key from password and stored salt."""
         raw = self._path.read_bytes()
         salt = raw[:16]
-        payload = EncryptedPayload.from_bytes(raw[16:])
-
         key = derive_key(password, salt=salt)
-        plaintext = decrypt(payload, key)
+        return key, salt
 
+    def load_with_key(self, key: bytes) -> tuple[Profile, SmtpConfig | None]:
+        """Load vault using a pre-derived key (avoids re-deriving from password)."""
+        raw = self._path.read_bytes()
+        payload = EncryptedPayload.from_bytes(raw[16:])
+        plaintext = decrypt(payload, key)
         vault_data = _VaultData.model_validate_json(plaintext)
         return vault_data.profile, vault_data.smtp

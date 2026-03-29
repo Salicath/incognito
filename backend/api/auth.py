@@ -28,13 +28,17 @@ def create_auth_router(
         rate_limiter.check(client_ip)
 
         try:
-            vault.load(req.password)
+            # Derive key from password — this is the expensive Argon2 step
+            derived_key, salt = vault.derive_key_from_file(req.password)
+            # Verify it actually decrypts (validates password)
+            vault.load_with_key(derived_key)
         except Exception:
             rate_limiter.record_failure(client_ip)
             raise HTTPException(status_code=401, detail="Wrong password") from None
 
         rate_limiter.record_success(client_ip)
-        token = session_store.create(req.password)
+        # Store only the derived key in the session — never the raw password
+        token = session_store.create(derived_key, salt)
         response.set_cookie(
             key="session",
             value=token,

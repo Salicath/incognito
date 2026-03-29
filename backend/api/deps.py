@@ -61,16 +61,20 @@ class LoginRateLimiter:
 
 
 class SessionStore:
+    """Stores session tokens mapped to derived encryption keys (never raw passwords)."""
+
     def __init__(self, timeout_minutes: int):
         self._timeout_minutes = timeout_minutes
-        self._sessions: dict[str, tuple[str, datetime]] = {}
+        # Maps token -> (derived_key, salt, last_access)
+        self._sessions: dict[str, tuple[bytes, bytes, datetime]] = {}
 
-    def create(self, password: str) -> str:
+    def create(self, derived_key: bytes, salt: bytes) -> str:
         token = secrets.token_urlsafe(32)
-        self._sessions[token] = (password, datetime.now(UTC))
+        self._sessions[token] = (derived_key, salt, datetime.now(UTC))
         return token
 
-    def validate(self, token: str | None) -> str:
+    def validate(self, token: str | None) -> tuple[bytes, bytes]:
+        """Validate session and return (derived_key, salt)."""
         if token is None:
             raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -78,14 +82,14 @@ class SessionStore:
         if entry is None:
             raise HTTPException(status_code=401, detail="Invalid session")
 
-        password, last_access = entry
+        derived_key, salt, last_access = entry
         elapsed = (datetime.now(UTC) - last_access).total_seconds()
         if elapsed > self._timeout_minutes * 60:
             del self._sessions[token]
             raise HTTPException(status_code=401, detail="Session expired")
 
-        self._sessions[token] = (password, datetime.now(UTC))
-        return password
+        self._sessions[token] = (derived_key, salt, datetime.now(UTC))
+        return derived_key, salt
 
     def destroy(self, token: str | None) -> None:
         if token and token in self._sessions:

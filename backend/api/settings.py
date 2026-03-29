@@ -33,8 +33,8 @@ def create_settings_router(
 
     @r.get("/smtp")
     def get_smtp_status(session: str | None = Cookie(default=None)):
-        password = session_store.validate(session)
-        _, smtp = vault.load(password)
+        key, _salt = session_store.validate(session)
+        _, smtp = vault.load_with_key(key)
         if smtp is None:
             return {"configured": False}
         return {
@@ -47,16 +47,16 @@ def create_settings_router(
 
     @r.post("/smtp")
     def update_smtp(body: UpdateSmtpRequest, session: str | None = Cookie(default=None)):
-        password = session_store.validate(session)
-        profile, _ = vault.load(password)
-        vault.save(profile, body.smtp, password)
+        key, salt = session_store.validate(session)
+        profile, _ = vault.load_with_key(key)
+        vault.save_with_key(profile, body.smtp, key, salt)
         return {"status": "updated"}
 
     @r.post("/profile")
     def update_profile(body: UpdateProfileRequest, session: str | None = Cookie(default=None)):
-        password = session_store.validate(session)
-        _, smtp = vault.load(password)
-        vault.save(body.profile, smtp, password)
+        key, salt = session_store.validate(session)
+        _, smtp = vault.load_with_key(key)
+        vault.save_with_key(body.profile, smtp, key, salt)
         return {"status": "updated"}
 
     @r.get("/hibp")
@@ -75,8 +75,10 @@ def create_settings_router(
         key = body.get("api_key", "").strip()
         if not key:
             raise HTTPException(status_code=400, detail="API key required")
+        import os
         key_path = config.data_dir / "hibp_key.txt"
         key_path.write_text(key)
+        os.chmod(key_path, 0o600)
         return {"status": "saved"}
 
     @r.delete("/hibp")
@@ -89,8 +91,8 @@ def create_settings_router(
 
     @r.post("/test-smtp")
     async def test_smtp(session: str | None = Cookie(default=None)):
-        password = session_store.validate(session)
-        profile, smtp = vault.load(password)
+        key, _salt = session_store.validate(session)
+        _, smtp = vault.load_with_key(key)
         if smtp is None:
             raise HTTPException(status_code=400, detail="SMTP not configured")
 

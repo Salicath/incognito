@@ -95,8 +95,8 @@ def create_blast_router(
     @r.post("/send-all")
     async def send_all_pending(session: str | None = Cookie(default=None)) -> dict:
         """Send all pending (created) requests via email."""
-        password = session_store.validate(session)
-        profile, smtp = vault.load(password)
+        key, _salt = session_store.validate(session)
+        profile, smtp = vault.load_with_key(key)
 
         if smtp is None:
             raise HTTPException(
@@ -203,8 +203,8 @@ def create_blast_router(
     @r.post("/follow-up")
     async def run_follow_up(session: str | None = Cookie(default=None)) -> dict:
         """Check deadlines and send follow-ups/escalations."""
-        password = session_store.validate(session)
-        profile, smtp = vault.load(password)
+        key, _salt = session_store.validate(session)
+        profile, smtp = vault.load_with_key(key)
 
         from pathlib import Path
 
@@ -239,8 +239,8 @@ def create_blast_router(
         session: str | None = Cookie(default=None),
     ) -> dict:
         """Generate a DPA complaint for an escalated request."""
-        password = session_store.validate(session)
-        profile, _ = vault.load(password)
+        key, _salt = session_store.validate(session)
+        profile, _ = vault.load_with_key(key)
 
         from pathlib import Path
 

@@ -27,7 +27,9 @@ def create_setup_router(vault: ProfileVault, session_store: SessionStore) -> API
 
         vault.save(req.profile, req.smtp, req.password)
 
-        token = session_store.create(req.password)
+        # Derive key for session (don't store raw password)
+        derived_key, salt = vault.derive_key_from_file(req.password)
+        token = session_store.create(derived_key, salt)
         response.set_cookie(
             key="session",
             value=token,

@@ -92,8 +92,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     @app.get("/api/profile")
     def get_profile(session: str | None = Cookie(default=None)):
-        password = session_store.validate(session)
-        profile, _ = vault.load(password)
+        key, _salt = session_store.validate(session)
+        profile, _ = vault.load_with_key(key)
         return profile.model_dump()
 
     from fastapi.responses import FileResponse
