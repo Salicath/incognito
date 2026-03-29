@@ -9,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
 from backend.core.profile import ProfileVault
+from backend.db.models import ScanResult
 from backend.scanner.duckduckgo import scan_profile
 
 log = logging.getLogger("incognito.scan")
@@ -32,7 +33,8 @@ def create_scan_router(
     vault: ProfileVault,
     session_store: SessionStore,
     broker_registry: BrokerRegistry,
-    config=None,  # Add this
+    config=None,
+    db_session_factory=None,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/scan", tags=["scan"])
 
@@ -62,6 +64,24 @@ def create_scan_router(
             report = await scan_profile(profile, broker_domains, on_progress=on_progress)
             _state["report"] = report
             _state["error"] = None
+
+            # Persist scan results to DB for re-scan comparison
+            if db_session_factory and report.hits:
+                from backend.core.rescan import save_scan_results
+                db = db_session_factory()
+                try:
+                    hits = [
+                        {
+                            "broker_domain": h.broker_domain,
+                            "broker_name": h.broker_name,
+                            "snippet": h.snippet,
+                            "url": h.url,
+                        }
+                        for h in report.hits
+                    ]
+                    save_scan_results(db, hits, source="duckduckgo")
+                finally:
+                    db.close()
         except Exception as e:
             log.error("DuckDuckGo scan failed: %s", e)
             _state["error"] = "Scan failed. Check logs for details."
@@ -305,5 +325,99 @@ def create_scan_router(
         elapsed = time.time() - _breach_state["started_at"]
         running = _breach_state["running"] and not (elapsed > stuck_timeout)
         return {"running": running, "error": _breach_state.get("error")}
+
+    @r.get("/rescan")
+    def get_rescan_report(session: str | None = Cookie(default=None)):
+        """Compare latest scan results against completed requests to detect reappearances."""
+        session_store.validate(session)
+
+        if db_session_factory is None:
+            raise HTTPException(status_code=500, detail="Database not available")
+
+        report = _state.get("report")
+        if report is None or not report.hits:
+            return {
+                "has_results": False,
+                "reappeared": [],
+                "new_exposures": [],
+                "total_checked": 0,
+            }
+
+        from backend.core.rescan import check_for_reappearances
+
+        db = db_session_factory()
+        try:
+            hits = [
+                {
+                    "broker_domain": h.broker_domain,
+                    "broker_name": h.broker_name,
+                    "snippet": h.snippet,
+                    "url": h.url,
+                }
+                for h in report.hits
+            ]
+            rescan = check_for_reappearances(db, hits)
+            return {
+                "has_results": True,
+                "reappeared": [
+                    {
+                        "broker_domain": a.broker_domain,
+                        "broker_name": a.broker_name,
+                        "snippet": a.snippet,
+                        "url": a.url,
+                        "previous_removal_date": a.previous_removal_date,
+                    }
+                    for a in rescan.reappeared
+                ],
+                "new_exposures": [
+                    {
+                        "broker_domain": a.broker_domain,
+                        "broker_name": a.broker_name,
+                        "snippet": a.snippet,
+                        "url": a.url,
+                    }
+                    for a in rescan.new_exposures
+                ],
+                "total_checked": rescan.total_checked,
+                "scan_date": rescan.scan_date,
+            }
+        finally:
+            db.close()
+
+    @r.get("/history")
+    def scan_history(session: str | None = Cookie(default=None)):
+        """Get history of all scan results."""
+        session_store.validate(session)
+
+        if db_session_factory is None:
+            return {"results": [], "total": 0}
+
+        db = db_session_factory()
+        try:
+            import json
+            results = (
+                db.query(ScanResult)
+                .order_by(ScanResult.scanned_at.desc())
+                .limit(100)
+                .all()
+            )
+            return {
+                "results": [
+                    {
+                        "id": r.id,
+                        "source": r.source,
+                        "broker_id": r.broker_id,
+                        "found_data": json.loads(r.found_data)
+                        if r.found_data.startswith("{") else r.found_data,
+                        "scanned_at": r.scanned_at.isoformat()
+                        if r.scanned_at else None,
+                        "actioned": r.actioned,
+                    }
+                    for r in results
+                ],
+                "total": len(results),
+            }
+        finally:
+            db.close()
 
     return r

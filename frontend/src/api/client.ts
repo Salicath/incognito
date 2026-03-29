@@ -82,4 +82,17 @@ export const api = {
       broker: { name: string; domain: string; dpo_email: string; country: string };
       request_id: string;
     }>(`/blast/generate-complaint/${requestId}`, { method: "POST" }),
+  getRescanReport: () =>
+    request<{
+      has_results: boolean;
+      reappeared: Array<{ broker_domain: string; broker_name: string; snippet: string; url: string; previous_removal_date: string | null }>;
+      new_exposures: Array<{ broker_domain: string; broker_name: string; snippet: string; url: string }>;
+      total_checked: number;
+      scan_date?: string;
+    }>("/scan/rescan"),
+  getScanHistory: () =>
+    request<{
+      results: Array<{ id: number; source: string; broker_id: string; found_data: unknown; scanned_at: string | null; actioned: boolean }>;
+      total: number;
+    }>("/scan/history"),
 };

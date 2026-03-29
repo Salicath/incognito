@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAsyncTask } from "../hooks/useAsyncTask";
-import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail, ShieldAlert } from "lucide-react";
+import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail, ShieldAlert, RefreshCw } from "lucide-react";
 
 interface ScanHit {
   broker_domain: string;
@@ -68,9 +68,28 @@ export default function Scan() {
     resultsFn: api.getBreachResults,
   });
 
+  // Re-scan monitoring
+  interface RescanAlert {
+    broker_domain: string;
+    broker_name: string;
+    snippet: string;
+    url: string;
+    previous_removal_date?: string | null;
+  }
+  const [rescanReappeared, setRescanReappeared] = useState<RescanAlert[]>([]);
+  const [rescanNewExposures, setRescanNew] = useState<RescanAlert[]>([]);
+  const [rescanLoaded, setRescanLoaded] = useState(false);
+
   useEffect(() => {
     api.getHibpStatus().then((s) => setHibpConfigured(s.configured)).catch(() => setHibpConfigured(false));
-  }, []);
+    api.getRescanReport().then((r) => {
+      if (r.has_results) {
+        setRescanReappeared(r.reappeared);
+        setRescanNew(r.new_exposures);
+      }
+      setRescanLoaded(true);
+    }).catch(() => setRescanLoaded(true));
+  }, [scan.hasResults]);
 
   async function handleCreateRequest(brokerDomain: string, type: string) {
     try {
@@ -236,6 +255,73 @@ export default function Scan() {
             </div>
           )}
         </>
+      )}
+
+      {/* Re-scan Monitoring Alerts */}
+      {rescanLoaded && rescanReappeared.length > 0 && (
+        <div className="mt-10">
+          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <RefreshCw className="w-6 h-6 text-red-600" />
+              <div>
+                <h2 className="text-lg font-bold text-red-900">Data Reappeared</h2>
+                <p className="text-sm text-red-700">
+                  {rescanReappeared.length} {rescanReappeared.length === 1 ? "broker has" : "brokers have"} re-listed
+                  your data after confirmed deletion. Consider sending a new removal request.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {rescanReappeared.map((alert) => (
+                <div key={alert.broker_domain} className="bg-white rounded-lg px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-sm text-red-900">{alert.broker_name}</span>
+                    <span className="text-xs text-red-500 ml-2">{alert.broker_domain}</span>
+                    {alert.previous_removal_date && (
+                      <span className="text-xs text-red-400 ml-2">removed {alert.previous_removal_date}</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleCreateRequest(alert.broker_domain, "erasure")}
+                    className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                  >
+                    Re-send Art. 17
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rescanLoaded && rescanNewExposures.length > 0 && rescanReappeared.length === 0 && (
+        <div className="mt-10">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="w-6 h-6 text-amber-600" />
+              <div>
+                <h2 className="text-lg font-bold text-amber-900">New Exposures Detected</h2>
+                <p className="text-sm text-amber-700">
+                  {rescanNewExposures.length} new {rescanNewExposures.length === 1 ? "site" : "sites"} found
+                  since your last scan.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {rescanNewExposures.map((alert) => (
+                <div key={alert.broker_domain} className="bg-white rounded-lg px-4 py-3 flex items-center justify-between">
+                  <span className="font-medium text-sm">{alert.broker_name} <span className="text-xs text-gray-400">{alert.broker_domain}</span></span>
+                  <button
+                    onClick={() => handleCreateRequest(alert.broker_domain, "erasure")}
+                    className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition"
+                  >
+                    Art. 17
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Breach Scanner (HIBP) */}
