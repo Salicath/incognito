@@ -12,6 +12,7 @@ from backend.db.models import (
     RequestEvent,
     RequestStatus,
     RequestType,
+    ScanResult,
 )
 
 
@@ -52,6 +53,13 @@ def create_requests_router(
                 )
                 .count()
             )
+            # Scan exposure stats
+            exposures_found = db.query(ScanResult).count()
+            exposures_actioned = (
+                db.query(ScanResult).filter(ScanResult.actioned.is_(True)).count()
+            )
+            counts["exposures_found"] = exposures_found
+            counts["exposures_actioned"] = exposures_actioned
             return counts
         finally:
             db.close()
