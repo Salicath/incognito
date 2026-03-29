@@ -68,7 +68,7 @@ def test_vault_save_and_load(tmp_path: Path):
 
     assert vault_path.exists()
 
-    loaded_profile, loaded_smtp = vault.load(password)
+    loaded_profile, loaded_smtp, _ = vault.load(password)
     assert loaded_profile == profile
     assert loaded_smtp == smtp
 
@@ -129,7 +129,7 @@ def test_vault_save_without_smtp(tmp_path: Path):
 
     assert vault_path.exists()
 
-    loaded_profile, loaded_smtp = vault.load(password)
+    loaded_profile, loaded_smtp, _ = vault.load(password)
     assert loaded_profile == profile
     assert loaded_smtp is None
 

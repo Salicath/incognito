@@ -94,7 +94,7 @@ def create_scan_router(
         session: str | None = Cookie(default=None),
     ):
         key, _salt = session_store.validate(session)
-        profile, _ = vault.load_with_key(key)
+        profile, _, _ = vault.load_with_key(key)
 
         if _state["running"] and not _is_stuck():
             raise HTTPException(status_code=409, detail="Scan already running")
@@ -182,7 +182,7 @@ def create_scan_router(
         email: str | None = None,
     ):
         key, _salt = session_store.validate(session)
-        profile, _ = vault.load_with_key(key)
+        profile, _, _ = vault.load_with_key(key)
 
         elapsed = time.time() - _account_state["started_at"]
         if _account_state["running"] and not (elapsed > stuck_timeout):
@@ -265,7 +265,7 @@ def create_scan_router(
         email: str | None = None,
     ):
         key, _salt = session_store.validate(session)
-        profile, _ = vault.load_with_key(key)
+        profile, _, _ = vault.load_with_key(key)
 
         # Read HIBP key from file
         from backend.core.config import AppConfig

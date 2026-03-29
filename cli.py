@@ -139,7 +139,7 @@ def follow_up(
                     print(msg, file=sys.stderr)
                     raise typer.Exit(code=1)
 
-            profile, smtp = vault.load(password)
+            profile, smtp, _ = vault.load(password)
 
             templates_dir = Path(__file__).parent / "templates"
             if not templates_dir.exists():
@@ -350,7 +350,7 @@ def rescan():
             raise typer.Exit(code=1)
 
     vault = ProfileVault(config.vault_path)
-    profile, _ = vault.load(password)
+    profile, _, _ = vault.load(password)
     registry = _load_broker_registry(config)
 
     console.print("[blue]Scanning for your data across broker sites...[/]")

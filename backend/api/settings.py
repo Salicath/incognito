@@ -37,7 +37,7 @@ def create_settings_router(
     @r.get("/smtp")
     def get_smtp_status(session: str | None = Cookie(default=None)):
         key, _salt = session_store.validate(session)
-        _, smtp = vault.load_with_key(key)
+        _, smtp, _ = vault.load_with_key(key)
         if smtp is None:
             return {"configured": False}
         return {
@@ -51,15 +51,15 @@ def create_settings_router(
     @r.post("/smtp")
     def update_smtp(body: UpdateSmtpRequest, session: str | None = Cookie(default=None)):
         key, salt = session_store.validate(session)
-        profile, _ = vault.load_with_key(key)
-        vault.save_with_key(profile, body.smtp, key, salt)
+        profile, _, imap = vault.load_with_key(key)
+        vault.save_with_key(profile, body.smtp, imap, key, salt)
         return {"status": "updated"}
 
     @r.post("/profile")
     def update_profile(body: UpdateProfileRequest, session: str | None = Cookie(default=None)):
         key, salt = session_store.validate(session)
-        _, smtp = vault.load_with_key(key)
-        vault.save_with_key(body.profile, smtp, key, salt)
+        _, smtp, imap = vault.load_with_key(key)
+        vault.save_with_key(body.profile, smtp, imap, key, salt)
         return {"status": "updated"}
 
     @r.get("/hibp")
@@ -95,7 +95,7 @@ def create_settings_router(
     @r.post("/test-smtp")
     async def test_smtp(session: str | None = Cookie(default=None)):
         key, _salt = session_store.validate(session)
-        _, smtp = vault.load_with_key(key)
+        _, smtp, _ = vault.load_with_key(key)
         if smtp is None:
             raise HTTPException(status_code=400, detail="SMTP not configured")
 
