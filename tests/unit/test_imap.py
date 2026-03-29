@@ -1,4 +1,21 @@
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from backend.core.imap import ImapPoller, MatchTier, match_reply
 from backend.core.profile import ImapConfig, Profile, ProfileVault, SmtpConfig
+from backend.db.models import (
+    Base,
+    EmailDirection,
+    EmailMessage,
+    Request,
+    RequestEvent,
+    RequestStatus,
+    RequestType,
+)
+from backend.senders.email import EmailSender
 
 
 def test_imap_config_defaults():
@@ -53,17 +70,11 @@ def test_vault_roundtrip_without_imap(tmp_path):
     assert loaded_imap is None
 
 
-from backend.db.models import EmailDirection, EmailMessage, Request, RequestStatus, RequestType
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from backend.db.models import Base
-
-
 def test_email_message_model():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    db = SessionLocal()
+    session_local = sessionmaker(bind=engine)
+    db = session_local()
 
     req = Request(
         id="test-req-001",
@@ -103,16 +114,16 @@ def test_email_message_model():
 
 def test_email_sender_sets_message_id_and_ref():
     """Verify the EmailMessage object has Message-ID and [REF-...] in subject."""
-    from backend.core.profile import SmtpConfig
-    from backend.senders.email import EmailSender
-
     smtp_config = SmtpConfig(
         host="smtp.test.com", port=587, username="user@test.com", password="pw",
     )
     sender = EmailSender(smtp_config)
 
     request_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-    rendered = "Subject: Data Erasure Request pursuant to Article 17 GDPR\n\nPlease delete my data."
+    rendered = (
+        "Subject: Data Erasure Request pursuant to Article 17 GDPR\n\n"
+        "Please delete my data."
+    )
 
     msg = sender.build_message(
         to_email="dpo@broker.com",
@@ -124,9 +135,6 @@ def test_email_sender_sets_message_id_and_ref():
     assert "[REF-A1B2C3D4]" in msg["Subject"]
     assert msg["To"] == "dpo@broker.com"
     assert msg["From"] == "user@test.com"
-
-
-from backend.core.imap import match_reply, MatchResult, MatchTier
 
 
 def test_match_by_message_id_threading():
@@ -162,7 +170,7 @@ def test_match_by_references_header():
 
 
 def test_match_by_subject_ref_code():
-    """Tier 2: Subject contains [REF-XXXXXXXX] and sender domain matches a broker."""
+    """Tier 2: Subject contains [REF-XXXXXXXX] and sender domain matches."""
     ref_code_map = {"A1B2C3D4": "req-003"}
     result = match_reply(
         in_reply_to="",
@@ -179,7 +187,7 @@ def test_match_by_subject_ref_code():
 
 
 def test_match_by_subject_ref_code_wrong_domain():
-    """Tier 2: Subject matches but sender domain is not a known broker — no match."""
+    """Tier 2: Subject matches but sender domain is not a known broker."""
     ref_code_map = {"A1B2C3D4": "req-003"}
     result = match_reply(
         in_reply_to="",
@@ -194,7 +202,7 @@ def test_match_by_subject_ref_code_wrong_domain():
 
 
 def test_match_by_sender_domain():
-    """Tier 3: Sender domain matches a broker with active request — low confidence."""
+    """Tier 3: Sender domain matches a broker with active request."""
     domain_request_map = {"broker.com": "req-004"}
     result = match_reply(
         in_reply_to="",
@@ -221,16 +229,6 @@ def test_no_match():
         broker_domains=set(),
     )
     assert result is None
-
-
-from unittest.mock import MagicMock
-from datetime import datetime, UTC
-
-from backend.core.imap import ImapPoller
-from backend.core.profile import ImapConfig
-from backend.db.models import Base, Request, RequestStatus, RequestType, EmailMessage, EmailDirection, RequestEvent
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 
 def _make_db():
@@ -265,7 +263,6 @@ def test_poller_processes_matched_reply():
         broker_domains=broker_domains,
     )
 
-    # Simulate a fetched email (imap_tools message has these attributes)
     mock_msg = MagicMock()
     mock_msg.headers = {
         "in-reply-to": ("<req-poll-001@incognito.local>",),
