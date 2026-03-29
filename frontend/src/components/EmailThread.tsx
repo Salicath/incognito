@@ -30,19 +30,19 @@ export default function EmailThread({ emails }: { emails: EmailItem[] }) {
             ) : (
               <ArrowDownLeft className="w-3.5 h-3.5 text-green-500" />
             )}
-            <span className="text-xs font-medium text-gray-700">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
               {email.direction === "outbound" ? "Sent" : "Received"}
             </span>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 dark:text-gray-500">
               {email.received_at ? new Date(email.received_at).toLocaleString() : ""}
             </span>
           </div>
-          <div className="text-xs text-gray-500 space-y-0.5 mb-2">
+          <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 mb-2">
             <p>From: {email.from_address}</p>
             <p>To: {email.to_address}</p>
             <p>Subject: {email.subject}</p>
           </div>
-          <pre className="text-sm whitespace-pre-wrap text-gray-800 max-h-40 overflow-y-auto">
+          <pre className="text-sm whitespace-pre-wrap text-gray-800 dark:text-gray-200 max-h-40 overflow-y-auto">
             {email.body_text}
           </pre>
         </div>

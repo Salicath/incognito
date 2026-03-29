@@ -291,7 +291,7 @@ export default function RequestDetailPage() {
 
       {/* DPA Complaint — for escalated/overdue/refused requests */}
       {(request.status === "escalated" || request.status === "overdue" || request.status === "refused") && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">DPA Complaint</h2>
             {!complaint && (
@@ -306,7 +306,7 @@ export default function RequestDetailPage() {
             )}
           </div>
           {!complaint && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Generate a pre-filled complaint to send to the relevant Data Protection Authority.
               They can fine the broker up to 4% of annual revenue for non-compliance.
             </p>
@@ -314,21 +314,21 @@ export default function RequestDetailPage() {
           {complaint && (
             <div>
               {complaint.dpa && (
-                <div className="bg-gray-50 rounded-lg p-3 mb-3 text-sm">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-3 text-sm">
                   <p className="font-medium">{complaint.dpa.name}</p>
-                  {complaint.dpa.email && <p className="text-gray-500">Email: {complaint.dpa.email}</p>}
+                  {complaint.dpa.email && <p className="text-gray-500 dark:text-gray-400">Email: {complaint.dpa.email}</p>}
                   <a href={complaint.dpa.url} target="_blank" rel="noopener noreferrer"
                     className="text-indigo-600 hover:underline flex items-center gap-1 mt-1">
                     <ExternalLink className="w-3 h-3" /> Submit complaint online
                   </a>
                 </div>
               )}
-              <pre className="bg-gray-50 rounded-lg p-4 text-xs whitespace-pre-wrap max-h-64 overflow-y-auto mb-3">
+              <pre className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-xs whitespace-pre-wrap max-h-64 overflow-y-auto mb-3">
                 {complaint.complaint_text}
               </pre>
               <button
                 onClick={handleCopyComplaint}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition"
               >
                 <Copy className="w-3.5 h-3.5" />
                 {copied ? "Copied!" : "Copy to clipboard"}
@@ -339,20 +339,20 @@ export default function RequestDetailPage() {
       )}
 
       {/* Event Timeline */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="font-semibold mb-4">Timeline</h2>
         {events.length === 0 ? (
-          <p className="text-sm text-gray-500">No events yet.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No events yet.</p>
         ) : (
-          <div className="border-l-2 border-gray-200 ml-2 space-y-4">
+          <div className="border-l-2 border-gray-200 dark:border-gray-700 ml-2 space-y-4">
             {events.map((event) => (
               <div key={event.id} className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-2 border-indigo-400" />
+                <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white dark:bg-gray-900 border-2 border-indigo-400" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{event.event_type.replace(/_/g, " ")}</p>
-                  {event.details && <p className="text-xs text-gray-500 mt-0.5">{event.details}</p>}
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{event.event_type.replace(/_/g, " ")}</p>
+                  {event.details && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{event.details}</p>}
                   {event.created_at && (
-                    <p className="text-xs text-gray-400 mt-0.5">{new Date(event.created_at).toLocaleString()}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{new Date(event.created_at).toLocaleString()}</p>
                   )}
                 </div>
               </div>

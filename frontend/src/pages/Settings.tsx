@@ -302,22 +302,22 @@ export default function Settings() {
     }
   }
 
-  const inputClass = "w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm";
+  const inputClass = "w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm";
 
   return (
     <div className="p-8 max-w-2xl">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* SMTP Configuration */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
-          <Mail className="w-4 h-4 text-gray-500" />
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <Mail className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <h2 className="font-semibold">Email (SMTP)</h2>
         </div>
         <div className="p-5">
           {smtpStatus && !smtpStatus.configured && !showSmtpForm && (
             <div>
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 SMTP is required to send GDPR requests via email. Configure your email provider's SMTP settings.
               </p>
               <button onClick={() => setShowSmtpForm(true)}
@@ -333,13 +333,13 @@ export default function Settings() {
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-green-700 font-medium">SMTP configured</span>
               </div>
-              <div className="text-sm text-gray-600 space-y-1 mb-4">
+              <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-4">
                 <p><span className="font-medium">Server:</span> {smtpStatus.host}:{smtpStatus.port}</p>
                 <p><span className="font-medium">Username:</span> {smtpStatus.username}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowSmtpForm(true)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Update
                 </button>
                 <button onClick={handleTestSmtp} disabled={smtpTesting}
@@ -368,7 +368,7 @@ export default function Settings() {
                   Save
                 </button>
                 <button onClick={() => { setShowSmtpForm(false); setSmtpMessage({ type: "", text: "" }); }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Cancel
                 </button>
               </div>
@@ -384,15 +384,15 @@ export default function Settings() {
       </div>
 
       {/* IMAP Reply Monitoring */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
-          <Inbox className="w-4 h-4 text-gray-500" />
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <Inbox className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <h2 className="font-semibold">Reply Monitoring (IMAP)</h2>
         </div>
         <div className="p-5">
           {imapStatus && !imapStatus.configured && !showImapForm && (
             <div>
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 Automatically monitor your inbox for broker replies. Incognito will match incoming emails to your requests and update their status.
               </p>
               <button onClick={() => setShowImapForm(true)}
@@ -408,7 +408,7 @@ export default function Settings() {
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-green-700 font-medium">IMAP monitoring active</span>
               </div>
-              <div className="text-sm text-gray-600 space-y-1 mb-4">
+              <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-4">
                 <p><span className="font-medium">Server:</span> {imapStatus.host}:{imapStatus.port}</p>
                 <p><span className="font-medium">Username:</span> {imapStatus.username}</p>
                 <p><span className="font-medium">Folder:</span> {imapStatus.folder || "INBOX"}</p>
@@ -417,7 +417,7 @@ export default function Settings() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowImapForm(true)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Update
                 </button>
                 <button onClick={handleTestImap} disabled={imapTesting}
@@ -447,7 +447,7 @@ export default function Settings() {
               <input type="text" placeholder="Folder (INBOX)" value={imapForm.folder}
                 onChange={(e) => setImapForm({ ...imapForm, folder: e.target.value })} className={inputClass} />
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Poll interval</label>
+                <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">Poll interval</label>
                 <select value={imapForm.poll_interval_minutes}
                   onChange={(e) => setImapForm({ ...imapForm, poll_interval_minutes: parseInt(e.target.value) })}
                   className={inputClass}>
@@ -458,7 +458,7 @@ export default function Settings() {
                   <option value={15}>15 minutes</option>
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
                 <input type="checkbox" checked={imapForm.starttls}
                   onChange={(e) => setImapForm({ ...imapForm, starttls: e.target.checked })}
                   className="rounded border-gray-300" />
@@ -471,7 +471,7 @@ export default function Settings() {
                   Save
                 </button>
                 <button onClick={() => { setShowImapForm(false); setImapMessage({ type: "", text: "" }); }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Cancel
                 </button>
               </div>
@@ -487,15 +487,15 @@ export default function Settings() {
       </div>
 
       {/* Have I Been Pwned API Key */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-gray-500" />
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <h2 className="font-semibold">Have I Been Pwned (HIBP)</h2>
         </div>
         <div className="p-5">
           {hibpStatus && !hibpStatus.configured && !showHibpForm && (
             <div>
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 Optional: enter a{" "}
                 <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
                   className="text-indigo-600 underline hover:text-indigo-800">
@@ -516,12 +516,12 @@ export default function Settings() {
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-green-700 font-medium">HIBP API key configured</span>
               </div>
-              <div className="text-sm text-gray-600 mb-4">
+              <div className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                 <p><span className="font-medium">Key:</span> {hibpStatus.key_preview}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowHibpForm(true)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Update
                 </button>
                 <button onClick={handleDeleteHibpKey} disabled={hibpDeleting}
@@ -542,7 +542,7 @@ export default function Settings() {
                 onChange={(e) => setHibpKeyInput(e.target.value)}
                 className={inputClass}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Get a key at{" "}
                 <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
                   className="text-indigo-600 underline">
@@ -556,7 +556,7 @@ export default function Settings() {
                   Save
                 </button>
                 <button onClick={() => { setShowHibpForm(false); setHibpKeyInput(""); setHibpMessage({ type: "", text: "" }); }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Cancel
                 </button>
               </div>
@@ -572,9 +572,9 @@ export default function Settings() {
       </div>
 
       {/* Profile Info */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
-          <User className="w-4 h-4 text-gray-500" />
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <h2 className="font-semibold">Profile</h2>
         </div>
         <div className="p-5">
@@ -619,7 +619,7 @@ export default function Settings() {
                   </button>
                   <button
                     onClick={() => { setEditingProfile(false); setProfileMessage({ type: "", text: "" }); }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                   >
                     Cancel
                   </button>
@@ -627,7 +627,7 @@ export default function Settings() {
               </div>
             ) : (
               <div>
-                <div className="text-sm text-gray-600 space-y-1 mb-4">
+                <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-4">
                   <p><span className="font-medium">Name:</span> {profile.full_name as string}</p>
                   <p><span className="font-medium">Email:</span> {(profile.emails as string[])?.join(", ")}</p>
                   {profile.date_of_birth != null && <p><span className="font-medium">DOB:</span> {String(profile.date_of_birth)}</p>}
@@ -637,14 +637,14 @@ export default function Settings() {
                 </div>
                 <button
                   onClick={() => setEditingProfile(true)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                 >
                   Edit
                 </button>
               </div>
             )
           ) : (
-            <p className="text-sm text-gray-500">Loading...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
           )}
 
           {profileMessage.text && (
@@ -656,32 +656,32 @@ export default function Settings() {
       </div>
 
       {/* App Info */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
-          <Info className="w-4 h-4 text-gray-500" />
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <Info className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <h2 className="font-semibold">About</h2>
         </div>
         <div className="p-5">
           {appInfo ? (
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
               <p><span className="font-medium">Version:</span> {appInfo.version}</p>
               <p><span className="font-medium">Brokers:</span> {appInfo.broker_count} in registry</p>
               <p><span className="font-medium">Data:</span> {appInfo.data_dir}</p>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">Loading...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
           )}
         </div>
       </div>
 
       {/* Backup */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
-          <Download className="w-4 h-4 text-gray-500" />
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <Download className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <h2 className="font-semibold">Backup</h2>
         </div>
         <div className="p-5">
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
             Export an encrypted backup of your vault, database, and settings. Import it to restore your data on a new device.
           </p>
           <div className="flex gap-2 flex-wrap">
@@ -696,7 +696,7 @@ export default function Settings() {
             <button
               onClick={() => importFileRef.current?.click()}
               disabled={backupImporting}
-              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50"
             >
               {backupImporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
               Import Backup

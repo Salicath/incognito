@@ -98,7 +98,7 @@ export default function Dashboard() {
     }
   }
 
-  if (!stats) return <div className="p-8 text-gray-500">Loading...</div>;
+  if (!stats) return <div className="p-8 text-gray-500 dark:text-gray-400">Loading...</div>;
 
   const hasNoRequests = stats.total === 0;
   const hasPending = stats.created > 0;
@@ -133,31 +133,31 @@ export default function Dashboard() {
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-3xl font-bold">{progressPct}%</span>
-                <span className="text-xs text-gray-500">resolved</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">resolved</span>
               </div>
             </div>
             <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <p className="text-2xl font-bold text-green-600">{resolved}</p>
-                <p className="text-xs text-gray-500">Resolved</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Resolved</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-blue-600">{inProgress}</p>
-                <p className="text-xs text-gray-500">In progress</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">In progress</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-orange-600">{needsAttention}</p>
-                <p className="text-xs text-gray-500">Needs attention</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Needs attention</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{contacted}<span className="text-sm font-normal text-gray-400">/{brokerCount}</span></p>
-                <p className="text-xs text-gray-500">Brokers contacted</p>
+                <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{contacted}<span className="text-sm font-normal text-gray-400 dark:text-gray-500">/{brokerCount}</span></p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Brokers contacted</p>
               </div>
             </div>
           </div>
           {contactedPct < 100 && contacted > 0 && (
             <div className="mt-4">
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                 <span>{contacted} of {brokerCount} brokers contacted</span>
                 <span>{contactedPct}%</span>
               </div>
@@ -174,14 +174,14 @@ export default function Dashboard() {
 
       {/* Getting started — scan first prompt */}
       {hasNoRequests && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex items-start gap-4">
             <div className="p-2.5 bg-violet-100 rounded-xl">
               <Search className="w-6 h-6 text-violet-600" />
             </div>
             <div className="flex-1">
-              <h2 className="font-semibold text-gray-900 mb-1">See where your data is exposed</h2>
-              <p className="text-sm text-gray-500 mb-4">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">See where your data is exposed</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Before sending removal requests, run a scan to see which sites already have your data.
                 This checks data broker sites, known breaches, and online accounts.
               </p>
@@ -329,10 +329,10 @@ export default function Dashboard() {
 
       {/* Deadline monitoring */}
       {stats.sent > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4 mb-6 flex items-center justify-between">
           <div>
-            <p className="font-medium text-gray-900">Deadline monitoring</p>
-            <p className="text-gray-500 text-sm">{stats.sent} requests awaiting response. Check for overdue and send follow-ups.</p>
+            <p className="font-medium text-gray-900 dark:text-gray-100">Deadline monitoring</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">{stats.sent} requests awaiting response. Check for overdue and send follow-ups.</p>
           </div>
           <button onClick={handleFollowUp} disabled={followUpLoading}
             className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
@@ -392,15 +392,15 @@ export default function Dashboard() {
       )}
 
       {/* Recent activity */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-200"><h2 className="font-semibold">Recent Activity</h2></div>
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700"><h2 className="font-semibold">Recent Activity</h2></div>
         {recentRequests.length === 0 ? (
-          <p className="px-5 py-8 text-gray-500 text-center text-sm">No requests yet. Use the blast above to get started.</p>
+          <p className="px-5 py-8 text-gray-500 dark:text-gray-400 text-center text-sm">No requests yet. Use the blast above to get started.</p>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {recentRequests.map((req) => (
               <div key={req.id as string} className="px-5 py-3 flex items-center justify-between text-sm">
-                <div><span className="font-medium">{req.broker_id as string}</span><span className="text-gray-400 mx-2">&middot;</span><span className="text-gray-500">{req.request_type as string}</span></div>
+                <div><span className="font-medium">{req.broker_id as string}</span><span className="text-gray-400 dark:text-gray-500 mx-2">&middot;</span><span className="text-gray-500 dark:text-gray-400">{req.request_type as string}</span></div>
                 <StatusBadge status={req.status as string} />
               </div>
             ))}
