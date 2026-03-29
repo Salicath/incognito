@@ -120,7 +120,7 @@ incognito/
 ├── templates/        # Jinja2 GDPR email templates
 │   └── locales/      # de, fr, ccpa translations
 ├── deploy/           # Containerfile + Quadlet units
-├── tests/            # 121 unit + integration tests
+├── tests/            # 125 unit + integration tests
 └── cli.py            # CLI entry point
 ```
 
