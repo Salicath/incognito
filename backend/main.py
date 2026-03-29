@@ -81,8 +81,14 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     broker_registry = BrokerRegistry.load(brokers_dir)
     app.state.broker_registry = broker_registry
 
-    app.include_router(create_auth_router(vault, session_store, rate_limiter))
-    app.include_router(create_setup_router(vault, session_store))
+    app.include_router(create_auth_router(
+        vault, session_store, rate_limiter,
+        secure_cookies=config.secure_cookies,
+    ))
+    app.include_router(create_setup_router(
+        vault, session_store,
+        secure_cookies=config.secure_cookies,
+    ))
     app.include_router(create_brokers_router(broker_registry, session_store))
     app.include_router(create_requests_router(
         db_session_factory, session_store, config.gdpr_deadline_days, broker_registry,

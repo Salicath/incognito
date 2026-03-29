@@ -16,6 +16,7 @@ class AppConfig(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8080
     cors_origins: str = ""  # Comma-separated extra origins (e.g. for dev)
+    secure_cookies: bool = False  # Set True behind HTTPS reverse proxy
 
     def setup_logging(self) -> logging.Logger:
         level = getattr(logging, self.log_level.upper(), logging.INFO)

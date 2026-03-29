@@ -24,7 +24,9 @@ Commercial services like Incogni charge $7/month for this. Incognito is free, se
 - **DPA complaint generator** -- Pre-filled complaints for 14 EU supervisory authorities (BfDI, CNIL, AP, DPC, ICO, and more)
 - **Exposure scanning** -- DuckDuckGo search, account discovery (Holehe), breach checking (Have I Been Pwned)
 - **Encrypted vault** -- Profile data encrypted at rest with AES-256-GCM (Argon2id KDF)
-- **Localized templates** -- GDPR request emails in English, German, and French
+- **GDPR + CCPA** -- Templates for both EU and California privacy regulations
+- **Localized templates** -- Request emails in English, German, and French
+- **Progress dashboard** -- Visual progress ring, resolution tracking, scan-first onboarding
 - **Dark mode** -- System-aware with manual toggle
 - **Backup/restore** -- Export and import encrypted backups
 - **Self-hosted** -- Runs on your machine, data never leaves except as removal requests
@@ -115,9 +117,9 @@ incognito/
 │       └── api/      # Typed API client
 ├── brokers/          # 168 YAML broker definitions
 ├── templates/        # Jinja2 GDPR email templates
-│   └── locales/      # de, fr translations
+│   └── locales/      # de, fr, ccpa translations
 ├── deploy/           # Containerfile + Quadlet units
-├── tests/            # 113 unit + integration tests
+├── tests/            # 121 unit + integration tests
 └── cli.py            # CLI entry point
 ```
 
@@ -135,6 +137,8 @@ Environment variables (prefix `INCOGNITO_`):
 | `INCOGNITO_RATE_LIMIT_PER_HOUR` | `10` | Max emails per hour |
 | `INCOGNITO_LOG_LEVEL` | `info` | Log level |
 | `INCOGNITO_PASSWORD` | -- | Master password (for cron automation) |
+| `INCOGNITO_CORS_ORIGINS` | -- | Extra CORS origins (comma-separated) |
+| `INCOGNITO_SECURE_COOKIES` | `false` | Set `true` behind HTTPS reverse proxy |
 
 Copy `.env.example` to `.env` to customize.
 

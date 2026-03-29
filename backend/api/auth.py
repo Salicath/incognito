@@ -13,6 +13,8 @@ def create_auth_router(
     vault: ProfileVault,
     session_store: SessionStore,
     rate_limiter: LoginRateLimiter,
+    *,
+    secure_cookies: bool = False,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -46,7 +48,7 @@ def create_auth_router(
             value=token,
             httponly=True,
             samesite="strict",
-            secure=False,
+            secure=secure_cookies,
         )
         log.info("Vault unlocked from %s", client_ip)
         return {"status": "unlocked"}

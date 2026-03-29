@@ -6,7 +6,12 @@ from backend.api.deps import SessionStore
 from backend.core.profile import Profile, ProfileVault, SmtpConfig
 
 
-def create_setup_router(vault: ProfileVault, session_store: SessionStore) -> APIRouter:
+def create_setup_router(
+    vault: ProfileVault,
+    session_store: SessionStore,
+    *,
+    secure_cookies: bool = False,
+) -> APIRouter:
     r = APIRouter(prefix="/api", tags=["setup"])
 
     class SetupRequest(BaseModel):
@@ -35,7 +40,7 @@ def create_setup_router(vault: ProfileVault, session_store: SessionStore) -> API
             value=token,
             httponly=True,
             samesite="strict",
-            secure=False,
+            secure=secure_cookies,
         )
         return {"status": "initialized"}
 
