@@ -1,0 +1,14 @@
+broker_domain: cognism.com
+url: "https://www.cognism.com/data-opt-out"
+notes: Simple B2B data broker opt-out form. Name + email + company.
+verify_selector: ".success, .thank-you, [class*='success']"
+steps:
+  - action: fill
+    selector: "input[name*='name'], input[name*='first'], input[placeholder*='name' i]"
+    value: "{profile.full_name}"
+  - action: fill
+    selector: "input[name*='email'], input[type='email']"
+    value: "{profile.email}"
+  - action: click
+    selector: "button[type='submit'], input[type='submit']"
+    timeout: 15000

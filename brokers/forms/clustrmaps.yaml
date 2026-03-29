@@ -1,0 +1,17 @@
+broker_domain: clustrmaps.com
+url: "https://clustrmaps.com/bl/opt-out"
+notes: People search opt-out. Name + location fields.
+verify_selector: ""
+steps:
+  - action: fill
+    selector: "input[name*='first'], input[name*='name']"
+    value: "{profile.full_name}"
+  - action: fill
+    selector: "input[name*='email'], input[type='email']"
+    value: "{profile.email}"
+  - action: fill
+    selector: "input[name*='city'], input[name*='location']"
+    value: "{profile.city}"
+  - action: click
+    selector: "button[type='submit'], input[type='submit']"
+    timeout: 15000

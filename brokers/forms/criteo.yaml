@@ -1,0 +1,8 @@
+broker_domain: criteo.com
+url: "https://www.criteo.com/privacy/disable-criteo-services-on-internet-browsers/"
+notes: Cookie-based opt-out. Click the disable button.
+verify_selector: ""
+steps:
+  - action: click
+    selector: "button[id*='opt-out'], button[class*='opt-out'], a[href*='opt-out']"
+    timeout: 15000

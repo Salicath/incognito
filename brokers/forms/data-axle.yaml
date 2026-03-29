@@ -1,0 +1,23 @@
+broker_domain: data-axle.com
+url: "https://www.data-axle.com/do-not-sell-my-data/"
+notes: Major data broker. Form requires name, email, address.
+verify_selector: ""
+steps:
+  - action: fill
+    selector: "input[name*='first'], input[name*='name']"
+    value: "{profile.full_name}"
+  - action: fill
+    selector: "input[name*='email'], input[type='email']"
+    value: "{profile.email}"
+  - action: fill
+    selector: "input[name*='address'], input[name*='street']"
+    value: "{profile.street}"
+  - action: fill
+    selector: "input[name*='city']"
+    value: "{profile.city}"
+  - action: fill
+    selector: "input[name*='zip'], input[name*='postal']"
+    value: "{profile.postal_code}"
+  - action: click
+    selector: "button[type='submit'], input[type='submit']"
+    timeout: 15000

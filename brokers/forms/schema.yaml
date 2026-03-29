@@ -1,0 +1,40 @@
+# Form Automation Schema
+#
+# Each YAML file defines automation steps for a broker's opt-out form.
+# File name should match the broker domain (e.g., spokeo-com.yaml).
+#
+# Available step actions:
+#   fill     - Fill an input field with a value
+#   type     - Type slowly (for fields with keypress validation)
+#   click    - Click an element
+#   select   - Select a dropdown option
+#   check    - Check a checkbox
+#   wait     - Wait for a timeout (value in ms)
+#
+# Value templates (resolved from user profile):
+#   {profile.full_name}   - Full name
+#   {profile.email}       - Primary email
+#   {profile.phone}       - Primary phone
+#   {profile.street}      - Street address
+#   {profile.city}        - City
+#   {profile.postal_code} - Postal/ZIP code
+#   {profile.country}     - Country code
+#   {profile.dob}         - Date of birth (YYYY-MM-DD)
+#
+# Example:
+#
+# broker_domain: example.com
+# url: https://www.example.com/optout
+# notes: Simple single-page opt-out form
+# verify_selector: ".success-message"
+# steps:
+#   - action: fill
+#     selector: "#name"
+#     value: "{profile.full_name}"
+#   - action: fill
+#     selector: "#email"
+#     value: "{profile.email}"
+#   - action: check
+#     selector: "#consent"
+#   - action: click
+#     selector: "button[type=submit]"

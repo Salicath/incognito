@@ -1,0 +1,11 @@
+broker_domain: contactout.com
+url: "https://contactout.com/optout"
+notes: Simple opt-out form. Email only.
+verify_selector: ""
+steps:
+  - action: fill
+    selector: "input[name*='email'], input[type='email']"
+    value: "{profile.email}"
+  - action: click
+    selector: "button[type='submit'], input[type='submit']"
+    timeout: 15000

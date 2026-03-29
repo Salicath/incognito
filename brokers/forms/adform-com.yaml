@@ -1,0 +1,8 @@
+broker_domain: adform.com
+url: "https://site.adform.com/privacy-center/platform-privacy/opt-out/"
+notes: Ad-tech cookie opt-out. Click the opt-out button.
+verify_selector: ""
+steps:
+  - action: click
+    selector: "button[id*='opt'], a[class*='opt-out'], button[class*='opt']"
+    timeout: 15000
