@@ -411,5 +411,74 @@ def rescan():
         db.close()
 
 
+@app.command("check-replies")
+def check_replies():
+    """Check IMAP inbox for broker replies and update request statuses."""
+    import asyncio
+    import os
+    import sys
+
+    config = get_config()
+
+    if not config.vault_path.exists():
+        console.print("[yellow]Not initialized.[/]")
+        return
+
+    from backend.core.imap import ImapPoller
+    from backend.core.profile import ProfileVault
+    from backend.db.session import init_db
+
+    password = os.environ.get("INCOGNITO_PASSWORD")
+    if not password:
+        if sys.stdin.isatty():
+            import getpass
+            password = getpass.getpass("Master password: ")
+        else:
+            msg = "Error: INCOGNITO_PASSWORD required for non-interactive use."
+            print(msg, file=sys.stderr)
+            raise typer.Exit(code=1)
+
+    vault = ProfileVault(config.vault_path)
+    _, _, imap = vault.load(password)
+
+    if imap is None:
+        console.print(
+            "[yellow]IMAP not configured. "
+            "Add IMAP settings in the web UI first.[/]"
+        )
+        return
+
+    session_factory = init_db(config.db_path)
+    registry = _load_broker_registry(config)
+    broker_domains = {b.domain.lower() for b in registry.brokers}
+
+    poller = ImapPoller(
+        imap_config=imap,
+        db_session_factory=session_factory,
+        broker_domains=broker_domains,
+    )
+
+    console.print(
+        f"[blue]Checking {imap.host}:{imap.port} "
+        f"({imap.folder})...[/]"
+    )
+    processed = asyncio.run(poller.poll_once())
+
+    if poller.last_error:
+        console.print(f"[red]Error: {poller.last_error}[/]")
+        raise typer.Exit(code=1)
+
+    console.print(
+        f"[bold]Done:[/] {processed} emails checked, "
+        f"{poller.matched_count} matched, "
+        f"{poller.unmatched_count} unmatched"
+    )
+    if poller.matched_count:
+        console.print(
+            "[green]Matched replies have been linked to requests "
+            "and statuses updated.[/]"
+        )
+
+
 if __name__ == "__main__":
     app()
