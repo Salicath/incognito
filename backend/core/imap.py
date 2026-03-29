@@ -188,6 +188,16 @@ class ImapPoller:
 
             self.matched_count += 1
             db.commit()
+
+            if result.tier in (MatchTier.MESSAGE_ID, MatchTier.REFERENCE_CODE):
+                from backend.core.notifier import EventType, notify
+                notify(
+                    EventType.REPLY_RECEIVED,
+                    f"Reply from {from_addr}",
+                    f"Broker replied to request {result.request_id[:8].upper()} "
+                    f"(matched via {result.tier.value}).",
+                )
+
             return result
         finally:
             db.close()

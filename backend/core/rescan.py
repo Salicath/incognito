@@ -99,4 +99,21 @@ def check_for_reappearances(
             # New exposure not seen in previous scans
             report.new_exposures.append(alert)
 
+    # Send notifications for alerts
+    if report.reappeared or report.new_exposures:
+        from backend.core.notifier import EventType, notify
+        for alert in report.reappeared:
+            notify(
+                EventType.DATA_REAPPEARED,
+                f"Data reappeared: {alert.broker_name}",
+                f"Your data was found again on {alert.broker_domain} "
+                f"(removed {alert.previous_removal_date}).",
+            )
+        for alert in report.new_exposures:
+            notify(
+                EventType.NEW_EXPOSURE,
+                f"New exposure: {alert.broker_name}",
+                f"Your data was found on {alert.broker_domain}: {alert.snippet[:100]}",
+            )
+
     return report

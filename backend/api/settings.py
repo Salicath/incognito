@@ -29,10 +29,20 @@ def create_settings_router(
     @r.get("/info")
     def get_info(session: str | None = Cookie(default=None)):
         session_store.validate(session)
+        from pathlib import Path
+
+        from backend.core.dpa import DPA_REGISTRY
+
+        templates_dir = Path(__file__).parent.parent.parent / "templates" / "locales"
+        locale_count = len(list(templates_dir.iterdir())) + 1 if templates_dir.exists() else 1
+
         return {
             "broker_count": len(broker_registry.brokers),
+            "dpa_count": len(DPA_REGISTRY),
+            "locale_count": locale_count,
             "data_dir": str(config.data_dir),
-            "version": "0.1.0",
+            "version": "0.3.0",
+            "notifications": bool(config.notify_url),
         }
 
     @r.get("/smtp")
@@ -230,6 +240,148 @@ def create_settings_router(
             "unmatched_count": poller.unmatched_count,
             "poll_interval": poller._config.poll_interval_minutes,
         }
+
+    @r.get("/notifications")
+    def get_notification_status(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        return {
+            "configured": bool(config.notify_url),
+            "url": config.notify_url if config.notify_url else None,
+        }
+
+    @r.post("/notifications/test")
+    def test_notification(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        if not config.notify_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Notifications not configured. "
+                "Set INCOGNITO_NOTIFY_URL environment variable.",
+            )
+        from backend.core.notifier import EventType, notify
+        notify(
+            EventType.BLAST_COMPLETE,
+            "Incognito test notification",
+            "If you see this, notifications are working correctly.",
+        )
+        return {"status": "sent"}
+
+    @r.post("/import-csv")
+    def import_csv(body: dict, session: str | None = Cookie(default=None)):
+        """Import request history from CSV (e.g. exported from commercial tools)."""
+        session_store.validate(session)
+
+        import csv
+        import io
+        import uuid
+        from datetime import UTC, datetime
+
+        from backend.db.models import Request, RequestStatus, RequestType
+
+        csv_text = body.get("csv", "")
+        if not csv_text:
+            raise HTTPException(status_code=400, detail="CSV data required")
+
+        db_session = None
+        try:
+            from backend.db.session import init_db
+            db_factory = init_db(config.db_path)
+            db_session = db_factory()
+
+            reader = csv.DictReader(io.StringIO(csv_text))
+            imported = 0
+            skipped = 0
+            errors = []
+
+            for row in reader:
+                broker_name = row.get("broker") or row.get("broker_name") or row.get("name", "")
+                status_str = (
+                    row.get("status", "completed").lower().strip()
+                )
+                date_str = row.get("date") or row.get("date_requested") or row.get("sent_at", "")
+
+                if not broker_name:
+                    skipped += 1
+                    continue
+
+                # Find broker by name
+                broker = None
+                name_lower = broker_name.lower()
+                for b in broker_registry.brokers:
+                    if b.name.lower() == name_lower or b.domain.lower() == name_lower:
+                        broker = b
+                        break
+
+                if broker is None:
+                    errors.append(f"Broker not found: {broker_name}")
+                    skipped += 1
+                    continue
+
+                # Map status
+                status_map = {
+                    "completed": RequestStatus.COMPLETED,
+                    "removed": RequestStatus.COMPLETED,
+                    "done": RequestStatus.COMPLETED,
+                    "sent": RequestStatus.SENT,
+                    "pending": RequestStatus.SENT,
+                    "in progress": RequestStatus.SENT,
+                    "in_progress": RequestStatus.SENT,
+                    "acknowledged": RequestStatus.ACKNOWLEDGED,
+                    "responded": RequestStatus.ACKNOWLEDGED,
+                    "refused": RequestStatus.REFUSED,
+                    "denied": RequestStatus.REFUSED,
+                }
+                req_status = status_map.get(status_str, RequestStatus.COMPLETED)
+
+                # Check for existing request
+                existing = (
+                    db_session.query(Request)
+                    .filter_by(broker_id=broker.id, request_type=RequestType.ERASURE)
+                    .filter(Request.status.in_([
+                        RequestStatus.SENT, RequestStatus.ACKNOWLEDGED,
+                        RequestStatus.COMPLETED,
+                    ]))
+                    .first()
+                )
+                if existing:
+                    skipped += 1
+                    continue
+
+                # Parse date
+                sent_at = None
+                if date_str:
+                    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S"):
+                        try:
+                            sent_at = datetime.strptime(date_str, fmt).replace(tzinfo=UTC)
+                            break
+                        except ValueError:
+                            continue
+
+                req = Request(
+                    id=str(uuid.uuid4()),
+                    broker_id=broker.id,
+                    request_type=RequestType.ERASURE,
+                    status=req_status,
+                    sent_at=sent_at or datetime.now(UTC),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
+                )
+                db_session.add(req)
+                imported += 1
+
+            db_session.commit()
+            return {
+                "imported": imported,
+                "skipped": skipped,
+                "errors": errors[:20],
+            }
+        except Exception as e:
+            if db_session:
+                db_session.rollback()
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        finally:
+            if db_session:
+                db_session.close()
 
     class BackupRequest(BaseModel):
         password: str

@@ -15,6 +15,7 @@ from backend.api.settings import create_settings_router
 from backend.api.setup import create_setup_router
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
+from backend.core.notifier import init_notifier
 from backend.core.profile import ProfileVault
 from backend.db.session import init_db
 
@@ -76,6 +77,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     config.data_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(config.data_dir, 0o700)
 
+    init_notifier(config.notify_url)
+
     vault = ProfileVault(config.vault_path)
     session_store = SessionStore(config.session_timeout_minutes)
     rate_limiter = LoginRateLimiter()
@@ -102,6 +105,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.include_router(create_auth_router(
         vault, session_store, rate_limiter,
         secure_cookies=config.secure_cookies,
+        trusted_proxy_header=config.trusted_proxy_header,
     ))
     app.include_router(create_setup_router(
         vault, session_store,
@@ -118,6 +122,57 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         vault, session_store, broker_registry, db_session_factory, config,
     ))
     app.include_router(create_settings_router(vault, session_store, broker_registry, config))
+
+    @app.get("/api/metrics")
+    def metrics():
+        """Prometheus-compatible metrics endpoint."""
+        from backend.db.models import Request, RequestStatus, ScanResult
+        db = db_session_factory()
+        try:
+            all_req = db.query(Request).all()
+            scans = db.query(ScanResult).count()
+            status_counts = {}
+            for s in RequestStatus:
+                status_counts[s.value] = sum(
+                    1 for r in all_req if r.status == s
+                )
+
+            lines = [
+                "# HELP incognito_requests_total Total requests by status",
+                "# TYPE incognito_requests_total gauge",
+            ]
+            for s, c in status_counts.items():
+                lines.append(f'incognito_requests_total{{status="{s}"}} {c}')
+            lines.extend([
+                "# HELP incognito_brokers_total Brokers in registry",
+                "# TYPE incognito_brokers_total gauge",
+                f"incognito_brokers_total {len(broker_registry.brokers)}",
+                "# HELP incognito_scan_results_total Scan results stored",
+                "# TYPE incognito_scan_results_total gauge",
+                f"incognito_scan_results_total {scans}",
+            ])
+            from fastapi.responses import PlainTextResponse
+            return PlainTextResponse("\n".join(lines) + "\n")
+        finally:
+            db.close()
+
+    @app.get("/api/health")
+    def health():
+        """Health check endpoint for monitoring and container orchestration."""
+        from backend.db.models import Request
+        health_status = {"status": "healthy", "version": "0.3.0"}
+        try:
+            db = db_session_factory()
+            db.execute(Request.__table__.select().limit(1))
+            db.close()
+            health_status["database"] = "ok"
+        except Exception:
+            health_status["database"] = "error"
+            health_status["status"] = "degraded"
+
+        health_status["vault"] = "ok" if vault.exists() else "not_initialized"
+        health_status["brokers"] = len(broker_registry.brokers)
+        return health_status
 
     @app.get("/api/profile")
     def get_profile(session: str | None = Cookie(default=None)):

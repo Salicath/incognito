@@ -82,6 +82,89 @@ def status():
         session.close()
 
 
+@app.command()
+def report():
+    """Generate a privacy exposure report with score and grade."""
+    config = get_config()
+
+    if not config.vault_path.exists():
+        console.print("[yellow]Not initialized.[/]")
+        return
+
+    from backend.db.models import Request, ScanResult
+    from backend.db.session import init_db
+
+    session_factory = init_db(config.db_path)
+    session = session_factory()
+
+    try:
+        all_requests = session.query(Request).all()
+        scan_results = session.query(ScanResult).all()
+
+        if not all_requests and not scan_results:
+            console.print("No data yet. Run a scan and send requests first.")
+            return
+
+        # Calculate score
+        broker_best: dict[str, str] = {}
+        rank = {
+            "completed": 6, "acknowledged": 5, "escalated": 4,
+            "overdue": 3, "sent": 2, "created": 1,
+            "refused": 0, "manual_action_needed": 0,
+        }
+        for req in all_requests:
+            existing = broker_best.get(req.broker_id)
+            if existing is None or rank.get(req.status.value, 0) > rank.get(existing, 0):
+                broker_best[req.broker_id] = req.status.value
+
+        total = len(broker_best)
+        completed = sum(1 for s in broker_best.values() if s == "completed")
+        in_progress = sum(
+            1 for s in broker_best.values()
+            if s in ("acknowledged", "sent", "overdue", "escalated")
+        )
+
+        score = min(round((completed * 100 + in_progress * 40) / total), 100) if total > 0 else 0
+
+        if score >= 90:
+            grade, color = "A", "green"
+        elif score >= 70:
+            grade, color = "B", "blue"
+        elif score >= 50:
+            grade, color = "C", "yellow"
+        elif score >= 30:
+            grade, color = "D", "dark_orange"
+        else:
+            grade, color = "F", "red"
+
+        console.print()
+        console.print(f"[bold]Privacy Score: [{color}]{grade}[/{color}] ({score}/100)[/]")
+        console.print()
+
+        table = Table(title="Summary")
+        table.add_column("Metric", style="bold")
+        table.add_column("Value", justify="right")
+        table.add_row("Brokers contacted", str(total))
+        table.add_row("Completed", f"[green]{completed}[/]")
+        table.add_row("In progress", f"[blue]{in_progress}[/]")
+        table.add_row("Exposures found", str(len(scan_results)))
+        console.print(table)
+
+        # Show per-status breakdown
+        from collections import Counter
+        status_counts = Counter(broker_best.values())
+        if status_counts:
+            console.print()
+            table = Table(title="By Status")
+            table.add_column("Status", style="bold")
+            table.add_column("Count", justify="right")
+            for s, c in status_counts.most_common():
+                table.add_row(s, str(c))
+            console.print(table)
+    finally:
+        session.close()
+
+
 @app.command(name="follow-up")
 def follow_up(
     auto: bool = typer.Option(
@@ -140,6 +223,9 @@ def follow_up(
                     raise typer.Exit(code=1)
 
             profile, smtp, _ = vault.load(password)
+
+            from backend.core.notifier import init_notifier
+            init_notifier(config.notify_url)
 
             templates_dir = Path(__file__).parent / "templates"
             if not templates_dir.exists():
@@ -255,6 +341,99 @@ def brokers_stats():
     console.print(table)
 
 
+@brokers_app.command("update")
+def brokers_update(
+    repo: str = typer.Option(
+        "Salicath/incognito",
+        help="GitHub repo to fetch brokers from (owner/repo)",
+    ),
+    branch: str = typer.Option("main", help="Git branch to fetch from"),
+):
+    """Update the broker registry from a remote GitHub repository."""
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    import httpx
+
+    config = get_config()
+    target_dir = config.brokers_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    base_url = f"https://api.github.com/repos/{repo}/contents/brokers"
+    params = {"ref": branch}
+
+    console.print(f"[blue]Fetching broker list from {repo}@{branch}...[/]")
+
+    try:
+        resp = httpx.get(base_url, params=params, timeout=30)
+        resp.raise_for_status()
+    except httpx.HTTPError as e:
+        console.print(f"[red]Failed to fetch broker list: {e}[/]")
+        raise typer.Exit(code=1) from None
+
+    files = resp.json()
+    yaml_files = [
+        f for f in files
+        if isinstance(f, dict)
+        and f.get("name", "").endswith(".yaml")
+        and f.get("name") != "schema.yaml"
+    ]
+
+    if not yaml_files:
+        console.print("[yellow]No broker files found in remote repository.[/]")
+        return
+
+    # Count existing brokers
+    existing = set(p.name for p in target_dir.glob("*.yaml"))
+    added = 0
+    updated = 0
+
+    with tempfile.TemporaryDirectory() as tmp:
+        for file_info in yaml_files:
+            name = file_info["name"]
+            download_url = file_info.get("download_url")
+            if not download_url:
+                continue
+
+            try:
+                file_resp = httpx.get(download_url, timeout=15)
+                file_resp.raise_for_status()
+            except httpx.HTTPError:
+                console.print(f"  [yellow]Skipped {name} (download failed)[/]")
+                continue
+
+            # Validate YAML before saving
+            import yaml
+            try:
+                data = yaml.safe_load(file_resp.text)
+                if not isinstance(data, dict) or "name" not in data:
+                    continue
+            except yaml.YAMLError:
+                continue
+
+            tmp_path = Path(tmp) / name
+            tmp_path.write_text(file_resp.text)
+
+            dest = target_dir / name
+            if name in existing:
+                # Only update if content changed
+                if dest.read_text() != file_resp.text:
+                    shutil.copy2(tmp_path, dest)
+                    updated += 1
+            else:
+                shutil.copy2(tmp_path, dest)
+                added += 1
+
+    total = len(list(target_dir.glob("*.yaml")))
+    console.print("\n[bold green]Broker registry updated:[/]")
+    console.print(f"  {added} new, {updated} updated, {total} total")
+    if added > 0:
+        console.print(
+            "[dim]Restart the server to load new brokers.[/]"
+        )
+
+
 @app.command()
 def send(
     dry_run: bool = typer.Option(
@@ -351,6 +530,10 @@ def rescan():
 
     vault = ProfileVault(config.vault_path)
     profile, _, _ = vault.load(password)
+
+    from backend.core.notifier import init_notifier
+    init_notifier(config.notify_url)
+
     registry = _load_broker_registry(config)
 
     console.print("[blue]Scanning for your data across broker sites...[/]")
@@ -440,6 +623,9 @@ def check_replies():
 
     vault = ProfileVault(config.vault_path)
     _, _, imap = vault.load(password)
+
+    from backend.core.notifier import init_notifier
+    init_notifier(config.notify_url)
 
     if imap is None:
         console.print(

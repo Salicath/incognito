@@ -145,8 +145,33 @@ def create_blast_router(
                     })
                     continue
 
-                # Only send to email-based brokers for now
+                # Non-email brokers: try web form automation, else manual
                 if broker.removal_method != RemovalMethod.EMAIL:
+                    if broker.removal_method == RemovalMethod.WEB_FORM:
+                        from pathlib import Path
+
+                        from backend.senders.web import WebFormSender
+
+                        forms_dir = Path(__file__).parent.parent.parent / "brokers" / "forms"
+                        web_sender = WebFormSender(profile, forms_dir)
+                        web_result = await web_sender.send(
+                            broker.domain, broker.removal_url or broker.domain,
+                            request_id=req.id,
+                        )
+                        if web_result.status.value == "success":
+                            mgr.mark_sent(req.id)
+                            sent += 1
+                            results.append({
+                                "broker_id": req.broker_id,
+                                "broker_name": broker.name,
+                                "status": "sent",
+                                "method": "web_form",
+                            })
+                            import asyncio
+                            delay = 3600 / max(config.rate_limit_per_hour, 1)
+                            await asyncio.sleep(delay)
+                            continue
+
                     url = broker.removal_url or broker.domain
                     method = broker.removal_method
                     reason = f"Broker requires {method} — visit {url}"
@@ -224,6 +249,14 @@ def create_blast_router(
                 "Send-all: %d sent, %d failed, %d manual, %d total",
                 sent, failed, manual, len(pending),
             )
+
+            from backend.core.notifier import EventType, notify
+            notify(
+                EventType.BLAST_COMPLETE,
+                f"Blast complete: {sent} sent",
+                f"{sent} requests sent, {failed} failed, {manual} require manual action.",
+            )
+
             return {
                 "sent": sent,
                 "failed": failed,
@@ -258,6 +291,21 @@ def create_blast_router(
                 renderer=renderer,
                 gdpr_deadline_days=config.gdpr_deadline_days,
             )
+            if result.newly_overdue or result.follow_ups_sent or result.escalations_sent:
+                from backend.core.notifier import EventType, notify
+                parts = []
+                if result.newly_overdue:
+                    parts.append(f"{result.newly_overdue} newly overdue")
+                if result.follow_ups_sent:
+                    parts.append(f"{result.follow_ups_sent} follow-ups sent")
+                if result.escalations_sent:
+                    parts.append(f"{result.escalations_sent} escalations sent")
+                notify(
+                    EventType.FOLLOW_UP_COMPLETE,
+                    "Follow-up check complete",
+                    ", ".join(parts) + ".",
+                )
+
             return {
                 "newly_overdue": result.newly_overdue,
                 "follow_ups_sent": result.follow_ups_sent,

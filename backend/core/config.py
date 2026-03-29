@@ -17,6 +17,8 @@ class AppConfig(BaseSettings):
     port: int = 8080
     cors_origins: str = ""  # Comma-separated extra origins (e.g. for dev)
     secure_cookies: bool = False  # Set True behind HTTPS reverse proxy
+    notify_url: str = ""  # Ntfy/Gotify/webhook URL for push notifications
+    trusted_proxy_header: str = ""  # e.g. "Remote-User" for Authentik/Authelia
 
     def setup_logging(self) -> logging.Logger:
         level = getattr(logging, self.log_level.upper(), logging.INFO)
