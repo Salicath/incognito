@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
@@ -14,6 +15,16 @@ class AppConfig(BaseSettings):
     log_level: str = "info"
     host: str = "127.0.0.1"
     port: int = 8080
+    cors_origins: str = ""  # Comma-separated extra origins (e.g. for dev)
+
+    def setup_logging(self) -> logging.Logger:
+        level = getattr(logging, self.log_level.upper(), logging.INFO)
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        return logging.getLogger("incognito")
 
     @property
     def db_path(self) -> Path:

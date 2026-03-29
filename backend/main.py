@@ -37,17 +37,22 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     if config is None:
         config = AppConfig()
 
+    config.setup_logging()
+
     app = FastAPI(title="Incognito", version="0.1.0", docs_url=None, redoc_url=None)
+
+    # CORS: localhost by default, extra origins via config
+    origins = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
+    if config.cors_origins:
+        origins.extend(o.strip() for o in config.cors_origins.split(",") if o.strip())
 
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",   # Vite dev server
-            "http://127.0.0.1:5173",
-            "http://localhost:8080",   # Production (same-origin)
-            "http://127.0.0.1:8080",
-        ],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

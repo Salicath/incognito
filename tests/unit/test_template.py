@@ -155,3 +155,56 @@ def test_render_localized_fallback_to_english(renderer, profile):
         broker_name="Test",
     )
     assert "Article 17" in result  # English fallback
+
+
+def test_render_ccpa_erasure_request(renderer, profile):
+    result = renderer.render_localized(
+        "erasure_request",
+        "ccpa",
+        profile=profile,
+        reference_id="REQ-007",
+        broker_name="Spokeo",
+    )
+    assert "1798.105" in result
+    assert "California" in result
+    assert "Spokeo" in result
+    assert "Malte Example" in result
+
+
+def test_render_ccpa_access_request(renderer, profile):
+    result = renderer.render_localized(
+        "access_request",
+        "ccpa",
+        profile=profile,
+        reference_id="REQ-008",
+        broker_name="BeenVerified",
+    )
+    assert "1798.100" in result
+    assert "California" in result
+    assert "BeenVerified" in result
+
+
+def test_render_ccpa_follow_up(renderer, profile):
+    result = renderer.render_localized(
+        "follow_up",
+        "ccpa",
+        profile=profile,
+        reference_id="REQ-009",
+        broker_name="Spokeo",
+        original_date="2026-02-28",
+    )
+    assert "1798.105" in result
+    assert "Attorney General" in result
+
+
+def test_render_ccpa_escalation_warning(renderer, profile):
+    result = renderer.render_localized(
+        "escalation_warning",
+        "ccpa",
+        profile=profile,
+        reference_id="REQ-010",
+        broker_name="Spokeo",
+        original_date="2026-02-28",
+    )
+    assert "7,500" in result or "$7,500" in result
+    assert "Attorney General" in result

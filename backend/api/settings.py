@@ -1,3 +1,4 @@
+import logging
 
 from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
@@ -6,6 +7,8 @@ from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
 from backend.core.profile import Profile, ProfileVault, SmtpConfig
+
+log = logging.getLogger("incognito.settings")
 
 
 def create_settings_router(
@@ -151,6 +154,7 @@ def create_settings_router(
             "hibp_key": hibp_key,
         }
 
+        log.info("Backup exported")
         from fastapi.responses import Response
         return Response(
             content=json.dumps(backup),
@@ -197,6 +201,7 @@ def create_settings_router(
         if hibp_key:
             (config.data_dir / "hibp_key.txt").write_text(hibp_key)
 
+        log.warning("Backup imported — application data overwritten")
         return {"status": "imported", "message": "Backup restored. Please restart the application."}
 
     return r

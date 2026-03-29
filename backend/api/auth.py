@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from backend.api.deps import LoginRateLimiter, SessionStore
 from backend.core.profile import ProfileVault
+
+log = logging.getLogger("incognito.auth")
 
 
 def create_auth_router(
@@ -28,16 +32,14 @@ def create_auth_router(
         rate_limiter.check(client_ip)
 
         try:
-            # Derive key from password — this is the expensive Argon2 step
             derived_key, salt = vault.derive_key_from_file(req.password)
-            # Verify it actually decrypts (validates password)
             vault.load_with_key(derived_key)
         except Exception:
             rate_limiter.record_failure(client_ip)
+            log.warning("Failed unlock attempt from %s", client_ip)
             raise HTTPException(status_code=401, detail="Wrong password") from None
 
         rate_limiter.record_success(client_ip)
-        # Store only the derived key in the session — never the raw password
         token = session_store.create(derived_key, salt)
         response.set_cookie(
             key="session",
@@ -46,12 +48,14 @@ def create_auth_router(
             samesite="strict",
             secure=False,
         )
+        log.info("Vault unlocked from %s", client_ip)
         return {"status": "unlocked"}
 
     @r.post("/lock")
     def lock(response: Response, session: str | None = Cookie(default=None)):
         session_store.destroy(session)
         response.delete_cookie("session")
+        log.info("Session locked")
         return {"status": "locked"}
 
     return r

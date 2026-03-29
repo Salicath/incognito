@@ -1,0 +1,28 @@
+Subject: Request to Know / Access Personal Information — California Consumer Privacy Act (CCPA) — {{ profile.full_name }} [{{ reference_id }}]
+
+Dear Privacy Team at {{ broker_name }},
+
+I am a California resident exercising my right to know and access my personal information pursuant to the California Consumer Privacy Act (Cal. Civ. Code Section 1798.100).
+
+Please provide me with the following information for the 12-month period preceding this request:
+
+- The categories of personal information you have collected about me
+- The specific pieces of personal information you have collected about me
+- The categories of sources from which my personal information was collected
+- The business or commercial purpose for collecting or selling my personal information
+- The categories of third parties with whom you have shared my personal information
+- If you have sold or disclosed my personal information, the categories of personal information sold or disclosed and the categories of third parties to whom it was sold or disclosed
+
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Phone: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Date of birth: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Address: {{ profile.addresses[0].formatted }}
+{% endif %}
+Under the CCPA, you must respond to this request within 45 calendar days (Section 1798.100(d)). You may not discriminate against me for exercising this right (Section 1798.125).
+
+Sincerely,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

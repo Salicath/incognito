@@ -1,3 +1,4 @@
+import logging
 
 from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
@@ -9,6 +10,8 @@ from backend.core.profile import ProfileVault
 from backend.core.request import RequestManager
 from backend.core.template import TemplateRenderer
 from backend.db.models import Request, RequestStatus, RequestType
+
+log = logging.getLogger("incognito.blast")
 
 
 def create_blast_router(
@@ -82,6 +85,10 @@ def create_blast_router(
                         "request_id": req.id,
                     })
 
+            log.info(
+                "Blast %s: %d created, %d skipped (dry_run=%s)",
+                body.request_type, len(created), len(skipped), body.dry_run,
+            )
             return {
                 "dry_run": body.dry_run,
                 "created": len(created),
@@ -190,10 +197,15 @@ def create_blast_router(
                 import asyncio
                 await asyncio.sleep(0.5)
 
+            manual = sum(1 for r in results if r.get("status") == "manual")
+            log.info(
+                "Send-all: %d sent, %d failed, %d manual, %d total",
+                sent, failed, manual, len(pending),
+            )
             return {
                 "sent": sent,
                 "failed": failed,
-                "manual": sum(1 for r in results if r.get("status") == "manual"),
+                "manual": manual,
                 "total": len(pending),
                 "results": results,
             }

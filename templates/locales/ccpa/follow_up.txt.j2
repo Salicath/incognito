@@ -1,0 +1,18 @@
+Subject: Follow-Up: Request to Delete Personal Information — CCPA — {{ profile.full_name }} [{{ reference_id }}]
+
+Dear Privacy Team at {{ broker_name }},
+
+I am following up on my previous request to delete my personal information sent on {{ original_date }}, pursuant to the California Consumer Privacy Act (Cal. Civ. Code Section 1798.105).
+
+The 45-day response period required by Section 1798.105(b) has now passed without a substantive response from you.
+
+I request that you comply with my original deletion request immediately. Continued non-compliance may be reported to the California Attorney General's Office.
+
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+
+Sincerely,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

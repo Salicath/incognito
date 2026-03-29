@@ -1,0 +1,18 @@
+Subject: Final Notice Before Regulatory Complaint — CCPA — {{ profile.full_name }} [{{ reference_id }}]
+
+Dear Privacy Team at {{ broker_name }},
+
+Despite my original request on {{ original_date }} and subsequent follow-up, I have not received a satisfactory response to my request to delete my personal information under the California Consumer Privacy Act.
+
+This constitutes a violation of Cal. Civ. Code Section 1798.105 and Section 1798.150. Under the CCPA, consumers have a private right of action in the event of a data breach, and violations are subject to civil penalties of up to $7,500 per intentional violation as enforced by the California Attorney General.
+
+If I do not receive confirmation of deletion within 7 calendar days, I will file a formal complaint with the California Attorney General's Office (https://oag.ca.gov/contact/consumer-complaint-against-business-or-company).
+
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+
+Sincerely,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}
