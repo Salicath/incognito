@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 from backend.core.config import AppConfig
-from backend.core.profile import Address, Profile, ProfileVault, SmtpConfig
+from backend.core.profile import Address, ImapConfig, Profile, ProfileVault, SmtpConfig
 
 
 @pytest.fixture
@@ -37,6 +37,11 @@ def sample_smtp():
         username="test@test.com",
         password="test_password",
     )
+
+
+@pytest.fixture
+def sample_imap():
+    return ImapConfig(host="imap.test.com", port=993, username="test@test.com", password="test_password")
 
 
 @pytest.fixture

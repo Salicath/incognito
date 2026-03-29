@@ -1,12 +1,13 @@
 import logging
 
 from fastapi import APIRouter, Cookie, HTTPException
+from fastapi import Request as FastAPIRequest
 from pydantic import BaseModel
 
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
-from backend.core.profile import Profile, ProfileVault, SmtpConfig
+from backend.core.profile import ImapConfig, Profile, ProfileVault, SmtpConfig
 
 log = logging.getLogger("incognito.settings")
 
@@ -118,6 +119,62 @@ def create_settings_router(
                 status_code=400,
                 detail="SMTP test failed. Check your server, port, and credentials.",
             )
+
+    class UpdateImapRequest(BaseModel):
+        imap: ImapConfig
+
+    @r.get("/imap")
+    def get_imap_status(session: str | None = Cookie(default=None)):
+        key, _salt = session_store.validate(session)
+        _, _, imap = vault.load_with_key(key)
+        if imap is None:
+            return {"configured": False}
+        return {
+            "configured": True,
+            "host": imap.host,
+            "port": imap.port,
+            "username": imap.username,
+            "folder": imap.folder,
+            "poll_interval_minutes": imap.poll_interval_minutes,
+            "starttls": imap.starttls,
+            # Don't return the password
+        }
+
+    @r.post("/imap")
+    async def update_imap(body: UpdateImapRequest, request: FastAPIRequest, session: str | None = Cookie(default=None)):
+        key, salt = session_store.validate(session)
+        profile, smtp, _ = vault.load_with_key(key)
+        vault.save_with_key(profile, smtp, body.imap, key, salt)
+
+        # Start/restart the poller
+        from backend.core.imap import ImapPoller
+
+        old_poller = getattr(request.app.state, "imap_poller", None)
+        if old_poller:
+            old_poller.stop()
+
+        broker_domains = getattr(request.app.state, "broker_domains", set())
+        db_factory = getattr(request.app.state, "db_session_factory", None)
+        if db_factory:
+            poller = ImapPoller(body.imap, db_factory, broker_domains)
+            request.app.state.imap_poller = poller
+            poller.start()
+
+        return {"status": "updated"}
+
+    @r.delete("/imap")
+    async def delete_imap(request: FastAPIRequest, session: str | None = Cookie(default=None)):
+        key, salt = session_store.validate(session)
+        profile, smtp, _ = vault.load_with_key(key)
+        vault.save_with_key(profile, smtp, None, key, salt)
+
+        # Stop the poller
+        old_poller = getattr(request.app.state, "imap_poller", None)
+        if old_poller:
+            old_poller.stop()
+        request.app.state.imap_poller = None
+
+        return {"status": "deleted"}
 
     class BackupRequest(BaseModel):
         password: str
