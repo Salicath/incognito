@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (149 tests)
+# Run tests (167 tests)
 python -m pytest tests/ -v
 
 # Lint
