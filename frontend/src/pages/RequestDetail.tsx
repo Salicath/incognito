@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
-import { ArrowLeft, Clock, Send, CheckCircle, XCircle, AlertTriangle, ExternalLink, FileText, Copy, Loader2 } from "lucide-react";
+import EmailThread from "../components/EmailThread";
+import { ArrowLeft, Clock, Send, CheckCircle, XCircle, AlertTriangle, ExternalLink, FileText, Copy, Loader2, Mail } from "lucide-react";
 
 interface RequestDetail {
   id: string;
@@ -23,6 +24,15 @@ interface RequestDetail {
     country: string;
     language: string;
   };
+  email_messages?: Array<{
+    id: number;
+    direction: "inbound" | "outbound";
+    from_address: string;
+    to_address: string;
+    subject: string;
+    body_text: string;
+    received_at: string | null;
+  }>;
 }
 
 interface EventItem {
@@ -239,6 +249,17 @@ export default function RequestDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Email Thread */}
+      {request.email_messages && request.email_messages.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Mail className="w-4 h-4 text-gray-500" />
+            <h2 className="font-semibold">Emails ({request.email_messages.length})</h2>
+          </div>
+          <EmailThread emails={request.email_messages} />
+        </div>
+      )}
 
       {/* DPA Complaint — for escalated/overdue/refused requests */}
       {(request.status === "escalated" || request.status === "overdue" || request.status === "refused") && (
