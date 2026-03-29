@@ -141,7 +141,10 @@ def create_settings_router(
         }
 
     @r.post("/imap")
-    async def update_imap(body: UpdateImapRequest, request: FastAPIRequest, session: str | None = Cookie(default=None)):
+    async def update_imap(
+        body: UpdateImapRequest, request: FastAPIRequest,
+        session: str | None = Cookie(default=None),
+    ):
         key, salt = session_store.validate(session)
         profile, smtp, _ = vault.load_with_key(key)
         vault.save_with_key(profile, smtp, body.imap, key, salt)

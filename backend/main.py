@@ -15,7 +15,6 @@ from backend.api.settings import create_settings_router
 from backend.api.setup import create_setup_router
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
-from backend.core.imap import ImapPoller
 from backend.core.profile import ProfileVault
 from backend.db.session import init_db
 
@@ -51,7 +50,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     config.setup_logging()
 
-    app = FastAPI(title="Incognito", version="0.1.0", docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(
+        title="Incognito", version="0.1.0",
+        docs_url=None, redoc_url=None, lifespan=lifespan,
+    )
 
     # CORS: localhost by default, extra origins via config
     origins = [

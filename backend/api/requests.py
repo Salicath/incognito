@@ -1,12 +1,18 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from datetime import UTC, datetime
-
 from backend.api.deps import SessionStore
 from backend.core.request import InvalidTransitionError, RequestManager
-from backend.db.models import EmailMessage, Request, RequestEvent, RequestStatus, RequestType
+from backend.db.models import (
+    EmailMessage,
+    Request,
+    RequestEvent,
+    RequestStatus,
+    RequestType,
+)
 
 
 def create_requests_router(
@@ -37,6 +43,15 @@ def create_requests_router(
                 counts[status.value] = sum(1 for req in all_requests if req.status == status)
             counts["total"] = len(all_requests)
             counts["broker_count"] = len(broker_registry.brokers) if broker_registry else 0
+            counts["unread_replies"] = (
+                db.query(Request)
+                .filter(
+                    Request.status == RequestStatus.ACKNOWLEDGED,
+                    Request.response_at.isnot(None),
+                    Request.reply_read_at.is_(None),
+                )
+                .count()
+            )
             return counts
         finally:
             db.close()
@@ -116,7 +131,12 @@ def create_requests_router(
                         "language": broker.language,
                     }
 
-            emails = db.query(EmailMessage).filter_by(request_id=request_id).order_by(EmailMessage.received_at).all()
+            emails = (
+                db.query(EmailMessage)
+                .filter_by(request_id=request_id)
+                .order_by(EmailMessage.received_at)
+                .all()
+            )
             result["email_messages"] = [
                 {
                     "id": e.id,

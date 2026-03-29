@@ -41,7 +41,10 @@ def sample_smtp():
 
 @pytest.fixture
 def sample_imap():
-    return ImapConfig(host="imap.test.com", port=993, username="test@test.com", password="test_password")
+    return ImapConfig(
+        host="imap.test.com", port=993,
+        username="test@test.com", password="test_password",
+    )
 
 
 @pytest.fixture

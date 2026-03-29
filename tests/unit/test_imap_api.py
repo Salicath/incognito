@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from backend.main import create_app
 
 
@@ -19,7 +20,10 @@ def test_get_imap_not_configured(client):
 
 def test_save_and_get_imap(client):
     res = client.post("/api/settings/imap", json={
-        "imap": {"host": "imap.proton.me", "port": 993, "username": "user@proton.me", "password": "bridge-pw"}
+        "imap": {
+            "host": "imap.proton.me", "port": 993,
+            "username": "user@proton.me", "password": "bridge-pw",
+        }
     })
     assert res.status_code == 200
     res = client.get("/api/settings/imap")
@@ -31,7 +35,10 @@ def test_save_and_get_imap(client):
 
 def test_delete_imap(client):
     client.post("/api/settings/imap", json={
-        "imap": {"host": "imap.proton.me", "port": 993, "username": "user@proton.me", "password": "bridge-pw"}
+        "imap": {
+            "host": "imap.proton.me", "port": 993,
+            "username": "user@proton.me", "password": "bridge-pw",
+        }
     })
     res = client.delete("/api/settings/imap")
     assert res.status_code == 200
@@ -58,3 +65,11 @@ def test_request_detail_includes_emails(client):
     data = res.json()
     assert "email_messages" in data
     assert data["email_messages"] == []
+
+
+def test_stats_include_unread_replies(client):
+    res = client.get("/api/requests/stats")
+    assert res.status_code == 200
+    data = res.json()
+    assert "unread_replies" in data
+    assert data["unread_replies"] == 0
