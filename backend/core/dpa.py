@@ -99,6 +99,51 @@ DPA_REGISTRY: dict[str, dict] = {
         "url": "https://uodo.gov.pl/",
         "language": "pl",
     },
+    "FI": {
+        "name": "Tietosuojavaltuutetun toimisto",
+        "short_name": "TSV",
+        "email": "tietosuoja@om.fi",
+        "url": "https://tietosuoja.fi/en/notification-to-the-data-protection-ombudsman",
+        "language": "fi",
+    },
+    "PT": {
+        "name": "Comissao Nacional de Proteccao de Dados (CNPD)",
+        "short_name": "CNPD",
+        "email": "geral@cnpd.pt",
+        "url": "https://www.cnpd.pt/",
+        "language": "pt",
+    },
+    "CZ": {
+        "name": "Urad pro ochranu osobnich udaju (UOOU)",
+        "short_name": "UOOU",
+        "email": "posta@uoou.cz",
+        "url": "https://www.uoou.cz/",
+        "language": "cs",
+    },
+    "GR": {
+        "name": "Archi Prostasias Dedomenon Prosopikou Charaktira (HDPA)",
+        "short_name": "HDPA",
+        "email": "contact@dpa.gr",
+        "url": "https://www.dpa.gr/",
+        "language": "el",
+    },
+    "HU": {
+        "name": "Nemzeti Adatvedelmi es Informacioszabadsag Hatosag (NAIH)",
+        "short_name": "NAIH",
+        "email": "ugyfelszolgalat@naih.hu",
+        "url": "https://www.naih.hu/",
+        "language": "hu",
+    },
+    "RO": {
+        "name": (
+            "Autoritatea Nationala de Supraveghere a Prelucrarii"
+            " Datelor cu Caracter Personal (ANSPDCP)"
+        ),
+        "short_name": "ANSPDCP",
+        "email": "anspdcp@dataprotection.ro",
+        "url": "https://www.dataprotection.ro/",
+        "language": "ro",
+    },
     "US": {
         "name": "Federal Trade Commission (FTC)",
         "short_name": "FTC",
