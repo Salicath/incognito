@@ -26,6 +26,7 @@ incognito status             # Show request stats
 incognito send --no-dry-run  # Create requests for all brokers
 incognito follow-up --auto   # Check deadlines, send follow-ups
 incognito rescan             # Re-scan and check for data reappearing
+incognito check-replies      # Check IMAP inbox for broker replies
 incognito brokers list       # List all brokers
 incognito brokers stats      # Broker registry statistics
 ```
@@ -92,7 +93,7 @@ CI builds and smoke-tests the container on every push.
 
 ## What's Not Built Yet
 
-- Playwright web form sender (`senders/web.py`)
+- Playwright web form sender (`senders/web.py`) — covers 54% of brokers using web forms
 - API sender (`senders/api.py`, Data Rights Protocol)
 - Multi-profile / family support
 - `brokers update` command (pull latest from community repo)
