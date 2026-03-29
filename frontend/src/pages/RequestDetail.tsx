@@ -108,7 +108,7 @@ export default function RequestDetailPage() {
   }
 
   if (!request) {
-    return <div className="p-8 text-gray-500">{error || "Loading..."}</div>;
+    return <div className="p-8 text-gray-500 dark:text-gray-400">{error || "Loading..."}</div>;
   }
 
   const daysLeft = request.deadline_at
@@ -119,7 +119,7 @@ export default function RequestDetailPage() {
     <div className="p-8 max-w-3xl">
       <button
         onClick={() => navigate("/requests")}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
+        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-6"
       >
         <ArrowLeft className="w-4 h-4" /> Back to requests
       </button>
@@ -129,14 +129,14 @@ export default function RequestDetailPage() {
       )}
 
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold">
               {request.broker?.name || request.broker_id}
             </h1>
             {request.broker && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {request.broker.domain} · {request.broker.country} · {request.broker.dpo_email}
               </p>
             )}
@@ -146,24 +146,24 @@ export default function RequestDetailPage() {
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-gray-500">Request type:</span>
+            <span className="text-gray-500 dark:text-gray-400">Request type:</span>
             <span className="ml-2 font-medium">
               {request.request_type === "access" ? "Art. 15 — Access" : "Art. 17 — Erasure"}
             </span>
           </div>
           <div>
-            <span className="text-gray-500">Created:</span>
+            <span className="text-gray-500 dark:text-gray-400">Created:</span>
             <span className="ml-2">{request.created_at ? new Date(request.created_at).toLocaleDateString() : "—"}</span>
           </div>
           {request.sent_at && (
             <div>
-              <span className="text-gray-500">Sent:</span>
+              <span className="text-gray-500 dark:text-gray-400">Sent:</span>
               <span className="ml-2">{new Date(request.sent_at).toLocaleDateString()}</span>
             </div>
           )}
           {request.deadline_at && (
             <div>
-              <span className="text-gray-500">Deadline:</span>
+              <span className="text-gray-500 dark:text-gray-400">Deadline:</span>
               <span className={`ml-2 font-medium ${daysLeft !== null && daysLeft < 0 ? "text-red-600" : daysLeft !== null && daysLeft < 7 ? "text-orange-600" : ""}`}>
                 {new Date(request.deadline_at).toLocaleDateString()}
                 {daysLeft !== null && (
@@ -177,32 +177,32 @@ export default function RequestDetailPage() {
         </div>
 
         {request.response_body && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Response:</p>
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Response:</p>
             <p className="text-sm">{request.response_body}</p>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <h2 className="font-semibold mb-3">Actions</h2>
         <div className="flex flex-wrap gap-2">
           {request.status === "created" && (
             <button onClick={() => handleAction("mark_sent")} disabled={!!actionLoading}
               className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition disabled:opacity-50">
-              <Send className="w-3.5 h-3.5" /> Mark as Sent
+              {actionLoading === "mark_sent" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Mark as Sent
             </button>
           )}
           {request.status === "sent" && (
             <>
               <button onClick={() => setPendingAction({ type: "mark_acknowledged", text: "" })} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition disabled:opacity-50">
-                <CheckCircle className="w-3.5 h-3.5" /> Mark Acknowledged
+                {actionLoading === "mark_acknowledged" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Mark Acknowledged
               </button>
               <button onClick={() => handleAction("mark_overdue")} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700 transition disabled:opacity-50">
-                <Clock className="w-3.5 h-3.5" /> Mark Overdue
+                {actionLoading === "mark_overdue" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />} Mark Overdue
               </button>
             </>
           )}
@@ -210,35 +210,35 @@ export default function RequestDetailPage() {
             <>
               <button onClick={() => handleAction("mark_completed")} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition disabled:opacity-50">
-                <CheckCircle className="w-3.5 h-3.5" /> Mark Completed
+                {actionLoading === "mark_completed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Mark Completed
               </button>
               <button onClick={() => setPendingAction({ type: "mark_refused", text: "" })} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition disabled:opacity-50">
-                <XCircle className="w-3.5 h-3.5" /> Mark Refused
+                {actionLoading === "mark_refused" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} Mark Refused
               </button>
             </>
           )}
           {(request.status === "overdue" || request.status === "refused") && (
             <button onClick={() => handleAction("mark_escalated")} disabled={!!actionLoading}
               className="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition disabled:opacity-50">
-              <AlertTriangle className="w-3.5 h-3.5" /> Escalate
+              {actionLoading === "mark_escalated" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />} Escalate
             </button>
           )}
           {request.status === "manual_action_needed" && (
             <>
               <button onClick={() => handleAction("mark_sent")} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition disabled:opacity-50">
-                <Send className="w-3.5 h-3.5" /> Mark as Sent (manual)
+                {actionLoading === "mark_sent" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Mark as Sent (manual)
               </button>
               <button onClick={() => handleAction("mark_completed")} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition disabled:opacity-50">
-                <CheckCircle className="w-3.5 h-3.5" /> Mark Completed
+                {actionLoading === "mark_completed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Mark Completed
               </button>
             </>
           )}
           {request.broker && (
             <a href={`https://${request.broker.domain}`} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+              className="flex items-center gap-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
               <ExternalLink className="w-3.5 h-3.5" /> Visit Site
             </a>
           )}
@@ -280,9 +280,9 @@ export default function RequestDetailPage() {
 
       {/* Email Thread */}
       {request.email_messages && request.email_messages.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
-            <Mail className="w-4 h-4 text-gray-500" />
+            <Mail className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <h2 className="font-semibold">Emails ({request.email_messages.length})</h2>
           </div>
           <EmailThread emails={request.email_messages} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 
 interface BrokerItem { id: string; name: string; domain: string; category: string; dpo_email: string; removal_method: string; country: string; gdpr_applies: boolean; language: string; }
 
@@ -8,15 +8,22 @@ export default function Brokers() {
   const [brokers, setBrokers] = useState<BrokerItem[]>([]);
   const [search, setSearch] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [creatingRequest, setCreatingRequest] = useState("");
 
   useEffect(() => { api.getBrokers().then((data) => setBrokers(data as unknown as BrokerItem[])); }, []);
 
   const filtered = brokers.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()) || b.domain.toLowerCase().includes(search.toLowerCase()));
 
   async function handleCreateRequest(brokerId: string, requestType: string) {
-    await api.createRequest(brokerId, requestType);
-    setSuccessMessage(`${requestType === "access" ? "Art. 15" : "Art. 17"} request created for ${brokerId}`);
-    setTimeout(() => setSuccessMessage(""), 3000);
+    const key = `${brokerId}:${requestType}`;
+    setCreatingRequest(key);
+    try {
+      await api.createRequest(brokerId, requestType);
+      setSuccessMessage(`${requestType === "access" ? "Art. 15" : "Art. 17"} request created for ${brokerId}`);
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } finally {
+      setCreatingRequest("");
+    }
   }
 
   return (
@@ -47,8 +54,16 @@ export default function Brokers() {
                   {broker.gdpr_applies && <span className="px-2 py-0.5 rounded text-xs bg-green-50 text-green-700">GDPR</span>}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleCreateRequest(broker.id, "access")} className="px-3 py-1 text-xs bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition">Art. 15</button>
-                  <button onClick={() => handleCreateRequest(broker.id, "erasure")} className="px-3 py-1 text-xs bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition">Art. 17</button>
+                  <button onClick={() => handleCreateRequest(broker.id, "access")} disabled={!!creatingRequest}
+                    className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition disabled:opacity-50">
+                    {creatingRequest === `${broker.id}:access` ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                    Art. 15
+                  </button>
+                  <button onClick={() => handleCreateRequest(broker.id, "erasure")} disabled={!!creatingRequest}
+                    className="flex items-center gap-1 px-3 py-1 text-xs bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition disabled:opacity-50">
+                    {creatingRequest === `${broker.id}:erasure` ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                    Art. 17
+                  </button>
                 </div>
               </div>
             ))}

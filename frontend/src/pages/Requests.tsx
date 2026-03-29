@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import { Send, Eye } from "lucide-react";
+import { Send, Eye, Loader2 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 
 interface RequestItem { id: string; broker_id: string; request_type: string; status: string; sent_at: string | null; deadline_at: string | null; created_at: string | null; }
@@ -13,6 +13,7 @@ export default function Requests() {
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [events, setEvents] = useState<RequestEvent[]>([]);
+  const [transitionLoading, setTransitionLoading] = useState("");
 
   useEffect(() => { loadRequests(); }, [filter]);
 
@@ -29,8 +30,13 @@ export default function Requests() {
   }
 
   async function handleTransition(id: string, action: string) {
-    await api.transitionRequest(id, action);
-    loadRequests();
+    setTransitionLoading(id);
+    try {
+      await api.transitionRequest(id, action);
+      await loadRequests();
+    } finally {
+      setTransitionLoading("");
+    }
   }
 
   const statusFilters = ["", "created", "sent", "acknowledged", "completed", "refused", "overdue", "escalated", "manual_action_needed"];
@@ -40,14 +46,14 @@ export default function Requests() {
       <h1 className="text-2xl font-bold mb-6">Requests</h1>
       <div className="flex gap-2 mb-4 flex-wrap">
         {statusFilters.map((s) => (
-          <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${filter === s ? "bg-indigo-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{s || "All"}</button>
+          <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${filter === s ? "bg-indigo-600 text-white" : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>{s || "All"}</button>
         ))}
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         {requests.length === 0 ? (
-          <p className="px-5 py-8 text-gray-500 text-center text-sm">No requests found.</p>
+          <p className="px-5 py-8 text-gray-500 dark:text-gray-400 text-center text-sm">No requests found.</p>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {requests.map((req) => (
               <div key={req.id}>
                 <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-2">
@@ -56,14 +62,17 @@ export default function Requests() {
                       onClick={() => navigate(`/requests/${req.id}`)}>
                       {req.broker_id}
                     </span>
-                    <span className="hidden sm:block text-gray-500 w-24">{req.request_type}</span>
+                    <span className="hidden sm:block text-gray-500 dark:text-gray-400 w-24">{req.request_type}</span>
                     <StatusBadge status={req.status} />
                   </div>
                   <div className="flex items-center gap-2">
                     {req.status === "created" && (
-                      <button onClick={() => handleTransition(req.id, "mark_sent")} className="flex items-center gap-1 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-100 transition"><Send className="w-3 h-3" /> Send</button>
+                      <button onClick={() => handleTransition(req.id, "mark_sent")} disabled={!!transitionLoading}
+                        className="flex items-center gap-1 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-100 transition disabled:opacity-50">
+                        {transitionLoading === req.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} Send
+                      </button>
                     )}
-                    <button onClick={() => viewEvents(req.id)} className="flex items-center gap-1 px-3 py-1 bg-gray-50 text-gray-600 rounded-lg text-xs hover:bg-gray-100 transition"><Eye className="w-3 h-3" />{selectedId === req.id ? "Hide" : "Events"}</button>
+                    <button onClick={() => viewEvents(req.id)} className="flex items-center gap-1 px-3 py-1 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition"><Eye className="w-3 h-3" />{selectedId === req.id ? "Hide" : "Events"}</button>
                   </div>
                 </div>
                 {selectedId === req.id && (
@@ -72,8 +81,8 @@ export default function Requests() {
                       {events.map((e) => (
                         <div key={e.id} className="text-xs">
                           <span className="font-medium text-indigo-600">{e.event_type}</span>
-                          {e.details && <span className="text-gray-500 ml-2">{e.details}</span>}
-                          {e.created_at && <span className="text-gray-400 ml-2">{new Date(e.created_at).toLocaleString()}</span>}
+                          {e.details && <span className="text-gray-500 dark:text-gray-400 ml-2">{e.details}</span>}
+                          {e.created_at && <span className="text-gray-400 dark:text-gray-500 ml-2">{new Date(e.created_at).toLocaleString()}</span>}
                         </div>
                       ))}
                     </div>
