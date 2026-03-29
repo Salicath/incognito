@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useAsyncTask } from "../hooks/useAsyncTask";
 import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail, ShieldAlert } from "lucide-react";
 
 interface ScanHit {
@@ -23,246 +24,53 @@ interface BreachHit {
   data_classes: string[];
 }
 
+interface ScanResults {
+  has_results: boolean;
+  checked: number;
+  hits: ScanHit[];
+}
+
+interface AccountResults {
+  has_results: boolean;
+  email: string;
+  checked: number;
+  hits: AccountHit[];
+  errors: string[];
+}
+
+interface BreachResults {
+  has_results: boolean;
+  email: string;
+  total_breaches: number;
+  breaches: BreachHit[];
+  error: string | null;
+}
+
 export default function Scan() {
-  const [scanning, setScanning] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [results, setResults] = useState<ScanHit[]>([]);
-  const [hasResults, setHasResults] = useState(false);
-  const [checked, setChecked] = useState(0);
-  const [error, setError] = useState("");
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scan = useAsyncTask<ScanResults>({
+    startFn: () => api.startScan(),
+    statusFn: api.getScanStatus,
+    resultsFn: api.getScanResults,
+  });
 
-  // Account scan state
   const [accountEmailInput, setAccountEmailInput] = useState("");
-  const [accountScanning, setAccountScanning] = useState(false);
-  const [accountProgress, setAccountProgress] = useState(0);
-  const [accountTotal, setAccountTotal] = useState(0);
-  const [accountResults, setAccountResults] = useState<AccountHit[]>([]);
-  const [accountHasResults, setAccountHasResults] = useState(false);
-  const [accountChecked, setAccountChecked] = useState(0);
-  const [accountEmail, setAccountEmail] = useState("");
-  const [accountError, setAccountError] = useState("");
-  const accountPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const account = useAsyncTask<AccountResults>({
+    startFn: (email?: unknown) => api.startAccountScan(email as string | undefined),
+    statusFn: api.getAccountStatus,
+    resultsFn: api.getAccountResults,
+  });
 
-  // Breach scan state
   const [breachEmailInput, setBreachEmailInput] = useState("");
-  const [breachChecking, setBreachChecking] = useState(false);
-  const [breachResults, setBreachResults] = useState<BreachHit[]>([]);
-  const [breachHasResults, setBreachHasResults] = useState(false);
-  const [breachEmail, setBreachEmail] = useState("");
-  const [breachError, setBreachError] = useState("");
   const [hibpConfigured, setHibpConfigured] = useState<boolean | null>(null);
-  const breachPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const breach = useAsyncTask<BreachResults>({
+    startFn: (email?: unknown) => api.startBreachCheck(email as string | undefined),
+    statusFn: api.getBreachStatus,
+    resultsFn: api.getBreachResults,
+  });
 
   useEffect(() => {
-    loadResults();
-    checkIfRunning();
-    loadAccountResults();
-    checkIfAccountRunning();
-    loadBreachResults();
-    checkIfBreachRunning();
-    checkHibpConfigured();
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (accountPollRef.current) clearInterval(accountPollRef.current);
-      if (breachPollRef.current) clearInterval(breachPollRef.current);
-    };
+    api.getHibpStatus().then((s) => setHibpConfigured(s.configured)).catch(() => setHibpConfigured(false));
   }, []);
-
-  async function checkIfRunning() {
-    try {
-      const status = await api.getScanStatus();
-      if (status.running) {
-        setScanning(true);
-        setProgress(status.progress);
-        setTotal(status.total);
-        startPolling();
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  async function loadResults() {
-    try {
-      const data = await api.getScanResults();
-      setResults(data.hits);
-      setHasResults(data.has_results);
-      setChecked(data.checked);
-    } catch {
-      // No results yet
-    }
-  }
-
-  function startPolling() {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const status = await api.getScanStatus();
-        setProgress(status.progress);
-        setTotal(status.total);
-        if (status.error) {
-          setError(status.error);
-          setScanning(false);
-          if (pollRef.current) clearInterval(pollRef.current);
-          return;
-        }
-        if (!status.running) {
-          setScanning(false);
-          if (pollRef.current) clearInterval(pollRef.current);
-          await loadResults();
-        }
-      } catch {
-        // ignore poll errors
-      }
-    }, 2000);
-  }
-
-  async function startScan() {
-    setScanning(true);
-    setError("");
-    setProgress(0);
-    try {
-      const data = await api.startScan();
-      setTotal(data.total);
-      startPolling();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Scan failed");
-      setScanning(false);
-    }
-  }
-
-  async function checkIfAccountRunning() {
-    try {
-      const status = await api.getAccountStatus();
-      if (status.running) {
-        setAccountScanning(true);
-        setAccountProgress(status.progress);
-        setAccountTotal(status.total);
-        startAccountPolling();
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  async function loadAccountResults() {
-    try {
-      const data = await api.getAccountResults();
-      setAccountResults(data.hits);
-      setAccountHasResults(data.has_results);
-      setAccountChecked(data.checked);
-      setAccountEmail(data.email);
-    } catch {
-      // No results yet
-    }
-  }
-
-  function startAccountPolling() {
-    if (accountPollRef.current) clearInterval(accountPollRef.current);
-    accountPollRef.current = setInterval(async () => {
-      try {
-        const status = await api.getAccountStatus();
-        setAccountProgress(status.progress);
-        setAccountTotal(status.total);
-        if (status.error) {
-          setAccountError(status.error);
-          setAccountScanning(false);
-          if (accountPollRef.current) clearInterval(accountPollRef.current);
-          return;
-        }
-        if (!status.running) {
-          setAccountScanning(false);
-          if (accountPollRef.current) clearInterval(accountPollRef.current);
-          await loadAccountResults();
-        }
-      } catch {
-        // ignore poll errors
-      }
-    }, 2000);
-  }
-
-  async function startAccountScan() {
-    setAccountScanning(true);
-    setAccountError("");
-    setAccountProgress(0);
-    try {
-      const data = await api.startAccountScan(accountEmailInput.trim() || undefined);
-      setAccountEmail(data.email);
-      startAccountPolling();
-    } catch (e) {
-      setAccountError(e instanceof Error ? e.message : "Account scan failed");
-      setAccountScanning(false);
-    }
-  }
-
-  async function checkHibpConfigured() {
-    try {
-      const status = await api.getHibpStatus();
-      setHibpConfigured(status.configured);
-    } catch {
-      setHibpConfigured(false);
-    }
-  }
-
-  async function checkIfBreachRunning() {
-    try {
-      const status = await api.getBreachStatus();
-      if (status.running) {
-        setBreachChecking(true);
-        startBreachPolling();
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  async function loadBreachResults() {
-    try {
-      const data = await api.getBreachResults();
-      setBreachResults(data.breaches);
-      setBreachHasResults(data.has_results);
-      setBreachEmail(data.email);
-    } catch {
-      // No results yet
-    }
-  }
-
-  function startBreachPolling() {
-    if (breachPollRef.current) clearInterval(breachPollRef.current);
-    breachPollRef.current = setInterval(async () => {
-      try {
-        const status = await api.getBreachStatus();
-        if (status.error) {
-          setBreachError(status.error);
-          setBreachChecking(false);
-          if (breachPollRef.current) clearInterval(breachPollRef.current);
-          return;
-        }
-        if (!status.running) {
-          setBreachChecking(false);
-          if (breachPollRef.current) clearInterval(breachPollRef.current);
-          await loadBreachResults();
-        }
-      } catch {
-        // ignore poll errors
-      }
-    }, 2000);
-  }
-
-  async function startBreachCheck() {
-    setBreachChecking(true);
-    setBreachError("");
-    try {
-      const data = await api.startBreachCheck(breachEmailInput.trim() || undefined);
-      setBreachEmail(data.email);
-      startBreachPolling();
-    } catch (e) {
-      setBreachError(e instanceof Error ? e.message : "Breach check failed");
-      setBreachChecking(false);
-    }
-  }
 
   async function handleCreateRequest(brokerDomain: string, type: string) {
     try {
@@ -282,11 +90,21 @@ export default function Scan() {
     }
   }
 
-  const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
-  const accountPct = accountTotal > 0 ? Math.round((accountProgress / accountTotal) * 100) : 0;
+  const scanHits = (scan.results as ScanResults | null)?.hits ?? [];
+  const scanChecked = (scan.results as ScanResults | null)?.checked ?? 0;
+  const scanPct = scan.total > 0 ? Math.round((scan.progress / scan.total) * 100) : 0;
+
+  const accountHits = (account.results as AccountResults | null)?.hits ?? [];
+  const accountChecked = (account.results as AccountResults | null)?.checked ?? 0;
+  const accountEmail = (account.results as AccountResults | null)?.email ?? "";
+  const accountPct = account.total > 0 ? Math.round((account.progress / account.total) * 100) : 0;
+
+  const breachHits = (breach.results as BreachResults | null)?.breaches ?? [];
+  const breachEmail = (breach.results as BreachResults | null)?.email ?? "";
 
   return (
     <div className="p-8">
+      {/* DuckDuckGo Scanner */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Scan</h1>
@@ -295,34 +113,34 @@ export default function Scan() {
           </p>
         </div>
         <button
-          onClick={startScan}
-          disabled={scanning}
+          onClick={() => scan.start()}
+          disabled={scan.running}
           className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50"
         >
-          {scanning ? (
+          {scan.running ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Scanning...</>
           ) : (
-            <><Search className="w-4 h-4" /> {hasResults ? "Scan Again" : "Start Scan"}</>
+            <><Search className="w-4 h-4" /> {scan.hasResults ? "Scan Again" : "Start Scan"}</>
           )}
         </button>
       </div>
 
-      {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
+      {scan.error && (
+        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{scan.error}</div>
       )}
 
-      {scanning && (
+      {scan.running && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6 mb-6">
           <div className="flex items-center gap-3 mb-3">
             <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
             <p className="text-indigo-900 font-medium">
-              Scanning... {progress}/{total} searches completed
+              Scanning... {scan.progress}/{scan.total} searches completed
             </p>
           </div>
           <div className="w-full bg-indigo-200 rounded-full h-2">
             <div
               className="bg-indigo-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${pct}%` }}
+              style={{ width: `${scanPct}%` }}
             />
           </div>
           <p className="text-indigo-600 text-xs mt-2">
@@ -332,7 +150,7 @@ export default function Scan() {
         </div>
       )}
 
-      {!scanning && !hasResults && !error && (
+      {!scan.running && !scan.hasResults && !scan.error && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-gray-700 mb-2">No scan results yet</h2>
@@ -346,31 +164,31 @@ export default function Scan() {
         </div>
       )}
 
-      {!scanning && hasResults && (
+      {!scan.running && scan.hasResults && (
         <>
           <div className="flex gap-4 mb-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
               <div className="flex items-center gap-3">
-                {results.length > 0 ? (
+                {scanHits.length > 0 ? (
                   <AlertTriangle className="w-8 h-8 text-orange-500" />
                 ) : (
                   <CheckCircle className="w-8 h-8 text-green-500" />
                 )}
                 <div>
-                  <p className="text-2xl font-bold">{results.length}</p>
+                  <p className="text-2xl font-bold">{scanHits.length}</p>
                   <p className="text-sm text-gray-500">
-                    {results.length === 1 ? "site likely has your data" : "sites likely have your data"}
+                    {scanHits.length === 1 ? "site likely has your data" : "sites likely have your data"}
                   </p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
-              <p className="text-2xl font-bold">{checked}</p>
+              <p className="text-2xl font-bold">{scanChecked}</p>
               <p className="text-sm text-gray-500">searches performed</p>
             </div>
           </div>
 
-          {results.length > 0 ? (
+          {scanHits.length > 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="px-5 py-4 border-b border-gray-200">
                 <h2 className="font-semibold">Found Results</h2>
@@ -379,7 +197,7 @@ export default function Scan() {
                 </p>
               </div>
               <div className="divide-y divide-gray-100">
-                {results.map((hit) => (
+                {scanHits.map((hit) => (
                   <div key={hit.broker_domain} className="px-5 py-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
@@ -448,29 +266,29 @@ export default function Scan() {
               placeholder="Enter email to check (leave empty for profile email)"
               value={breachEmailInput}
               onChange={(e) => setBreachEmailInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !breachChecking && hibpConfigured && startBreachCheck()}
+              onKeyDown={(e) => e.key === "Enter" && !breach.running && hibpConfigured && breach.start(breachEmailInput.trim() || undefined)}
               disabled={!hibpConfigured}
               className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
-              onClick={startBreachCheck}
-              disabled={breachChecking || !hibpConfigured}
+              onClick={() => breach.start(breachEmailInput.trim() || undefined)}
+              disabled={breach.running || !hibpConfigured}
               className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50 shrink-0"
             >
-              {breachChecking ? (
+              {breach.running ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Checking...</>
               ) : (
-                <><ShieldAlert className="w-4 h-4" /> {breachHasResults ? "Check Again" : "Check Breaches"}</>
+                <><ShieldAlert className="w-4 h-4" /> {breach.hasResults ? "Check Again" : "Check Breaches"}</>
               )}
             </button>
           </div>
         </div>
 
-        {breachError && (
-          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{breachError}</div>
+        {breach.error && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{breach.error}</div>
         )}
 
-        {breachChecking && (
+        {breach.running && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
             <div className="flex items-center gap-3">
               <Loader2 className="w-5 h-5 text-red-600 animate-spin" />
@@ -481,7 +299,7 @@ export default function Scan() {
           </div>
         )}
 
-        {!breachChecking && !breachHasResults && !breachError && hibpConfigured && (
+        {!breach.running && !breach.hasResults && !breach.error && hibpConfigured && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <ShieldAlert className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-700 mb-2">No breach results yet</h3>
@@ -492,20 +310,20 @@ export default function Scan() {
           </div>
         )}
 
-        {!breachChecking && breachHasResults && (
+        {!breach.running && breach.hasResults && (
           <>
             <div className="flex gap-4 mb-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
                 <div className="flex items-center gap-3">
-                  {breachResults.length > 0 ? (
+                  {breachHits.length > 0 ? (
                     <AlertTriangle className="w-8 h-8 text-red-500" />
                   ) : (
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   )}
                   <div>
-                    <p className="text-2xl font-bold">{breachResults.length}</p>
+                    <p className="text-2xl font-bold">{breachHits.length}</p>
                     <p className="text-sm text-gray-500">
-                      {breachResults.length === 1 ? "breach found" : "breaches found"}
+                      {breachHits.length === 1 ? "breach found" : "breaches found"}
                     </p>
                   </div>
                 </div>
@@ -516,7 +334,7 @@ export default function Scan() {
               </div>
             </div>
 
-            {breachResults.length > 0 ? (
+            {breachHits.length > 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div className="px-5 py-4 border-b border-gray-200">
                   <h3 className="font-semibold">Breaches Found</h3>
@@ -525,19 +343,19 @@ export default function Scan() {
                   </p>
                 </div>
                 <div className="divide-y divide-gray-100">
-                  {breachResults.map((breach) => (
-                    <div key={breach.name} className="px-5 py-4">
+                  {breachHits.map((breach_item) => (
+                    <div key={breach_item.name} className="px-5 py-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
-                            <span className="font-medium text-sm">{breach.title}</span>
-                            {breach.domain && (
-                              <span className="text-xs text-gray-400">{breach.domain}</span>
+                            <span className="font-medium text-sm">{breach_item.title}</span>
+                            {breach_item.domain && (
+                              <span className="text-xs text-gray-400">{breach_item.domain}</span>
                             )}
                           </div>
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {breach.data_classes.map((dc) => (
+                            {breach_item.data_classes.map((dc) => (
                               <span key={dc} className="px-2 py-0.5 bg-red-50 text-red-700 rounded text-xs">
                                 {dc}
                               </span>
@@ -545,9 +363,9 @@ export default function Scan() {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-xs text-gray-500">{breach.breach_date}</p>
+                          <p className="text-xs text-gray-500">{breach_item.breach_date}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            {breach.pwn_count.toLocaleString()} records
+                            {breach_item.pwn_count.toLocaleString()} records
                           </p>
                         </div>
                       </div>
@@ -581,33 +399,33 @@ export default function Scan() {
               placeholder="Enter email to check (leave empty for profile email)"
               value={accountEmailInput}
               onChange={(e) => setAccountEmailInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !accountScanning && startAccountScan()}
+              onKeyDown={(e) => e.key === "Enter" && !account.running && account.start(accountEmailInput.trim() || undefined)}
               className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none text-sm"
             />
             <button
-              onClick={startAccountScan}
-              disabled={accountScanning}
+              onClick={() => account.start(accountEmailInput.trim() || undefined)}
+              disabled={account.running}
               className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition disabled:opacity-50 shrink-0"
             >
-              {accountScanning ? (
+              {account.running ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Checking...</>
               ) : (
-                <><Mail className="w-4 h-4" /> {accountHasResults ? "Check Again" : "Check Accounts"}</>
+                <><Mail className="w-4 h-4" /> {account.hasResults ? "Check Again" : "Check Accounts"}</>
               )}
             </button>
           </div>
         </div>
 
-        {accountError && (
-          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{accountError}</div>
+        {account.error && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{account.error}</div>
         )}
 
-        {accountScanning && (
+        {account.running && (
           <div className="bg-violet-50 border border-violet-200 rounded-xl p-6 mb-6">
             <div className="flex items-center gap-3 mb-3">
               <Loader2 className="w-5 h-5 text-violet-600 animate-spin" />
               <p className="text-violet-900 font-medium">
-                Checking {accountEmail}... {accountProgress}/{accountTotal} services checked
+                Checking {accountEmail}... {account.progress}/{account.total} services checked
               </p>
             </div>
             <div className="w-full bg-violet-200 rounded-full h-2">
@@ -622,7 +440,7 @@ export default function Scan() {
           </div>
         )}
 
-        {!accountScanning && !accountHasResults && !accountError && (
+        {!account.running && !account.hasResults && !account.error && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <Mail className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-700 mb-2">No account scan results yet</h3>
@@ -634,20 +452,20 @@ export default function Scan() {
           </div>
         )}
 
-        {!accountScanning && accountHasResults && (
+        {!account.running && account.hasResults && (
           <>
             <div className="flex gap-4 mb-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex-1">
                 <div className="flex items-center gap-3">
-                  {accountResults.length > 0 ? (
+                  {accountHits.length > 0 ? (
                     <AlertTriangle className="w-8 h-8 text-orange-500" />
                   ) : (
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   )}
                   <div>
-                    <p className="text-2xl font-bold">{accountResults.length}</p>
+                    <p className="text-2xl font-bold">{accountHits.length}</p>
                     <p className="text-sm text-gray-500">
-                      {accountResults.length === 1 ? "service has your email registered" : "services have your email registered"}
+                      {accountHits.length === 1 ? "service has your email registered" : "services have your email registered"}
                     </p>
                   </div>
                 </div>
@@ -658,7 +476,7 @@ export default function Scan() {
               </div>
             </div>
 
-            {accountResults.length > 0 ? (
+            {accountHits.length > 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div className="px-5 py-4 border-b border-gray-200">
                   <h3 className="font-semibold">Registered Accounts Found</h3>
@@ -667,7 +485,7 @@ export default function Scan() {
                   </p>
                 </div>
                 <div className="divide-y divide-gray-100">
-                  {accountResults.map((hit) => (
+                  {accountHits.map((hit) => (
                     <div key={hit.service} className="px-5 py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">

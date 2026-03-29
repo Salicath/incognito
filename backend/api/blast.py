@@ -3,7 +3,7 @@ from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
 
 from backend.api.deps import SessionStore
-from backend.core.broker import BrokerRegistry
+from backend.core.broker import BrokerRegistry, RemovalMethod
 from backend.core.config import AppConfig
 from backend.core.profile import ProfileVault
 from backend.core.request import RequestManager
@@ -137,10 +137,9 @@ def create_blast_router(
                     continue
 
                 # Only send to email-based brokers for now
-                method = broker.removal_method
-                is_email = method == "email" or method.value == "email"
-                if not is_email:
+                if broker.removal_method != RemovalMethod.EMAIL:
                     url = broker.removal_url or broker.domain
+                    method = broker.removal_method
                     reason = f"Broker requires {method} — visit {url}"
                     mgr.mark_manual_action_needed(req.id, reason)
                     results.append({
