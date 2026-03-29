@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useNavigate } from "react-router-dom";
-import { Send, Clock, Zap, Shield, Loader2, Search } from "lucide-react";
+import { Send, Clock, Zap, Shield, Loader2, Search, Mail } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import ProgressRing from "../components/ProgressRing";
 
@@ -16,6 +16,7 @@ interface Stats {
   overdue: number;
   escalated: number;
   manual_action_needed: number;
+  unread_replies: number;
 }
 
 export default function Dashboard() {
@@ -303,6 +304,26 @@ export default function Dashboard() {
             {sendResult.failed > 0 && <span className="text-red-600"> &middot; {sendResult.failed} failed</span>}
             {sendResult.manual > 0 && <span className="text-yellow-600"> &middot; {sendResult.manual} need manual action</span>}
           </p>
+        </div>
+      )}
+
+      {/* Unread replies notification */}
+      {stats.unread_replies > 0 && (
+        <div
+          className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between cursor-pointer hover:bg-green-100 transition"
+          onClick={() => navigate("/requests?status=acknowledged")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Mail className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="font-medium text-green-900">
+                {stats.unread_replies} new {stats.unread_replies === 1 ? "reply" : "replies"} from brokers
+              </p>
+              <p className="text-green-700 text-sm">Click to review broker responses</p>
+            </div>
+          </div>
         </div>
       )}
 
