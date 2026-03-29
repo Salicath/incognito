@@ -57,22 +57,21 @@ def test_imap_config_defaults():
     assert cfg.port == 993
     assert cfg.folder == "INBOX"
     assert cfg.poll_interval_minutes == 5
-    assert cfg.tls is True
+    assert cfg.starttls is False
 
 
-def test_imap_config_custom():
+def test_imap_config_proton_bridge():
     cfg = ImapConfig(
         host="127.0.0.1",
         port=1143,
         username="user@proton.me",
         password="bridge-password",
-        folder="All Mail",
+        folder="INBOX",
         poll_interval_minutes=10,
-        tls=False,
+        starttls=True,
     )
     assert cfg.port == 1143
-    assert cfg.folder == "All Mail"
-    assert cfg.tls is False
+    assert cfg.starttls is True
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -96,8 +95,10 @@ class ImapConfig(BaseModel):
     password: str
     folder: str = "INBOX"
     poll_interval_minutes: int = 5
-    tls: bool = True
+    starttls: bool = False  # True for Proton Bridge (port 1143), False for standard IMAPS (port 993)
 ```
+
+Note: `starttls=False` means implicit SSL (standard IMAPS on port 993). `starttls=True` means STARTTLS upgrade (Proton Bridge on port 1143). Both use TLS — the difference is when the TLS handshake happens.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -302,7 +303,38 @@ _, smtp = vault.load_with_key(key)
 _, smtp, _ = vault.load_with_key(key)
 ```
 
-Search for all other callers in `backend/api/` files (auth.py, setup.py, blast.py, scan.py) and update the tuple unpacking the same way. Every `_, smtp = vault.load_with_key(key)` becomes `_, smtp, _ = vault.load_with_key(key)`. Every `profile, _ = vault.load_with_key(key)` becomes `profile, _, _ = vault.load_with_key(key)`. Every `profile, smtp = vault.load(password)` becomes `profile, smtp, _ = vault.load(password)`. Every `vault.save_with_key(profile, smtp, key, salt)` becomes `vault.save_with_key(profile, smtp, imap, key, salt)` where `imap` was loaded from the vault in the same function.
+Here is the **complete list of 34 call sites** that need updating:
+
+**`vault.load_with_key()` — 12 calls (change 2-tuple to 3-tuple):**
+- `backend/main.py:107` — `profile, _ =` → `profile, _, _ =`
+- `backend/api/scan.py:97` — `profile, _ =` → `profile, _, _ =`
+- `backend/api/scan.py:185` — `profile, _ =` → `profile, _, _ =`
+- `backend/api/scan.py:268` — `profile, _ =` → `profile, _, _ =`
+- `backend/api/blast.py:106` — `profile, smtp =` → `profile, smtp, _ =`
+- `backend/api/blast.py:222` — `profile, smtp =` → `profile, smtp, _ =`
+- `backend/api/blast.py:258` — `profile, _ =` → `profile, _, _ =`
+- `backend/api/auth.py:38` — no unpacking (just validates), no change needed
+- `backend/api/settings.py:40` — `_, smtp =` → `_, smtp, _ =`
+- `backend/api/settings.py:54` — `profile, _ =` → `profile, _, imap =` (need imap for save_with_key)
+- `backend/api/settings.py:61` — `_, smtp =` → `_, smtp, imap =` (need imap for save_with_key)
+- `backend/api/settings.py:98` — `_, smtp =` → `_, smtp, _ =`
+
+**`vault.load()` — 5 calls:**
+- `backend/api/settings.py:135` — no unpacking (just validates), no change
+- `backend/api/settings.py:183` — no unpacking (just validates), no change
+- `tests/unit/test_profile.py:71` — `loaded_profile, loaded_smtp =` → `loaded_profile, loaded_smtp, _ =`
+- `tests/unit/test_profile.py:93` — no unpacking (expects exception), no change
+- `tests/unit/test_profile.py:132` — `loaded_profile, loaded_smtp =` → `loaded_profile, loaded_smtp, _ =`
+
+**`vault.save_with_key()` — 2 calls (add imap parameter):**
+- `backend/api/settings.py:55` — `vault.save_with_key(profile, body.smtp, key, salt)` → `vault.save_with_key(profile, body.smtp, imap, key, salt)`
+- `backend/api/settings.py:62` — `vault.save_with_key(body.profile, smtp, key, salt)` → `vault.save_with_key(body.profile, smtp, imap, key, salt)`
+
+**`vault.save()` — 14 calls (all still work because `imap` defaults to `None`):**
+- `tests/conftest.py:74`, `tests/unit/test_backup.py:19`, `tests/unit/test_auth_api.py:32`, `tests/unit/test_blast_api.py:49`, `tests/unit/test_blast_api.py:124`, `tests/unit/test_settings_api.py:21`, `tests/unit/test_settings_api.py:34`, `tests/unit/test_requests_api.py:44`, `tests/unit/test_profile.py:67,90,110,128`, `tests/unit/test_brokers_api.py:45` — **no changes needed** (imap param defaults to None)
+
+**`vault.create_initial()` — 1 call (imap defaults to None):**
+- `backend/api/setup.py:31` — **no change needed**
 
 - [ ] **Step 5: Run the full test suite**
 
@@ -584,31 +616,45 @@ class EmailSender:
 
 - [ ] **Step 4: Update callers that pass `request_id` to `send()`**
 
-Search for all calls to `sender.send(` in `backend/` — they are in `backend/api/blast.py` and `backend/core/scheduler.py`. Update them to pass `request_id` where available. The existing `send(to_email, rendered_text)` signature still works (request_id defaults to None), so existing callers in `backend/api/settings.py` (test-smtp) don't need changes.
+In `backend/api/blast.py:173`, update the sender call to pass the request ID:
 
-In the blast/scheduler code where a request object is available, update to:
 ```python
-result = await sender.send(broker.dpo_email, rendered, request_id=req.id)
+result = await sender.send(
+    to_email=broker.dpo_email,
+    rendered_text=rendered,
+    request_id=req.id,
+)
 ```
 
-Also update the request's `message_id` field and store the outbound email after sending:
-```python
-if result.status == SenderStatus.SUCCESS:
-    req.message_id = f"<{req.id}@incognito.local>"
+The `send()` in `backend/api/settings.py` (test-smtp endpoint) doesn't need changes — `request_id` defaults to `None`.
 
-    # Store outbound email in EmailMessage table
-    from backend.db.models import EmailDirection, EmailMessage
-    outbound_record = EmailMessage(
+Check `backend/core/scheduler.py` for any `sender.send()` calls and update those too.
+
+In `backend/api/blast.py`, after the successful send (around line 178-186), add message_id storage and outbound email record. Update the success block to:
+
+```python
+if result.status.value == "success":
+    # Store message_id on request
+    req.message_id = f"<{req.id}@incognito.local>"
+    db.add(req)
+
+    # Store outbound email record
+    from backend.db.models import EmailDirection, EmailMessage as EmailMessageModel
+    outbound_record = EmailMessageModel(
         request_id=req.id,
         message_id=req.message_id,
         direction=EmailDirection.OUTBOUND,
         from_address=smtp.username,
         to_address=broker.dpo_email,
-        subject=subject,  # from the rendered template
+        subject=f"GDPR Request [REF-{req.id[:8].upper()}]",
         body_text=rendered,
     )
     db.add(outbound_record)
     db.commit()
+
+    mgr.mark_sent(req.id)
+    sent += 1
+    # ...rest of results append...
 ```
 
 - [ ] **Step 5: Run tests**
@@ -1089,19 +1135,36 @@ class ImapPoller:
 
     async def poll_once(self) -> int:
         """Connect to IMAP, fetch unseen messages, process them. Returns count processed."""
-        from imap_tools import MailBox, AND
+        import ssl as ssl_mod
+        from imap_tools import MailBox, MailBoxStartTls, MailMessageFlags, AND
 
         processed = 0
         try:
-            with MailBox(
-                host=self._config.host,
-                port=self._config.port,
-                ssl=self._config.tls,
-            ).login(self._config.username, self._config.password, self._config.folder) as mailbox:
+            # Build SSL context (accept self-signed certs for localhost/Proton Bridge)
+            ssl_ctx = ssl_mod.create_default_context()
+            if self._config.host in ("127.0.0.1", "localhost", "::1"):
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl_mod.CERT_NONE
+
+            # Choose connection class based on starttls setting
+            if self._config.starttls:
+                mb = MailBoxStartTls(
+                    host=self._config.host,
+                    port=self._config.port,
+                    ssl_context=ssl_ctx,
+                )
+            else:
+                mb = MailBox(
+                    host=self._config.host,
+                    port=self._config.port,
+                    ssl_context=ssl_ctx,
+                )
+
+            with mb.login(self._config.username, self._config.password, self._config.folder) as mailbox:
                 for msg in mailbox.fetch(AND(seen=False), mark_seen=False):
                     result = self.process_message(msg)
-                    if result is not None:
-                        mailbox.seen(msg, True)
+                    if result is not None and msg.uid:
+                        mailbox.flag(msg.uid, MailMessageFlags.SEEN, True)
                     processed += 1
         except Exception as exc:
             log.error("IMAP poll failed: %s", exc)
@@ -1329,7 +1392,7 @@ def get_imap_status(session: str | None = Cookie(default=None)):
         "username": imap.username,
         "folder": imap.folder,
         "poll_interval_minutes": imap.poll_interval_minutes,
-        "tls": imap.tls,
+        "starttls": imap.starttls,
     }
 
 @r.post("/imap")
@@ -1427,8 +1490,16 @@ def test_imap(session: str | None = Cookie(default=None)):
         raise HTTPException(status_code=400, detail="IMAP not configured")
 
     try:
-        from imap_tools import MailBox
-        with MailBox(host=imap.host, port=imap.port, ssl=imap.tls).login(
+        import ssl as ssl_mod
+        from imap_tools import MailBox, MailBoxStartTls
+
+        ssl_ctx = ssl_mod.create_default_context()
+        if imap.host in ("127.0.0.1", "localhost", "::1"):
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl_mod.CERT_NONE
+
+        mb_cls = MailBoxStartTls if imap.starttls else MailBox
+        with mb_cls(host=imap.host, port=imap.port, ssl_context=ssl_ctx).login(
             imap.username, imap.password, imap.folder
         ) as mailbox:
             folders = [f.name for f in mailbox.folder.list()]
@@ -1650,8 +1721,8 @@ git commit -m "feat(imap): unread replies count in dashboard stats"
 In `frontend/src/api/client.ts`, add to the `api` object:
 
 ```typescript
-getImapStatus: () => request<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; tls?: boolean }>("/settings/imap"),
-saveImap: (imap: { host: string; port: number; username: string; password: string; folder?: string; poll_interval_minutes?: number; tls?: boolean }) =>
+getImapStatus: () => request<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean }>("/settings/imap"),
+saveImap: (imap: { host: string; port: number; username: string; password: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean }) =>
   request("/settings/imap", { method: "POST", body: JSON.stringify({ imap }) }),
 deleteImap: () => request("/settings/imap", { method: "DELETE" }),
 testImap: () => request<{ status: string; folders: string[] }>("/settings/imap/test", { method: "POST" }),
@@ -1670,8 +1741,8 @@ Add IMAP state variables after the SMTP state:
 
 ```typescript
 // IMAP state
-const [imapStatus, setImapStatus] = useState<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; tls?: boolean } | null>(null);
-const [imapForm, setImapForm] = useState({ host: "", port: 993, username: "", password: "", folder: "INBOX", poll_interval_minutes: 5, tls: true });
+const [imapStatus, setImapStatus] = useState<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean } | null>(null);
+const [imapForm, setImapForm] = useState({ host: "", port: 993, username: "", password: "", folder: "INBOX", poll_interval_minutes: 5, starttls: false });
 const [showImapForm, setShowImapForm] = useState(false);
 const [imapSaving, setImapSaving] = useState(false);
 const [imapTesting, setImapTesting] = useState(false);
@@ -1691,7 +1762,7 @@ const [smtp, info, prof, hibp, imap] = await Promise.all([
 // ...existing setters...
 setImapStatus(imap);
 if (imap.configured) {
-  setImapForm({ host: imap.host || "", port: imap.port || 993, username: imap.username || "", password: "", folder: imap.folder || "INBOX", poll_interval_minutes: imap.poll_interval_minutes || 5, tls: imap.tls ?? true });
+  setImapForm({ host: imap.host || "", port: imap.port || 993, username: imap.username || "", password: "", folder: imap.folder || "INBOX", poll_interval_minutes: imap.poll_interval_minutes || 5, starttls: imap.starttls ?? false });
 }
 ```
 
@@ -1741,7 +1812,7 @@ async function handleDeleteImap() {
 }
 ```
 
-Add the IMAP settings card JSX after the SMTP card (before the HIBP card). Follow the exact same pattern as the SMTP card but with IMAP fields: host, port, username, password, folder (text input), poll interval (select with options 1/2/5/10/15), TLS toggle (checkbox), test connection button, and a "Remove" button when configured.
+Add the IMAP settings card JSX after the SMTP card (before the HIBP card). Follow the exact same pattern as the SMTP card but with IMAP fields: host (default "127.0.0.1" for Proton Bridge), port (default 993, suggest 1143 for Proton Bridge), username, password (label as "Bridge password" in placeholder), folder (text input, default "INBOX"), poll interval (select with options 1/2/5/10/15 minutes), STARTTLS checkbox (label: "Use STARTTLS (enable for Proton Bridge)"), test connection button, and a "Remove" button when configured.
 
 - [ ] **Step 3: Build frontend**
 
