@@ -52,7 +52,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     config.setup_logging()
 
     app = FastAPI(
-        title="Incognito", version="0.1.0",
+        title="Incognito", version="0.3.0",
         docs_url=None, redoc_url=None, lifespan=lifespan,
     )
 

@@ -230,7 +230,7 @@ def create_settings_router(
                 "last_check": None,
                 "matched_count": 0,
                 "unmatched_count": 0,
-                "poll_interval": None,
+                "poll_interval_minutes": None,
             }
         return {
             "enabled": True,
@@ -238,7 +238,7 @@ def create_settings_router(
             "last_error": poller.last_error,
             "matched_count": poller.matched_count,
             "unmatched_count": poller.unmatched_count,
-            "poll_interval": poller._config.poll_interval_minutes,
+            "poll_interval_minutes": poller._config.poll_interval_minutes,
         }
 
     @r.get("/notifications")
@@ -416,7 +416,7 @@ def create_settings_router(
             hibp_key = hibp_path.read_text().strip()
 
         backup = {
-            "version": "0.1.0",
+            "version": "0.3.0",
             "vault": base64.b64encode(vault_bytes).decode("ascii"),
             "database": base64.b64encode(db_bytes).decode("ascii"),
             "hibp_key": hibp_key,
