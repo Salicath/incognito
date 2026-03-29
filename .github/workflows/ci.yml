@@ -115,12 +115,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build container image
-        run: docker build -f deploy/Containerfile -t incognito:test .
+      - name: Set up QEMU for multi-arch
+        uses: docker/setup-qemu-action@v3
 
-      - name: Verify container starts
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build multi-arch (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          load: false
+
+      - name: Build and smoke test (amd64)
         run: |
+          docker build -f deploy/Containerfile -t incognito:test .
           docker run --rm -d --name incognito-test -p 8080:8080 incognito:test
           sleep 3
-          curl -sf http://localhost:8080/api/auth/status | grep -q initialized
+          curl -sf http://localhost:8080/api/health
           docker stop incognito-test
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [test, frontend, container, broker-validation]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}

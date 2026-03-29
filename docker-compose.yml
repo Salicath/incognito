@@ -1,0 +1,88 @@
+services:
+  incognito:
+    build:
+      context: .
+      dockerfile: deploy/Containerfile
+    # Or use the pre-built image:
+    # image: ghcr.io/salicath/incognito:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - incognito-data:/home/incognito/.incognito
+    environment:
+      INCOGNITO_LOG_LEVEL: info
+      # Required for automated follow-ups and IMAP polling:
+      # INCOGNITO_PASSWORD: ${INCOGNITO_PASSWORD}
+      # Notification URL (optional, supports Ntfy and generic webhooks):
+      # INCOGNITO_NOTIFY_URL: https://ntfy.sh/my-incognito-alerts
+      # Reverse proxy auth (Authentik/Authelia/Traefik ForwardAuth):
+      # INCOGNITO_TRUSTED_PROXY_HEADER: Remote-User
+      # INCOGNITO_SECURE_COOKIES: "true"
+    restart: unless-stopped
+    # Uncomment for Traefik reverse proxy:
+    # labels:
+    #   traefik.enable: "true"
+    #   traefik.http.routers.incognito.rule: "Host(`incognito.example.com`)"
+    #   traefik.http.routers.incognito.tls.certresolver: "letsencrypt"
+    #   traefik.http.services.incognito.loadbalancer.server.port: "8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # Optional: uncomment the services below for automated background tasks.
+  # Set INCOGNITO_PASSWORD in your .env file first.
+
+  # check-replies:
+  #   build:
+  #     context: .
+  #     dockerfile: deploy/Containerfile
+  #   volumes:
+  #     - incognito-data:/home/incognito/.incognito
+  #   environment:
+  #     INCOGNITO_PASSWORD: ${INCOGNITO_PASSWORD}
+  #     INCOGNITO_NOTIFY_URL: ${INCOGNITO_NOTIFY_URL:-}
+  #   entrypoint: ["python", "cli.py", "check-replies"]
+  #   depends_on:
+  #     incognito:
+  #       condition: service_healthy
+  #   # Run every 15 minutes via restart + sleep
+  #   restart: always
+  #   command: ["sh", "-c", "python cli.py check-replies; sleep 900"]
+
+  # follow-up:
+  #   build:
+  #     context: .
+  #     dockerfile: deploy/Containerfile
+  #   volumes:
+  #     - incognito-data:/home/incognito/.incognito
+  #   environment:
+  #     INCOGNITO_PASSWORD: ${INCOGNITO_PASSWORD}
+  #     INCOGNITO_NOTIFY_URL: ${INCOGNITO_NOTIFY_URL:-}
+  #   depends_on:
+  #     incognito:
+  #       condition: service_healthy
+  #   # Run daily
+  #   restart: always
+  #   command: ["sh", "-c", "python cli.py follow-up --auto; sleep 86400"]
+
+  # rescan:
+  #   build:
+  #     context: .
+  #     dockerfile: deploy/Containerfile
+  #   volumes:
+  #     - incognito-data:/home/incognito/.incognito
+  #   environment:
+  #     INCOGNITO_PASSWORD: ${INCOGNITO_PASSWORD}
+  #     INCOGNITO_NOTIFY_URL: ${INCOGNITO_NOTIFY_URL:-}
+  #   depends_on:
+  #     incognito:
+  #       condition: service_healthy
+  #   # Run weekly
+  #   restart: always
+  #   command: ["sh", "-c", "python cli.py rescan; sleep 604800"]
+
+volumes:
+  incognito-data:

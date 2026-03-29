@@ -1,0 +1,48 @@
+name: Broker Request
+description: Request adding a new data broker
+labels: [broker]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Broker name
+      placeholder: "Example Corp"
+    validations:
+      required: true
+  - type: input
+    id: domain
+    attributes:
+      label: Domain
+      placeholder: "example.com"
+    validations:
+      required: true
+  - type: input
+    id: country
+    attributes:
+      label: Country
+      placeholder: "US"
+    validations:
+      required: true
+  - type: input
+    id: dpo_email
+    attributes:
+      label: DPO/Privacy email
+      placeholder: "privacy@example.com"
+  - type: dropdown
+    id: removal_method
+    attributes:
+      label: How to request removal?
+      options:
+        - Email
+        - Web form
+        - API
+        - Unknown
+  - type: input
+    id: removal_url
+    attributes:
+      label: Opt-out URL (if web form)
+      placeholder: "https://example.com/optout"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
