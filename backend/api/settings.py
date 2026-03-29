@@ -281,6 +281,8 @@ def create_settings_router(
         csv_text = body.get("csv", "")
         if not csv_text:
             raise HTTPException(status_code=400, detail="CSV data required")
+        if len(csv_text) > 1_000_000:  # 1MB limit
+            raise HTTPException(status_code=400, detail="CSV too large (max 1MB)")
 
         db_session = None
         try:
@@ -378,7 +380,10 @@ def create_settings_router(
         except Exception as e:
             if db_session:
                 db_session.rollback()
-            raise HTTPException(status_code=400, detail=str(e)) from None
+            log.error("CSV import failed: %s", e)
+            raise HTTPException(
+                status_code=400, detail="CSV import failed. Check file format.",
+            ) from None
         finally:
             if db_session:
                 db_session.close()
@@ -451,8 +456,13 @@ def create_settings_router(
             ) from None
 
         version = body.get("version")
-        if not version:
+        if not version or not isinstance(version, str):
             raise HTTPException(status_code=400, detail="Invalid backup file")
+        if not version.startswith("0."):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported backup version: {version}",
+            )
 
         vault_b64 = body.get("vault", "")
         db_b64 = body.get("database", "")

@@ -17,6 +17,15 @@ log = logging.getLogger("incognito.scan")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def _safe_json(text: str):
+    """Parse JSON string safely, returning raw text on failure."""
+    import json
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return text
+
+
 def _validate_email(email: str | None) -> str | None:
     """Validate email format if provided. Returns cleaned email or raises."""
     if email is None:
@@ -394,7 +403,6 @@ def create_scan_router(
 
         db = db_session_factory()
         try:
-            import json
             results = (
                 db.query(ScanResult)
                 .order_by(ScanResult.scanned_at.desc())
@@ -407,8 +415,7 @@ def create_scan_router(
                         "id": r.id,
                         "source": r.source,
                         "broker_id": r.broker_id,
-                        "found_data": json.loads(r.found_data)
-                        if r.found_data.startswith("{") else r.found_data,
+                        "found_data": _safe_json(r.found_data),
                         "scanned_at": r.scanned_at.isoformat()
                         if r.scanned_at else None,
                         "actioned": r.actioned,

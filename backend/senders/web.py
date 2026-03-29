@@ -139,7 +139,7 @@ class WebFormSender:
             )
             return SenderResult(
                 status=SenderStatus.FAILURE,
-                message=f"Form submission failed: {exc}",
+                message=f"Form submission failed for {broker_domain}. Check the site manually.",
             )
 
     async def _execute_form(self, form_def: FormDefinition) -> SenderResult:
@@ -181,6 +181,8 @@ class WebFormSender:
                     message=f"Form submitted on {form_def.broker_domain}",
                 )
             finally:
+                await page.close()
+                await context.close()
                 await browser.close()
 
     async def _execute_step(self, page, step: FormStep) -> None:

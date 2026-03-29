@@ -233,7 +233,9 @@ class ImapPoller:
                     processed += 1
             self.last_error = None
         except Exception as exc:
-            self.last_error = str(exc)
+            # Sanitize error — IMAP exceptions may include credentials
+            err_type = type(exc).__name__
+            self.last_error = f"{err_type}: connection or authentication failed"
             log.error("IMAP poll failed: %s", exc)
 
         self.last_check = datetime.now(UTC)
