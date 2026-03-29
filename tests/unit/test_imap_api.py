@@ -37,3 +37,14 @@ def test_delete_imap(client):
     assert res.status_code == 200
     res = client.get("/api/settings/imap")
     assert res.json()["configured"] is False
+
+
+def test_imap_status_not_configured(client):
+    res = client.get("/api/settings/imap/status")
+    assert res.status_code == 200
+    assert res.json()["enabled"] is False
+
+
+def test_test_imap_not_configured(client):
+    res = client.post("/api/settings/imap/test")
+    assert res.status_code == 400

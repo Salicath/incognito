@@ -176,6 +176,57 @@ def create_settings_router(
 
         return {"status": "deleted"}
 
+    @r.post("/imap/test")
+    async def test_imap(session: str | None = Cookie(default=None)):
+        key, _salt = session_store.validate(session)
+        _, _, imap = vault.load_with_key(key)
+        if imap is None:
+            raise HTTPException(status_code=400, detail="IMAP not configured")
+
+        import ssl as ssl_mod
+        try:
+            from imap_tools import MailBox, MailBoxStartTls
+
+            ssl_ctx = ssl_mod.create_default_context()
+            if imap.host in ("127.0.0.1", "localhost", "::1"):
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl_mod.CERT_NONE
+
+            if imap.starttls:
+                mb = MailBoxStartTls(host=imap.host, port=imap.port, ssl_context=ssl_ctx)
+            else:
+                mb = MailBox(host=imap.host, port=imap.port, ssl_context=ssl_ctx)
+
+            with mb.login(imap.username, imap.password, imap.folder) as mailbox:
+                folders = [f.name for f in mailbox.folder.list()]
+            return {"status": "success", "folders": folders}
+        except Exception as exc:
+            log.error("IMAP test failed: %s", exc)
+            raise HTTPException(
+                status_code=400,
+                detail="IMAP connection failed. Check your server, port, and credentials.",
+            ) from None
+
+    @r.get("/imap/status")
+    def get_imap_poller_status(request: FastAPIRequest, session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        poller = getattr(request.app.state, "imap_poller", None)
+        if poller is None:
+            return {
+                "enabled": False,
+                "last_check": None,
+                "matched_count": 0,
+                "unmatched_count": 0,
+                "poll_interval": None,
+            }
+        return {
+            "enabled": True,
+            "last_check": poller.last_check.isoformat() if poller.last_check else None,
+            "matched_count": poller.matched_count,
+            "unmatched_count": poller.unmatched_count,
+            "poll_interval": poller._config.poll_interval_minutes,
+        }
+
     class BackupRequest(BaseModel):
         password: str
 
