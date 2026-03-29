@@ -13,6 +13,13 @@ from backend.db.models import EmailDirection, EmailMessage, Request, RequestEven
 from backend.senders.email import EmailSender
 
 
+def _ensure_aware(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware (SQLite drops tzinfo on roundtrip)."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
+
+
 @dataclass
 class FollowUpResult:
     newly_overdue: int = 0
@@ -124,7 +131,7 @@ async def run_follow_ups(
                 follow_up_event = next(
                     (e for e in events if e.event_type == "follow_up_sent"), None,
                 )
-                if follow_up_event and (now - follow_up_event.created_at).days >= escalation_days:
+                if follow_up_event and (now - _ensure_aware(follow_up_event.created_at)).days >= escalation_days:
                     try:
                         rendered = renderer.render_localized(
                             "escalation_warning",
