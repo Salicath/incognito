@@ -34,6 +34,7 @@ def create_requests_router(
             for status in RequestStatus:
                 counts[status.value] = sum(1 for req in all_requests if req.status == status)
             counts["total"] = len(all_requests)
+            counts["broker_count"] = len(broker_registry.brokers) if broker_registry else 0
             return counts
         finally:
             db.close()

@@ -1,11 +1,25 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { Send, CheckCircle, Clock, AlertTriangle, Zap, Shield, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Send, Clock, Zap, Shield, Loader2, Search } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
+import ProgressRing from "../components/ProgressRing";
 
-interface Stats { total: number; created: number; sent: number; acknowledged: number; completed: number; refused: number; overdue: number; escalated: number; manual_action_needed: number; }
+interface Stats {
+  total: number;
+  broker_count: number;
+  created: number;
+  sent: number;
+  acknowledged: number;
+  completed: number;
+  refused: number;
+  overdue: number;
+  escalated: number;
+  manual_action_needed: number;
+}
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentRequests, setRecentRequests] = useState<Array<Record<string, unknown>>>([]);
   const [blastLoading, setBlastLoading] = useState(false);
@@ -72,18 +86,100 @@ export default function Dashboard() {
   const hasNoRequests = stats.total === 0;
   const hasPending = stats.created > 0;
 
-  const statCards = [
-    { label: "Pending", value: stats.created, icon: Clock, color: "text-yellow-600 bg-yellow-50" },
-    { label: "Sent", value: stats.sent, icon: Send, color: "text-blue-600 bg-blue-50" },
-    { label: "Completed", value: stats.completed, icon: CheckCircle, color: "text-green-600 bg-green-50" },
-    { label: "Needs Attention", value: stats.overdue + stats.manual_action_needed + stats.refused, icon: AlertTriangle, color: "text-red-600 bg-red-50" },
-  ];
+  // Progress metrics
+  const resolved = stats.completed;
+  const inProgress = stats.sent + stats.acknowledged;
+  const needsAttention = stats.overdue + stats.manual_action_needed + stats.refused;
+  const contacted = stats.total;
+  const brokerCount = stats.broker_count;
+  const progressPct = brokerCount > 0 ? Math.round((resolved / brokerCount) * 100) : 0;
+  const contactedPct = brokerCount > 0 ? Math.round((contacted / brokerCount) * 100) : 0;
+
+  // Ring color based on progress
+  const ringColor = progressPct >= 80 ? "#16a34a" : progressPct >= 40 ? "#4f46e5" : "#6366f1";
 
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
-      {/* Blast action card - the main CTA */}
+      {/* Hero metric — only shown when there are requests */}
+      {!hasNoRequests && (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-8">
+          <div className="flex items-center gap-8">
+            <div className="relative flex items-center justify-center">
+              <ProgressRing
+                percentage={progressPct}
+                size={130}
+                strokeWidth={12}
+                color={ringColor}
+                trackColor="#e5e7eb"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold">{progressPct}%</span>
+                <span className="text-xs text-gray-500">resolved</span>
+              </div>
+            </div>
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <p className="text-2xl font-bold text-green-600">{resolved}</p>
+                <p className="text-xs text-gray-500">Resolved</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-blue-600">{inProgress}</p>
+                <p className="text-xs text-gray-500">In progress</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-orange-600">{needsAttention}</p>
+                <p className="text-xs text-gray-500">Needs attention</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{contacted}<span className="text-sm font-normal text-gray-400">/{brokerCount}</span></p>
+                <p className="text-xs text-gray-500">Brokers contacted</p>
+              </div>
+            </div>
+          </div>
+          {contactedPct < 100 && contacted > 0 && (
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>{contacted} of {brokerCount} brokers contacted</span>
+                <span>{contactedPct}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                <div
+                  className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${contactedPct}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Getting started — scan first prompt */}
+      {hasNoRequests && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-start gap-4">
+            <div className="p-2.5 bg-violet-100 rounded-xl">
+              <Search className="w-6 h-6 text-violet-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-semibold text-gray-900 mb-1">See where your data is exposed</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Before sending removal requests, run a scan to see which sites already have your data.
+                This checks data broker sites, known breaches, and online accounts.
+              </p>
+              <button
+                onClick={() => navigate("/scan")}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition"
+              >
+                <Search className="w-4 h-4" /> Scan for my data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blast action card — first-time CTA */}
       {hasNoRequests && (
         <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-8 mb-8 text-white">
           <div className="flex items-start gap-4">
@@ -93,7 +189,7 @@ export default function Dashboard() {
             <div className="flex-1">
               <h2 className="text-xl font-bold mb-2">Take back your privacy</h2>
               <p className="text-indigo-200 mb-6 max-w-xl">
-                Send legally-binding GDPR requests to all 145 data brokers in our registry.
+                Send legally-binding GDPR requests to all {brokerCount} data brokers in our registry.
                 Under Article 15, they must respond within 30 days or face regulatory action.
               </p>
               <div className="flex flex-wrap gap-3">
@@ -157,6 +253,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Deadline monitoring */}
       {stats.sent > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between">
           <div>
@@ -182,20 +279,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {statCards.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500">{label}</span>
-              <div className={`p-2 rounded-lg ${color}`}><Icon className="w-4 h-4" /></div>
-            </div>
-            <p className="text-3xl font-bold">{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Pending blast actions for returning users */}
+      {/* Pending send / quick blast buttons */}
       {!hasNoRequests && hasPending && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between">
           <div>
@@ -213,7 +297,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Quick blast buttons for returning users */}
       {!hasNoRequests && !hasPending && (
         <div className="flex gap-3 mb-6">
           <button

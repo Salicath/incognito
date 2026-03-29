@@ -193,9 +193,12 @@ def create_blast_router(
                         "reason": result.message,
                     })
 
-                # Rate limit
+                # Rate limit: space emails according to configured hourly limit
                 import asyncio
-                await asyncio.sleep(0.5)
+                delay = 3600 / max(config.rate_limit_per_hour, 1)
+                log.info("Sent to %s, waiting %.0fs (rate: %d/hr)",
+                         broker.dpo_email, delay, config.rate_limit_per_hour)
+                await asyncio.sleep(delay)
 
             manual = sum(1 for r in results if r.get("status") == "manual")
             log.info(
