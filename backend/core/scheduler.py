@@ -88,6 +88,7 @@ async def run_follow_ups(
                     )
                     send_result = await sender.send(
                         to_email=broker.dpo_email, rendered_text=rendered,
+                        request_id=req.id,
                     )
 
                     if send_result.status.value == "success":
@@ -127,6 +128,7 @@ async def run_follow_ups(
                         )
                         send_result = await sender.send(
                             to_email=broker.dpo_email, rendered_text=rendered,
+                            request_id=req.id,
                         )
 
                         if send_result.status.value == "success":

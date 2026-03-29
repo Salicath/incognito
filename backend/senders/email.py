@@ -24,14 +24,30 @@ class EmailSender:
             return subject, body
         return "GDPR Request", text.strip()
 
-    async def send(self, to_email: str, rendered_text: str) -> SenderResult:
+    def build_message(
+        self, to_email: str, rendered_text: str, request_id: str | None = None,
+    ) -> EmailMessage:
         subject, body = self._parse_rendered(rendered_text)
+
+        if request_id:
+            ref_code = request_id.split("-")[0].upper()[:8]
+            subject = f"{subject} [REF-{ref_code}]"
 
         msg = EmailMessage()
         msg["From"] = self._config.username
         msg["To"] = to_email
         msg["Subject"] = subject
         msg.set_content(body)
+
+        if request_id:
+            msg["Message-ID"] = f"<{request_id}@incognito.local>"
+
+        return msg
+
+    async def send(
+        self, to_email: str, rendered_text: str, request_id: str | None = None,
+    ) -> SenderResult:
+        msg = self.build_message(to_email, rendered_text, request_id)
 
         try:
             async with SMTP(

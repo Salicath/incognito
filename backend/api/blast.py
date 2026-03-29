@@ -111,6 +111,8 @@ def create_blast_router(
                 detail="SMTP not configured. Add SMTP settings before sending requests.",
             )
 
+        from backend.db.models import EmailDirection
+        from backend.db.models import EmailMessage as EmailMessageModel
         from backend.senders.email import EmailSender
 
         templates_dir = config.data_dir / "templates"
@@ -173,9 +175,26 @@ def create_blast_router(
                 result = await sender.send(
                     to_email=broker.dpo_email,
                     rendered_text=rendered,
+                    request_id=req.id,
                 )
 
                 if result.status.value == "success":
+                    # Store message_id on request
+                    req.message_id = f"<{req.id}@incognito.local>"
+
+                    # Store outbound email record
+                    outbound_record = EmailMessageModel(
+                        request_id=req.id,
+                        message_id=req.message_id,
+                        direction=EmailDirection.OUTBOUND,
+                        from_address=smtp.username,
+                        to_address=broker.dpo_email,
+                        subject=f"GDPR Request [REF-{req.id[:8].upper()}]",
+                        body_text=rendered,
+                    )
+                    db.add(outbound_record)
+                    db.commit()
+
                     mgr.mark_sent(req.id)
                     sent += 1
                     results.append({

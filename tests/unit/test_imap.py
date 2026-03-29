@@ -99,3 +99,28 @@ def test_email_message_model():
     assert loaded_req.reply_read_at is None
 
     db.close()
+
+
+def test_email_sender_sets_message_id_and_ref():
+    """Verify the EmailMessage object has Message-ID and [REF-...] in subject."""
+    from backend.core.profile import SmtpConfig
+    from backend.senders.email import EmailSender
+
+    smtp_config = SmtpConfig(
+        host="smtp.test.com", port=587, username="user@test.com", password="pw",
+    )
+    sender = EmailSender(smtp_config)
+
+    request_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    rendered = "Subject: Data Erasure Request pursuant to Article 17 GDPR\n\nPlease delete my data."
+
+    msg = sender.build_message(
+        to_email="dpo@broker.com",
+        rendered_text=rendered,
+        request_id=request_id,
+    )
+
+    assert msg["Message-ID"] == f"<{request_id}@incognito.local>"
+    assert "[REF-A1B2C3D4]" in msg["Subject"]
+    assert msg["To"] == "dpo@broker.com"
+    assert msg["From"] == "user@test.com"
