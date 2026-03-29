@@ -1,0 +1,25 @@
+Subject: Skarga RODO — Naruszenie przepisów przez {{ broker_name }} [{{ reference_id }}]
+
+Do: {{ dpa_name }}
+
+Szanowni Państwo,
+
+Niniejszym składam skargę na podstawie art. 77 Rozporządzenia Parlamentu Europejskiego i Rady (UE) 2016/679 (RODO) w związku z naruszeniem moich praw w zakresie ochrony danych osobowych przez {{ broker_name }} (kontakt: {{ broker_email }}).
+
+Opis stanu faktycznego:
+- W dniu {{ original_date }} skierowałem/am żądanie w zakresie ochrony danych osobowych do {{ broker_name }} (Ref: {{ reference_id }}).
+- Ustawowy termin odpowiedzi wynoszący jeden miesiąc, o którym mowa w art. 12 ust. 3 RODO, upłynął.
+- Wysłałem/am przypomnienie oraz ostateczne wezwanie, lecz nie otrzymałem/am merytorycznej odpowiedzi.
+
+Dane identyfikacyjne:
+- Imię i nazwisko: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Adres: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Zwracam się do organu nadzorczego o zbadanie niniejszej sprawy i podjęcie odpowiednich działań egzekucyjnych.
+
+Z poważaniem,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

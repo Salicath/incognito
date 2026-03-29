@@ -31,4 +31,4 @@ def test_dpa_entries_have_required_fields():
 
 
 def test_dpa_registry_has_expected_count():
-    assert len(DPA_REGISTRY) == 21, f"Expected 21 DPAs, got {len(DPA_REGISTRY)}"
+    assert len(DPA_REGISTRY) == 23, f"Expected 23 DPAs, got {len(DPA_REGISTRY)}"

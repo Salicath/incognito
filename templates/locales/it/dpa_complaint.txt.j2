@@ -1,0 +1,25 @@
+Subject: Reclamo RGPD — Inadempienza di {{ broker_name }} [{{ reference_id }}]
+
+All'attenzione di: {{ dpa_name }}
+
+Gentili Signore e Signori,
+
+con la presente presento un reclamo ai sensi dell'art. 77 del Regolamento Generale sulla Protezione dei Dati (UE) 2016/679 (RGPD) in merito al mancato rispetto dei miei diritti in materia di protezione dei dati personali da parte di {{ broker_name }} (contatto: {{ broker_email }}).
+
+Esposizione dei fatti:
+- In data {{ original_date }} ho inviato una richiesta di protezione dei dati a {{ broker_name }} (Ref: {{ reference_id }}).
+- Il termine legale di risposta di un mese previsto dall'art. 12, par. 3, del RGPD è decorso.
+- Ho inviato un sollecito e un ultimo avviso senza ricevere alcuna risposta sostanziale.
+
+Dati identificativi:
+- Nome: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Indirizzo: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Chiedo all'autorità di controllo di esaminare il caso e di adottare le misure esecutive appropriate.
+
+Distinti saluti,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

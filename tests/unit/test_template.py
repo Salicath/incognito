@@ -208,3 +208,41 @@ def test_render_ccpa_escalation_warning(renderer, profile):
     )
     assert "7,500" in result or "$7,500" in result
     assert "Attorney General" in result
+
+
+@pytest.mark.parametrize("lang,regulation,broker", [
+    ("es", "RGPD", "Endesa"),
+    ("it", "RGPD", "Telecom Italia"),
+    ("nl", "AVG", "PostNL"),
+    ("pl", "RODO", "Allegro"),
+])
+def test_render_eu_locale_erasure(renderer, profile, lang, regulation, broker):
+    result = renderer.render_localized(
+        "erasure_request", lang,
+        profile=profile, reference_id="EU-001", broker_name=broker,
+    )
+    assert regulation in result
+    assert broker in result
+    assert "Malte Example" in result
+    assert "EU-001" in result
+
+
+@pytest.mark.parametrize("lang,regulation", [
+    ("es", "RGPD"), ("it", "RGPD"), ("nl", "AVG"), ("pl", "RODO"),
+])
+def test_render_eu_locale_all_templates(renderer, profile, lang, regulation):
+    """Verify all 5 template types render without errors for each new locale."""
+    for template in ("erasure_request", "access_request", "follow_up",
+                     "escalation_warning", "dpa_complaint"):
+        kwargs = dict(
+            profile=profile, reference_id="EU-002", broker_name="TestBroker",
+        )
+        if template in ("follow_up", "escalation_warning"):
+            kwargs["original_date"] = "2026-03-01"
+        if template == "dpa_complaint":
+            kwargs["broker_email"] = "dpo@test.com"
+            kwargs["original_date"] = "2026-03-01"
+            kwargs["dpa_name"] = "Test DPA"
+        result = renderer.render_localized(template, lang, **kwargs)
+        assert "Subject:" in result
+        assert "TestBroker" in result

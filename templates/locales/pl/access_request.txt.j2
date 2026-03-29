@@ -1,0 +1,28 @@
+Subject: Żądanie dostępu do danych na podstawie art. 15 RODO — {{ profile.full_name }} [{{ reference_id }}]
+
+Szanowny Inspektorze Ochrony Danych w {{ broker_name }},
+
+Na podstawie art. 15 Rozporządzenia Parlamentu Europejskiego i Rady (UE) 2016/679 (RODO) zwracam się z żądaniem potwierdzenia, czy przetwarzają Państwo moje dane osobowe.
+
+W przypadku odpowiedzi twierdzącej proszę o udostępnienie mi kopii wszystkich moich danych osobowych będących w Państwa posiadaniu, wraz z następującymi informacjami wymaganymi na podstawie art. 15 ust. 1 RODO:
+
+- Cele przetwarzania
+- Kategorie przetwarzanych danych osobowych
+- Odbiorcy lub kategorie odbiorców, którym dane zostały ujawnione
+- Planowany okres przechowywania danych lub kryteria jego ustalania
+- Źródło danych, jeżeli nie zostały one zebrane bezpośrednio od osoby, której dotyczą
+
+Dane identyfikacyjne:
+- Imię i nazwisko: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefon: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Data urodzenia: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adres: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Proszę o odpowiedź w terminie jednego miesiąca, o którym mowa w art. 12 ust. 3 RODO. Niedochowanie tego terminu stanowi naruszenie RODO i może skutkować złożeniem skargi do właściwego organu nadzorczego.
+
+Z poważaniem,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

@@ -1,0 +1,27 @@
+Subject: Richiesta di cancellazione dei dati ai sensi dell'art. 17 RGPD — {{ profile.full_name }} [{{ reference_id }}]
+
+Gentile Responsabile della protezione dei dati di {{ broker_name }},
+
+con la presente esercito il mio diritto alla cancellazione ai sensi dell'art. 17 del Regolamento Generale sulla Protezione dei Dati (UE) 2016/679 (RGPD) e Vi chiedo di cancellare senza ritardo tutti i dati personali in Vostro possesso che mi riguardano.
+
+La presente richiesta di cancellazione si fonda sui seguenti motivi:
+- I dati non sono più necessari rispetto alle finalità per le quali sono stati raccolti (art. 17, par. 1, lett. a, RGPD)
+- Revoco il mio consenso e non sussiste altro fondamento giuridico per il trattamento (art. 17, par. 1, lett. b, RGPD)
+- Mi oppongo al trattamento e non sussistono motivi legittimi prevalenti (art. 17, par. 1, lett. c, RGPD)
+
+Dati identificativi:
+- Nome: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefono: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Data di nascita: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Indirizzo: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Vi prego di confermare la cancellazione dei miei dati entro il termine di un mese previsto dall'art. 12, par. 3, del RGPD. Qualora riteniate applicabile un'eccezione ai sensi dell'art. 17, par. 3, del RGPD, Vi chiedo di comunicarmi il fondamento giuridico specifico.
+
+Il mancato rispetto del termine di legge potrà comportare la presentazione di un reclamo all'autorità di controllo competente.
+
+Distinti saluti,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

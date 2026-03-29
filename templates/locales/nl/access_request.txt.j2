@@ -1,0 +1,28 @@
+Subject: Inzageverzoek op grond van artikel 15 AVG — {{ profile.full_name }} [{{ reference_id }}]
+
+Geachte Functionaris Gegevensbescherming van {{ broker_name }},
+
+Op grond van artikel 15 van de Algemene Verordening Gegevensbescherming (EU) 2016/679 (AVG) verzoek ik u te bevestigen of u persoonsgegevens van mij verwerkt.
+
+Indien dit het geval is, verzoek ik u mij een kopie te verstrekken van alle persoonsgegevens die u over mij verwerkt, alsmede de volgende informatie op grond van artikel 15, lid 1, AVG:
+
+- De verwerkingsdoeleinden
+- De categorieën van persoonsgegevens die worden verwerkt
+- De ontvangers of categorieën van ontvangers aan wie de gegevens zijn verstrekt
+- De beoogde bewaartermijn of de criteria ter bepaling daarvan
+- De bron van de gegevens, indien deze niet rechtstreeks bij mij zijn verzameld
+
+Identificatiegegevens:
+- Naam: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefoon: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Geboortedatum: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adres: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Ik verzoek u te antwoorden binnen de termijn van één maand zoals bepaald in artikel 12, lid 3, AVG. Het niet naleven van deze termijn vormt een schending van de AVG en kan leiden tot het indienen van een klacht bij de bevoegde toezichthoudende autoriteit.
+
+Met vriendelijke groet,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

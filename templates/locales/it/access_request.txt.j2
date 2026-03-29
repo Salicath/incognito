@@ -1,0 +1,28 @@
+Subject: Richiesta di accesso ai dati ai sensi dell'art. 15 RGPD — {{ profile.full_name }} [{{ reference_id }}]
+
+Gentile Responsabile della protezione dei dati di {{ broker_name }},
+
+ai sensi dell'art. 15 del Regolamento Generale sulla Protezione dei Dati (UE) 2016/679 (RGPD), chiedo conferma dell'eventuale trattamento di dati personali che mi riguardano.
+
+In caso affermativo, Vi prego di fornirmi una copia di tutti i dati personali in Vostro possesso, unitamente alle seguenti informazioni previste dall'art. 15, par. 1, del RGPD:
+
+- Le finalità del trattamento
+- Le categorie di dati personali trattati
+- I destinatari o le categorie di destinatari cui i dati sono stati comunicati
+- Il periodo di conservazione previsto o i criteri per la sua determinazione
+- L'origine dei dati, qualora non siano stati raccolti direttamente presso l'interessato
+
+Dati identificativi:
+- Nome: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefono: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Data di nascita: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Indirizzo: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Vi prego di rispondere entro il termine di un mese previsto dall'art. 12, par. 3, del RGPD. Il mancato rispetto di tale termine costituisce una violazione del RGPD e potrà comportare la presentazione di un reclamo all'autorità di controllo competente.
+
+Distinti saluti,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

@@ -1,0 +1,25 @@
+Subject: Reclamación RGPD — Incumplimiento por parte de {{ broker_name }} [{{ reference_id }}]
+
+A la atención de: {{ dpa_name }}
+
+Estimados señores,
+
+Por la presente presento una reclamación conforme al artículo 77 del Reglamento General de Protección de Datos (UE) 2016/679 (RGPD) por el incumplimiento de mis derechos de protección de datos por parte de {{ broker_name }} (contacto: {{ broker_email }}).
+
+Exposición de los hechos:
+- El {{ original_date }} envié una solicitud de protección de datos a {{ broker_name }} (Ref: {{ reference_id }}).
+- El plazo legal de respuesta de un mes previsto en el artículo 12, apartado 3, del RGPD ha transcurrido.
+- He enviado un recordatorio y un último aviso sin haber recibido respuesta sustantiva.
+
+Datos identificativos:
+- Nombre: {{ profile.full_name }}
+- Correo electrónico: {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Dirección: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Solicito a la autoridad de control que investigue este asunto y adopte las medidas de ejecución oportunas.
+
+Atentamente,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

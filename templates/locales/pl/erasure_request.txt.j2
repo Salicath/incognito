@@ -1,0 +1,27 @@
+Subject: Żądanie usunięcia danych na podstawie art. 17 RODO — {{ profile.full_name }} [{{ reference_id }}]
+
+Szanowny Inspektorze Ochrony Danych w {{ broker_name }},
+
+Niniejszym korzystam z przysługującego mi prawa do usunięcia danych na podstawie art. 17 Rozporządzenia Parlamentu Europejskiego i Rady (UE) 2016/679 (RODO) i zwracam się z żądaniem niezwłocznego usunięcia wszelkich dotyczących mnie danych osobowych przetwarzanych przez Państwa.
+
+Moje żądanie usunięcia danych opieram na następujących podstawach:
+- Dane osobowe nie są już niezbędne do celów, w których zostały zebrane (art. 17 ust. 1 lit. a RODO)
+- Cofam zgodę na przetwarzanie i nie istnieje inna podstawa prawna przetwarzania (art. 17 ust. 1 lit. b RODO)
+- Wnoszę sprzeciw wobec przetwarzania i nie występują nadrzędne prawnie uzasadnione podstawy przetwarzania (art. 17 ust. 1 lit. c RODO)
+
+Dane identyfikacyjne:
+- Imię i nazwisko: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefon: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Data urodzenia: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adres: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Proszę o potwierdzenie usunięcia moich danych w terminie jednego miesiąca, o którym mowa w art. 12 ust. 3 RODO. W przypadku uznania, że zachodzi wyjątek przewidziany w art. 17 ust. 3 RODO, proszę o wskazanie konkretnej podstawy prawnej.
+
+W przypadku niedochowania ustawowego terminu zastrzegam sobie prawo do złożenia skargi do właściwego organu nadzorczego.
+
+Z poważaniem,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

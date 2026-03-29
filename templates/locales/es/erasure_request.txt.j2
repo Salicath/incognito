@@ -1,0 +1,27 @@
+Subject: Solicitud de supresión de datos conforme al artículo 17 del RGPD — {{ profile.full_name }} [{{ reference_id }}]
+
+Estimado/a Delegado/a de Protección de Datos de {{ broker_name }},
+
+Por la presente ejerzo mi derecho de supresión conforme al artículo 17 del Reglamento General de Protección de Datos (UE) 2016/679 (RGPD) y le solicito que elimine sin demora todos los datos personales que obren en su poder relativos a mi persona.
+
+Fundamento mi solicitud de supresión en los siguientes motivos:
+- Los datos ya no son necesarios para los fines para los que fueron recogidos (art. 17, apartado 1, letra a, del RGPD)
+- Retiro mi consentimiento y no existe otra base jurídica que ampare el tratamiento (art. 17, apartado 1, letra b, del RGPD)
+- Me opongo al tratamiento y no prevalecen motivos legítimos imperiosos (art. 17, apartado 1, letra c, del RGPD)
+
+Datos identificativos:
+- Nombre: {{ profile.full_name }}
+- Correo electrónico: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Teléfono: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Fecha de nacimiento: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Dirección: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Le ruego que confirme la supresión de mis datos dentro del plazo de un mes previsto en el artículo 12, apartado 3, del RGPD. En caso de considerar aplicable alguna excepción conforme al artículo 17, apartado 3, del RGPD, le solicito que me comunique la base jurídica concreta.
+
+El incumplimiento del plazo legal podrá dar lugar a la presentación de una reclamación ante la autoridad de control competente.
+
+Atentamente,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

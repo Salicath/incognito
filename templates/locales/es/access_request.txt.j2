@@ -1,0 +1,28 @@
+Subject: Solicitud de acceso a datos conforme al artículo 15 del RGPD — {{ profile.full_name }} [{{ reference_id }}]
+
+Estimado/a Delegado/a de Protección de Datos de {{ broker_name }},
+
+En virtud del artículo 15 del Reglamento General de Protección de Datos (UE) 2016/679 (RGPD), solicito que me confirmen si están tratando datos personales relativos a mi persona.
+
+En caso afirmativo, le ruego que me facilite una copia de todos los datos personales que obren en su poder, así como la siguiente información conforme al artículo 15, apartado 1, del RGPD:
+
+- Los fines del tratamiento
+- Las categorías de datos personales tratados
+- Los destinatarios o categorías de destinatarios a los que se comunicaron los datos
+- El plazo previsto de conservación o los criterios para su determinación
+- El origen de los datos, en caso de no haber sido obtenidos directamente del interesado
+
+Datos identificativos:
+- Nombre: {{ profile.full_name }}
+- Correo electrónico: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Teléfono: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Fecha de nacimiento: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Dirección: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Le ruego que responda dentro del plazo de un mes previsto en el artículo 12, apartado 3, del RGPD. El incumplimiento de dicho plazo constituye una infracción del RGPD y podrá dar lugar a la presentación de una reclamación ante la autoridad de control competente.
+
+Atentamente,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

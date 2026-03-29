@@ -1,0 +1,25 @@
+Subject: AVG-klacht — Niet-naleving door {{ broker_name }} [{{ reference_id }}]
+
+Aan: {{ dpa_name }}
+
+Geachte dames en heren,
+
+Hierbij dien ik op grond van artikel 77 van de Algemene Verordening Gegevensbescherming (EU) 2016/679 (AVG) een klacht in betreffende de niet-naleving van mijn rechten inzake gegevensbescherming door {{ broker_name }} (contact: {{ broker_email }}).
+
+Beschrijving van de feiten:
+- Op {{ original_date }} heb ik een verzoek inzake gegevensbescherming aan {{ broker_name }} gericht (Ref: {{ reference_id }}).
+- De wettelijke antwoordtermijn van één maand op grond van artikel 12, lid 3, AVG is verstreken.
+- Ik heb een herinnering en een laatste waarschuwing verzonden, maar geen inhoudelijke reactie ontvangen.
+
+Identificatiegegevens:
+- Naam: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Adres: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Ik verzoek de toezichthoudende autoriteit deze zaak te onderzoeken en passende handhavingsmaatregelen te treffen.
+
+Met vriendelijke groet,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

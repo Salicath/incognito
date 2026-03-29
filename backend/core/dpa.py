@@ -144,6 +144,22 @@ DPA_REGISTRY: dict[str, dict] = {
         "url": "https://www.dataprotection.ro/",
         "language": "ro",
     },
+    "IL": {
+        "name": "Privacy Protection Authority (PPA)",
+        "short_name": "PPA",
+        "email": None,
+        "url": "https://www.gov.il/en/departments/the_privacy_protection_authority",
+        "language": "en",
+        "note": "Israel's PPA enforces the Privacy Protection Law.",
+    },
+    "SG": {
+        "name": "Personal Data Protection Commission (PDPC)",
+        "short_name": "PDPC",
+        "email": None,
+        "url": "https://www.pdpc.gov.sg/complaints-and-reviews",
+        "language": "en",
+        "note": "Singapore's PDPC enforces the PDPA.",
+    },
     "US": {
         "name": "Federal Trade Commission (FTC)",
         "short_name": "FTC",

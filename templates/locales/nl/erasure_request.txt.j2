@@ -1,0 +1,27 @@
+Subject: Verzoek tot wissing van persoonsgegevens op grond van artikel 17 AVG — {{ profile.full_name }} [{{ reference_id }}]
+
+Geachte Functionaris Gegevensbescherming van {{ broker_name }},
+
+Hierbij maak ik gebruik van mijn recht op wissing op grond van artikel 17 van de Algemene Verordening Gegevensbescherming (EU) 2016/679 (AVG) en verzoek ik u alle persoonsgegevens die u over mij verwerkt onverwijld te wissen.
+
+Ik baseer mijn verzoek tot wissing op de volgende gronden:
+- De gegevens zijn niet langer nodig voor de doeleinden waarvoor zij zijn verzameld (art. 17, lid 1, onder a, AVG)
+- Ik trek mijn toestemming in en er is geen andere rechtsgrond voor de verwerking (art. 17, lid 1, onder b, AVG)
+- Ik maak bezwaar tegen de verwerking en er zijn geen prevalerende dwingende gerechtvaardigde gronden (art. 17, lid 1, onder c, AVG)
+
+Identificatiegegevens:
+- Naam: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefoon: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Geboortedatum: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adres: {{ profile.addresses[0].formatted }}
+{% endif %}
+
+Ik verzoek u de wissing van mijn gegevens te bevestigen binnen de termijn van één maand zoals bepaald in artikel 12, lid 3, AVG. Indien u van mening bent dat een uitzondering op grond van artikel 17, lid 3, AVG van toepassing is, verzoek ik u de specifieke rechtsgrond mede te delen.
+
+Bij niet-naleving van de wettelijke termijn behoud ik mij het recht voor een klacht in te dienen bij de bevoegde toezichthoudende autoriteit.
+
+Met vriendelijke groet,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}
