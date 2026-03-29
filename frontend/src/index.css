@@ -2,16 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark mode color overrides via CSS */
-.dark .bg-white { background-color: rgb(17 24 39) !important; }
-.dark .bg-gray-50 { background-color: rgb(3 7 18) !important; }
-.dark .border-gray-200 { border-color: rgb(31 41 55) !important; }
-.dark .border-gray-100 { border-color: rgb(31 41 55) !important; }
-.dark .text-gray-900 { color: rgb(243 244 246) !important; }
-.dark .text-gray-700 { color: rgb(209 213 219) !important; }
-.dark .text-gray-600 { color: rgb(156 163 175) !important; }
-.dark .text-gray-500 { color: rgb(156 163 175) !important; }
-.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(31 41 55) !important; }
-.dark input, .dark select { background-color: rgb(31 41 55) !important; border-color: rgb(55 65 81) !important; color: rgb(243 244 246) !important; }
-.dark input::placeholder { color: rgb(107 114 128) !important; }
+@layer base {
+  :root {
+    --color-surface: 255 255 255;
+    --color-surface-secondary: 249 250 251;
+    --color-border: 229 231 235;
+    --color-border-light: 243 244 246;
+    --color-text-primary: 17 24 39;
+    --color-text-secondary: 75 85 99;
+    --color-text-muted: 107 114 128;
+    --color-input-bg: 255 255 255;
+    --color-input-border: 209 213 219;
+  }
+
+  .dark {
+    --color-surface: 17 24 39;
+    --color-surface-secondary: 3 7 18;
+    --color-border: 31 41 55;
+    --color-border-light: 31 41 55;
+    --color-text-primary: 243 244 246;
+    --color-text-secondary: 209 213 219;
+    --color-text-muted: 156 163 175;
+    --color-input-bg: 31 41 55;
+    --color-input-border: 55 65 81;
+  }
+}
+
+/* Apply dark mode colors via CSS custom properties */
+.dark .bg-white { background-color: rgb(var(--color-surface)) !important; }
+.dark .bg-gray-50 { background-color: rgb(var(--color-surface-secondary)) !important; }
+.dark .border-gray-200 { border-color: rgb(var(--color-border)) !important; }
+.dark .border-gray-100 { border-color: rgb(var(--color-border-light)) !important; }
+.dark .text-gray-900 { color: rgb(var(--color-text-primary)) !important; }
+.dark .text-gray-700 { color: rgb(var(--color-text-secondary)) !important; }
+.dark .text-gray-600 { color: rgb(var(--color-text-muted)) !important; }
+.dark .text-gray-500 { color: rgb(var(--color-text-muted)) !important; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(var(--color-border-light)) !important; }
+.dark input, .dark select, .dark textarea {
+  background-color: rgb(var(--color-input-bg)) !important;
+  border-color: rgb(var(--color-input-border)) !important;
+  color: rgb(var(--color-text-primary)) !important;
+}
+.dark input::placeholder, .dark textarea::placeholder { color: rgb(var(--color-text-muted)) !important; }
 .dark .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.2) !important; }
+.dark pre { background-color: rgb(var(--color-surface-secondary)) !important; color: rgb(var(--color-text-secondary)) !important; }
