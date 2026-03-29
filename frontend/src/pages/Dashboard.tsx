@@ -17,6 +17,8 @@ interface Stats {
   escalated: number;
   manual_action_needed: number;
   unread_replies: number;
+  exposures_found: number;
+  exposures_actioned: number;
 }
 
 export default function Dashboard() {
@@ -178,6 +180,27 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Exposure reduction — only shown when scan data exists */}
+      {!hasNoRequests && stats.exposures_found > 0 && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Exposure Reduction</p>
+            <p className="text-sm font-bold text-violet-600">
+              {stats.exposures_found > 0 ? Math.round((stats.exposures_actioned / stats.exposures_found) * 100) : 0}%
+            </p>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div
+              className="bg-violet-500 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${stats.exposures_found > 0 ? Math.round((stats.exposures_actioned / stats.exposures_found) * 100) : 0}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+            {stats.exposures_actioned} of {stats.exposures_found} detected exposures addressed
+          </p>
         </div>
       )}
 
