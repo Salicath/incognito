@@ -37,8 +37,17 @@ export default function Dashboard() {
   useEffect(() => { loadData(); }, []);
 
   function loadData() {
-    api.getStats().then((s) => setStats(s as unknown as Stats));
-    api.getRequests().then((r) => setRecentRequests(r.slice(0, 10)));
+    api.getStats()
+      .then((s) => setStats(s as unknown as Stats))
+      .catch(() => setStats({
+        total: 0, broker_count: 0, created: 0, sent: 0, acknowledged: 0,
+        completed: 0, refused: 0, overdue: 0, escalated: 0,
+        manual_action_needed: 0, unread_replies: 0,
+        exposures_found: 0, exposures_actioned: 0,
+      }));
+    api.getRequests()
+      .then((r) => setRecentRequests(r.slice(0, 10)))
+      .catch(() => setRecentRequests([]));
   }
 
   async function handleBlastPreview(type: string) {
