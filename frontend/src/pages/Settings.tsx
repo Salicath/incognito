@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { Mail, User, Info, CheckCircle, Loader2, ShieldAlert, Download, Upload } from "lucide-react";
+import { Mail, Inbox, User, Info, CheckCircle, Loader2, ShieldAlert, Download, Upload } from "lucide-react";
 
 const BASE = "/api";
 
@@ -47,6 +47,14 @@ export default function Settings() {
   const [smtpTesting, setSmtpTesting] = useState(false);
   const [smtpMessage, setSmtpMessage] = useState({ type: "", text: "" });
 
+  // IMAP state
+  const [imapStatus, setImapStatus] = useState<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean } | null>(null);
+  const [imapForm, setImapForm] = useState({ host: "", port: 993, username: "", password: "", folder: "INBOX", poll_interval_minutes: 5, starttls: false });
+  const [showImapForm, setShowImapForm] = useState(false);
+  const [imapSaving, setImapSaving] = useState(false);
+  const [imapTesting, setImapTesting] = useState(false);
+  const [imapMessage, setImapMessage] = useState({ type: "", text: "" });
+
   // HIBP state
   const [hibpStatus, setHibpStatus] = useState<HibpStatus | null>(null);
   const [hibpKeyInput, setHibpKeyInput] = useState("");
@@ -76,16 +84,21 @@ export default function Settings() {
 
   async function loadData() {
     try {
-      const [smtp, info, prof, hibp] = await Promise.all([
+      const [smtp, info, prof, hibp, imap] = await Promise.all([
         settingsRequest<SmtpStatus>("/settings/smtp"),
         settingsRequest<AppInfo>("/settings/info"),
         api.getProfile(),
         api.getHibpStatus(),
+        api.getImapStatus(),
       ]);
       setSmtpStatus(smtp);
       setAppInfo(info);
       setProfile(prof);
       setHibpStatus(hibp);
+      setImapStatus(imap);
+      if (imap.configured) {
+        setImapForm({ host: imap.host || "", port: imap.port || 993, username: imap.username || "", password: "", folder: imap.folder || "INBOX", poll_interval_minutes: imap.poll_interval_minutes || 5, starttls: imap.starttls ?? false });
+      }
       // Populate profile edit fields with current values
       setEditName((prof.full_name as string) || "");
       setEditEmail(((prof.emails as string[]) || [])[0] || "");
@@ -157,6 +170,48 @@ export default function Settings() {
       setSmtpMessage({ type: "error", text: e instanceof Error ? e.message : "Test failed" });
     } finally {
       setSmtpTesting(false);
+    }
+  }
+
+  async function handleSaveImap() {
+    setImapSaving(true);
+    setImapMessage({ type: "", text: "" });
+    try {
+      await api.saveImap(imapForm);
+      setImapMessage({ type: "success", text: "IMAP settings saved. Monitoring started." });
+      setShowImapForm(false);
+      loadData();
+    } catch (e) {
+      setImapMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to save" });
+    } finally {
+      setImapSaving(false);
+    }
+  }
+
+  async function handleTestImap() {
+    setImapTesting(true);
+    setImapMessage({ type: "", text: "" });
+    try {
+      const result = await api.testImap();
+      setImapMessage({ type: "success", text: `Connected successfully. Folders: ${result.folders.join(", ")}` });
+    } catch (e) {
+      setImapMessage({ type: "error", text: e instanceof Error ? e.message : "Test failed" });
+    } finally {
+      setImapTesting(false);
+    }
+  }
+
+  async function handleDeleteImap() {
+    setImapSaving(true);
+    setImapMessage({ type: "", text: "" });
+    try {
+      await api.deleteImap();
+      setImapMessage({ type: "success", text: "IMAP monitoring disabled." });
+      loadData();
+    } catch (e) {
+      setImapMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
+    } finally {
+      setImapSaving(false);
     }
   }
 
@@ -323,6 +378,109 @@ export default function Settings() {
           {smtpMessage.text && (
             <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${smtpMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
               {smtpMessage.text}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* IMAP Reply Monitoring */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2">
+          <Inbox className="w-4 h-4 text-gray-500" />
+          <h2 className="font-semibold">Reply Monitoring (IMAP)</h2>
+        </div>
+        <div className="p-5">
+          {imapStatus && !imapStatus.configured && !showImapForm && (
+            <div>
+              <p className="text-sm text-gray-600 mb-3">
+                Automatically monitor your inbox for broker replies. Incognito will match incoming emails to your requests and update their status.
+              </p>
+              <button onClick={() => setShowImapForm(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                Configure IMAP
+              </button>
+            </div>
+          )}
+
+          {imapStatus && imapStatus.configured && !showImapForm && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-700 font-medium">IMAP monitoring active</span>
+              </div>
+              <div className="text-sm text-gray-600 space-y-1 mb-4">
+                <p><span className="font-medium">Server:</span> {imapStatus.host}:{imapStatus.port}</p>
+                <p><span className="font-medium">Username:</span> {imapStatus.username}</p>
+                <p><span className="font-medium">Folder:</span> {imapStatus.folder || "INBOX"}</p>
+                <p><span className="font-medium">Poll interval:</span> {imapStatus.poll_interval_minutes || 5} minutes</p>
+                <p><span className="font-medium">STARTTLS:</span> {imapStatus.starttls ? "Yes" : "No"}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowImapForm(true)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                  Update
+                </button>
+                <button onClick={handleTestImap} disabled={imapTesting}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition disabled:opacity-50">
+                  {imapTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Test Connection
+                </button>
+                <button onClick={handleDeleteImap} disabled={imapSaving}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition disabled:opacity-50">
+                  {imapSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Disable
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showImapForm && (
+            <div className="space-y-3">
+              <input type="text" placeholder="IMAP server (127.0.0.1 for Proton Bridge)" value={imapForm.host}
+                onChange={(e) => setImapForm({ ...imapForm, host: e.target.value })} className={inputClass} />
+              <input type="number" placeholder="Port (993)" value={imapForm.port}
+                onChange={(e) => setImapForm({ ...imapForm, port: parseInt(e.target.value) || 993 })} className={inputClass} />
+              <input type="text" placeholder="Username (email)" value={imapForm.username}
+                onChange={(e) => setImapForm({ ...imapForm, username: e.target.value })} className={inputClass} />
+              <input type="password" placeholder="Bridge password" value={imapForm.password}
+                onChange={(e) => setImapForm({ ...imapForm, password: e.target.value })} className={inputClass} />
+              <input type="text" placeholder="Folder (INBOX)" value={imapForm.folder}
+                onChange={(e) => setImapForm({ ...imapForm, folder: e.target.value })} className={inputClass} />
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Poll interval</label>
+                <select value={imapForm.poll_interval_minutes}
+                  onChange={(e) => setImapForm({ ...imapForm, poll_interval_minutes: parseInt(e.target.value) })}
+                  className={inputClass}>
+                  <option value={1}>1 minute</option>
+                  <option value={2}>2 minutes</option>
+                  <option value={5}>5 minutes</option>
+                  <option value={10}>10 minutes</option>
+                  <option value={15}>15 minutes</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input type="checkbox" checked={imapForm.starttls}
+                  onChange={(e) => setImapForm({ ...imapForm, starttls: e.target.checked })}
+                  className="rounded border-gray-300" />
+                Use STARTTLS (enable for Proton Bridge)
+              </label>
+              <div className="flex gap-2">
+                <button onClick={handleSaveImap} disabled={imapSaving}
+                  className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50">
+                  {imapSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Save
+                </button>
+                <button onClick={() => { setShowImapForm(false); setImapMessage({ type: "", text: "" }); }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {imapMessage.text && (
+            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${imapMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+              {imapMessage.text}
             </div>
           )}
         </div>

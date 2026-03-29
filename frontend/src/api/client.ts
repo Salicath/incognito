@@ -95,4 +95,10 @@ export const api = {
       results: Array<{ id: number; source: string; broker_id: string; found_data: unknown; scanned_at: string | null; actioned: boolean }>;
       total: number;
     }>("/scan/history"),
+  getImapStatus: () => request<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean }>("/settings/imap"),
+  saveImap: (imap: { host: string; port: number; username: string; password: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean }) =>
+    request("/settings/imap", { method: "POST", body: JSON.stringify({ imap }) }),
+  deleteImap: () => request("/settings/imap", { method: "DELETE" }),
+  testImap: () => request<{ status: string; folders: string[] }>("/settings/imap/test", { method: "POST" }),
+  getImapPollerStatus: () => request<{ enabled: boolean; last_check: string | null; matched_count: number; unmatched_count: number; poll_interval_minutes: number | null }>("/settings/imap/status"),
 };
