@@ -15,6 +15,7 @@ def create_auth_router(
     rate_limiter: LoginRateLimiter,
     *,
     secure_cookies: bool = False,
+    trusted_proxy_header: str = "",
 ) -> APIRouter:
     r = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -22,8 +23,12 @@ def create_auth_router(
         password: str
 
     @r.get("/status")
-    def status():
-        return {"initialized": vault.exists()}
+    def status(request: Request):
+        result: dict = {"initialized": vault.exists()}
+        if trusted_proxy_header:
+            proxy_user = request.headers.get(trusted_proxy_header)
+            result["proxy_auth"] = proxy_user is not None
+        return result
 
     @r.post("/unlock")
     def unlock(req: UnlockRequest, request: Request, response: Response):

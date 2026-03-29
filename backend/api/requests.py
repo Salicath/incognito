@@ -227,4 +227,235 @@ def create_requests_router(
         finally:
             db.close()
 
+    @r.get("/export/audit-trail")
+    def export_audit_trail(
+        output_format: str = "json",
+        session: str | None = Cookie(default=None),
+    ):
+        """Export the complete GDPR audit trail for all requests."""
+        session_store.validate(session)
+        db = _get_db()
+        try:
+            all_requests = (
+                db.query(Request).order_by(Request.created_at).all()
+            )
+            events = db.query(RequestEvent).order_by(RequestEvent.id).all()
+            emails = db.query(EmailMessage).order_by(EmailMessage.received_at).all()
+
+            events_by_req = {}
+            for e in events:
+                events_by_req.setdefault(e.request_id, []).append({
+                    "event_type": e.event_type,
+                    "details": e.details,
+                    "timestamp": (
+                        e.created_at.isoformat() if e.created_at else None
+                    ),
+                })
+
+            emails_by_req = {}
+            for e in emails:
+                emails_by_req.setdefault(e.request_id, []).append({
+                    "direction": e.direction.value,
+                    "from": e.from_address,
+                    "to": e.to_address,
+                    "subject": e.subject,
+                    "date": (
+                        e.received_at.isoformat() if e.received_at else None
+                    ),
+                })
+
+            trail = []
+            for req in all_requests:
+                broker_name = req.broker_id
+                if broker_registry:
+                    b = broker_registry.get(req.broker_id)
+                    if b:
+                        broker_name = b.name
+
+                entry = {
+                    "request_id": req.id,
+                    "broker_id": req.broker_id,
+                    "broker_name": broker_name,
+                    "request_type": req.request_type.value,
+                    "status": req.status.value,
+                    "created_at": (
+                        req.created_at.isoformat() if req.created_at else None
+                    ),
+                    "sent_at": (
+                        req.sent_at.isoformat() if req.sent_at else None
+                    ),
+                    "deadline_at": (
+                        req.deadline_at.isoformat() if req.deadline_at else None
+                    ),
+                    "response_at": (
+                        req.response_at.isoformat() if req.response_at else None
+                    ),
+                    "events": events_by_req.get(req.id, []),
+                    "emails": emails_by_req.get(req.id, []),
+                }
+                trail.append(entry)
+
+            if output_format == "csv":
+                import csv
+                import io
+
+                output = io.StringIO()
+                writer = csv.writer(output)
+                writer.writerow([
+                    "request_id", "broker_name", "type", "status",
+                    "created", "sent", "deadline", "response",
+                    "events_count", "emails_count",
+                ])
+                for entry in trail:
+                    writer.writerow([
+                        entry["request_id"],
+                        entry["broker_name"],
+                        entry["request_type"],
+                        entry["status"],
+                        entry["created_at"],
+                        entry["sent_at"],
+                        entry["deadline_at"],
+                        entry["response_at"],
+                        len(entry["events"]),
+                        len(entry["emails"]),
+                    ])
+                from fastapi.responses import Response as RawResponse
+                return RawResponse(
+                    content=output.getvalue(),
+                    media_type="text/csv",
+                    headers={
+                        "Content-Disposition": (
+                            "attachment; filename=incognito-audit-trail.csv"
+                        ),
+                    },
+                )
+
+            return {
+                "generated_at": datetime.now(UTC).isoformat(),
+                "total_requests": len(trail),
+                "trail": trail,
+            }
+        finally:
+            db.close()
+
+    @r.get("/report/exposure")
+    def exposure_report(session: str | None = Cookie(default=None)):
+        """Generate an exposure report with privacy score and per-broker status."""
+        session_store.validate(session)
+        db = _get_db()
+        try:
+            all_requests = db.query(Request).all()
+            scan_results = db.query(ScanResult).all()
+
+            # Group requests by broker, keep the most advanced status
+            broker_status: dict[str, dict] = {}
+            status_rank = {
+                RequestStatus.COMPLETED: 6,
+                RequestStatus.ACKNOWLEDGED: 5,
+                RequestStatus.ESCALATED: 4,
+                RequestStatus.OVERDUE: 3,
+                RequestStatus.SENT: 2,
+                RequestStatus.CREATED: 1,
+                RequestStatus.REFUSED: 0,
+                RequestStatus.MANUAL_ACTION_NEEDED: 0,
+            }
+            for req in all_requests:
+                existing = broker_status.get(req.broker_id)
+                rank = status_rank.get(req.status, 0)
+                if existing is None or rank > existing["_rank"]:
+                    broker_name = req.broker_id
+                    if broker_registry:
+                        b = broker_registry.get(req.broker_id)
+                        if b:
+                            broker_name = b.name
+                    broker_status[req.broker_id] = {
+                        "_rank": rank,
+                        "broker_id": req.broker_id,
+                        "broker_name": broker_name,
+                        "status": req.status.value,
+                        "sent_at": (
+                            req.sent_at.isoformat() if req.sent_at else None
+                        ),
+                        "response_at": (
+                            req.response_at.isoformat() if req.response_at else None
+                        ),
+                    }
+
+            # Calculate score
+            total_brokers = len(broker_status)
+            completed = sum(
+                1 for b in broker_status.values()
+                if b["status"] == RequestStatus.COMPLETED.value
+            )
+            acknowledged = sum(
+                1 for b in broker_status.values()
+                if b["status"] == RequestStatus.ACKNOWLEDGED.value
+            )
+            sent = sum(
+                1 for b in broker_status.values()
+                if b["status"] in (
+                    RequestStatus.SENT.value,
+                    RequestStatus.OVERDUE.value,
+                    RequestStatus.ESCALATED.value,
+                )
+            )
+            in_progress = acknowledged + sent
+
+            # Score: 100 = all completed, 0 = nothing done
+            if total_brokers > 0:
+                score = round(
+                    (completed * 100 + in_progress * 40) / total_brokers
+                )
+                score = min(score, 100)
+            else:
+                score = 0
+
+            # Grade
+            if score >= 90:
+                grade = "A"
+            elif score >= 70:
+                grade = "B"
+            elif score >= 50:
+                grade = "C"
+            elif score >= 30:
+                grade = "D"
+            else:
+                grade = "F"
+
+            # Exposure sources from scans
+            exposures = []
+            for sr in scan_results:
+                exposures.append({
+                    "source": sr.source,
+                    "broker_id": sr.broker_id,
+                    "scanned_at": (
+                        sr.scanned_at.isoformat() if sr.scanned_at else None
+                    ),
+                    "actioned": sr.actioned,
+                })
+
+            # Clean up internal rank field
+            brokers_list = []
+            for b in broker_status.values():
+                entry = {k: v for k, v in b.items() if k != "_rank"}
+                brokers_list.append(entry)
+
+            return {
+                "generated_at": datetime.now(UTC).isoformat(),
+                "score": score,
+                "grade": grade,
+                "summary": {
+                    "total_brokers_contacted": total_brokers,
+                    "completed": completed,
+                    "in_progress": in_progress,
+                    "exposures_found": len(scan_results),
+                },
+                "brokers": sorted(
+                    brokers_list, key=lambda x: x["broker_name"],
+                ),
+                "exposures": exposures[:50],
+            }
+        finally:
+            db.close()
+
     return r
