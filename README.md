@@ -5,7 +5,7 @@ Self-hosted tool that automates GDPR and CCPA personal data removal requests.
 [![CI](https://github.com/Salicath/incognito/actions/workflows/ci.yml/badge.svg)](https://github.com/Salicath/incognito/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/Tests-236_passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-242_passing-brightgreen.svg)](tests/)
 
 ## What It Does
 
@@ -130,7 +130,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). The easiest way to contribute is adding 
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -v      # 236 tests
+pytest tests/ -v      # 242 tests
 ruff check .          # Lint
 cd frontend && npm run dev  # Frontend dev server
 ```
