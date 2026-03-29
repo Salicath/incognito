@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir .
 
 COPY backend/ backend/
 COPY cli.py ./
+COPY alembic.ini ./
 COPY templates/ templates/
 COPY brokers/ brokers/
 COPY --from=frontend-builder /build/dist frontend/dist/
