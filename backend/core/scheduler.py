@@ -131,7 +131,8 @@ async def run_follow_ups(
                 follow_up_event = next(
                     (e for e in events if e.event_type == "follow_up_sent"), None,
                 )
-                if follow_up_event and (now - _ensure_aware(follow_up_event.created_at)).days >= escalation_days:
+                aware_ts = _ensure_aware(follow_up_event.created_at)
+                if follow_up_event and (now - aware_ts).days >= escalation_days:
                     try:
                         rendered = renderer.render_localized(
                             "escalation_warning",

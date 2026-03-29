@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -26,7 +25,6 @@ from backend.db.models import (
     RequestType,
 )
 from backend.senders.base import SenderResult, SenderStatus
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -331,7 +329,7 @@ async def test_no_follow_up_without_smtp():
     # One already-overdue request (would normally get a follow-up email)
     broker2 = make_broker(name="Other Broker", domain="other.com")
     registry = BrokerRegistry([broker, broker2])
-    req_overdue = _create_overdue_request(session, broker2.id)
+    _create_overdue_request(session, broker2.id)
 
     result = await run_follow_ups(
         session=session,
@@ -398,8 +396,8 @@ async def test_collects_errors_without_stopping():
     registry = BrokerRegistry([broker_a, broker_b])
     smtp = make_smtp()
 
-    req_a = _create_overdue_request(session, broker_a.id)
-    req_b = _create_overdue_request(session, broker_b.id)
+    _create_overdue_request(session, broker_a.id)
+    _create_overdue_request(session, broker_b.id)
 
     # First call raises, second succeeds
     mock_send = AsyncMock(

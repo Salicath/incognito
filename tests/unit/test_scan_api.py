@@ -1,7 +1,6 @@
 """Tests for the scan API endpoints (POST /api/scan/start, GET /api/scan/status, etc.)."""
 
 import json
-import time
 from datetime import date
 from unittest.mock import AsyncMock, patch
 
@@ -234,8 +233,8 @@ def test_scan_conflict_when_running(client):
 
 def test_scan_history_returns_results(client, config):
     """GET /api/scan/history returns recent scan results from DB."""
-    from backend.db.session import init_db
     from backend.db.models import ScanResult
+    from backend.db.session import init_db
 
     db_factory = init_db(config.db_path)
     db = db_factory()
