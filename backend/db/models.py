@@ -28,6 +28,11 @@ class RequestType(enum.StrEnum):
     DPA_COMPLAINT = "dpa_complaint"
 
 
+class EmailDirection(enum.StrEnum):
+    INBOUND = "inbound"
+    OUTBOUND = "outbound"
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -45,6 +50,8 @@ class Request(Base):
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     response_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     response_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    message_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    reply_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )
@@ -69,6 +76,25 @@ class RequestEvent(Base):
     )
 
     request: Mapped["Request"] = relationship(back_populates="events")
+
+
+class EmailMessage(Base):
+    __tablename__ = "email_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    request_id: Mapped[str] = mapped_column(
+        String, ForeignKey("requests.id"), nullable=False, index=True
+    )
+    message_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    in_reply_to: Mapped[str | None] = mapped_column(String, nullable=True)
+    direction: Mapped[EmailDirection] = mapped_column(Enum(EmailDirection), nullable=False)
+    from_address: Mapped[str] = mapped_column(String, nullable=False)
+    to_address: Mapped[str] = mapped_column(String, nullable=False)
+    subject: Mapped[str] = mapped_column(String, nullable=False)
+    body_text: Mapped[str] = mapped_column(Text, nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
 
 
 class ScanResult(Base):

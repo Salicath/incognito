@@ -51,3 +51,51 @@ def test_vault_roundtrip_without_imap(tmp_path):
     assert loaded_profile.full_name == "Test"
     assert loaded_smtp is not None
     assert loaded_imap is None
+
+
+from backend.db.models import EmailDirection, EmailMessage, Request, RequestStatus, RequestType
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from backend.db.models import Base
+
+
+def test_email_message_model():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+
+    req = Request(
+        id="test-req-001",
+        broker_id="example-com",
+        request_type=RequestType.ERASURE,
+        status=RequestStatus.SENT,
+        message_id="<test-req-001@incognito.local>",
+    )
+    db.add(req)
+    db.commit()
+
+    email = EmailMessage(
+        request_id="test-req-001",
+        message_id="<reply-001@broker.com>",
+        in_reply_to="<test-req-001@incognito.local>",
+        direction=EmailDirection.INBOUND,
+        from_address="dpo@broker.com",
+        to_address="user@proton.me",
+        subject="Re: Data Erasure Request [REF-TEST0001]",
+        body_text="Your data has been deleted.",
+    )
+    db.add(email)
+    db.commit()
+
+    loaded = db.query(EmailMessage).filter_by(request_id="test-req-001").first()
+    assert loaded is not None
+    assert loaded.direction == EmailDirection.INBOUND
+    assert loaded.from_address == "dpo@broker.com"
+    assert loaded.in_reply_to == "<test-req-001@incognito.local>"
+
+    loaded_req = db.get(Request, "test-req-001")
+    assert loaded_req.message_id == "<test-req-001@incognito.local>"
+    assert loaded_req.reply_read_at is None
+
+    db.close()
