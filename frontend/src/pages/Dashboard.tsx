@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useNavigate } from "react-router-dom";
-import { Send, Clock, Zap, Shield, Loader2, Search, Mail } from "lucide-react";
+import { Send, Clock, Zap, Shield, Loader2, Search, Mail, FileBarChart } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import ProgressRing from "../components/ProgressRing";
 
@@ -131,7 +131,18 @@ export default function Dashboard() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        {!hasNoRequests && (
+          <button
+            onClick={() => navigate("/report")}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition"
+          >
+            <FileBarChart className="w-4 h-4" />
+            View Report
+          </button>
+        )}
+      </div>
 
       {/* Hero metric — only shown when there are requests */}
       {!hasNoRequests && (

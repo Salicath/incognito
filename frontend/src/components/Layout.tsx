@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut, Menu, X, Moon, Sun } from "lucide-react";
+import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut, Menu, X, Moon, Sun, FileBarChart } from "lucide-react";
 import { api } from "../api/client";
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { to: "/requests", icon: Send, label: "Requests" },
   { to: "/brokers", icon: Database, label: "Brokers" },
   { to: "/scan", icon: Search, label: "Scan" },
+  { to: "/report", icon: FileBarChart, label: "Report" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -39,7 +40,7 @@ export default function Layout({ onLock }: { onLock: () => void }) {
           <Shield className="w-5 h-5 text-indigo-400" />
           <span className="font-bold">Incognito</span>
         </div>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)}>
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? "Close menu" : "Open menu"}>
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
@@ -50,7 +51,10 @@ export default function Layout({ onLock }: { onLock: () => void }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`
+      <aside
+        role="navigation"
+        aria-label="Main navigation"
+        className={`
         fixed lg:static inset-y-0 left-0 z-40 w-56 bg-slate-900 text-white flex flex-col
         transform transition-transform lg:transform-none
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
@@ -98,7 +102,7 @@ export default function Layout({ onLock }: { onLock: () => void }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 bg-gray-50 dark:bg-gray-950 overflow-auto pt-14 lg:pt-0">
+      <main className="flex-1 bg-gray-50 dark:bg-gray-950 overflow-auto pt-14 lg:pt-0" role="main">
         <Outlet />
       </main>
     </div>

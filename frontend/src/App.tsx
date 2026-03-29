@@ -9,6 +9,7 @@ import RequestDetailPage from "./pages/RequestDetail";
 import Brokers from "./pages/Brokers";
 import Scan from "./pages/Scan";
 import Settings from "./pages/Settings";
+import Report from "./pages/Report";
 
 function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const [password, setPassword] = useState("");
@@ -24,7 +25,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
         <h1 className="text-2xl font-bold mb-2">Incognito</h1>
         <p className="text-gray-500 text-sm mb-6">Enter your master password to unlock</p>
         {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleUnlock()} placeholder="Master password" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none" />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleUnlock()} placeholder="Master password" aria-label="Master password" autoFocus className="w-full px-4 py-2.5 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none" />
         <button onClick={handleUnlock} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Unlock</button>
       </div>
     </div>
@@ -55,6 +56,7 @@ function App() {
           <Route path="/brokers" element={<Brokers />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/report" element={<Report />} />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

@@ -104,8 +104,29 @@ export const api = {
   getSmtpStatus: () => request<{ configured: boolean; host?: string; port?: number; username?: string }>("/settings/smtp"),
   saveSmtp: (smtp: { host: string; port: number; username: string; password: string }) =>
     request("/settings/smtp", { method: "POST", body: JSON.stringify({ smtp }) }),
-  getAppInfo: () => request<{ broker_count: number; data_dir: string; version: string }>("/settings/info"),
+  getAppInfo: () => request<{ broker_count: number; dpa_count?: number; locale_count?: number; data_dir: string; version: string; notifications?: boolean }>("/settings/info"),
   saveProfile: (profile: { full_name: string; emails: string[]; phones: string[]; date_of_birth?: string }) =>
     request("/settings/profile", { method: "POST", body: JSON.stringify({ profile }) }),
   testSmtp: () => request<{ status: string; message: string }>("/settings/test-smtp", { method: "POST" }),
+  getAuditTrail: () =>
+    request<{ generated_at: string; total_requests: number; trail: Array<Record<string, unknown>> }>("/requests/export/audit-trail"),
+  getExposureReport: () =>
+    request<{
+      generated_at: string;
+      score: number;
+      grade: string;
+      summary: { total_brokers_contacted: number; completed: number; in_progress: number; exposures_found: number };
+      brokers: Array<{ broker_id: string; broker_name: string; status: string; sent_at: string | null; response_at: string | null }>;
+      exposures: Array<{ source: string; broker_id: string; scanned_at: string | null; actioned: boolean }>;
+    }>("/requests/report/exposure"),
+  getNotificationStatus: () =>
+    request<{ configured: boolean; url: string | null }>("/settings/notifications"),
+  testNotification: () =>
+    request<{ status: string }>("/settings/notifications/test", { method: "POST" }),
+  exportBackup: (password: string) =>
+    request<Record<string, unknown>>("/settings/backup/export", { method: "POST", body: JSON.stringify({ password }) }),
+  importBackup: (data: Record<string, unknown>) =>
+    request<{ status: string; message: string }>("/settings/backup/import", { method: "POST", body: JSON.stringify(data) }),
+  importCsv: (csv: string) =>
+    request<{ imported: number; skipped: number; errors: string[] }>("/settings/import-csv", { method: "POST", body: JSON.stringify({ csv }) }),
 };

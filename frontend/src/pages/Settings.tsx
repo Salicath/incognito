@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useSettingsSection } from "../hooks/useSettingsSection";
-import { Mail, Inbox, User, Info, CheckCircle, Loader2, ShieldAlert, Download, Upload } from "lucide-react";
+import { Mail, Inbox, User, Info, CheckCircle, Loader2, ShieldAlert, Download, Upload, Bell } from "lucide-react";
 
 interface SmtpStatus {
   configured: boolean;
@@ -27,8 +27,11 @@ interface HibpStatus {
 
 interface AppInfo {
   broker_count: number;
+  dpa_count?: number;
+  locale_count?: number;
   data_dir: string;
   version: string;
+  notifications?: boolean;
 }
 
 function SettingsMessage({ message }: { message: { type: string; text: string } }) {
@@ -57,11 +60,18 @@ export default function Settings() {
   const [hibpKeyInput, setHibpKeyInput] = useState("");
   const [hibpDeleting, setHibpDeleting] = useState(false);
 
+  const [notifyStatus, setNotifyStatus] = useState<{ configured: boolean; url: string | null } | null>(null);
+  const [notifyTesting, setNotifyTesting] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState({ type: "", text: "" });
+
   // Backup state
   const [backupExporting, setBackupExporting] = useState(false);
   const [backupImporting, setBackupImporting] = useState(false);
   const [backupMessage, setBackupMessage] = useState({ type: "", text: "" });
   const importFileRef = useRef<HTMLInputElement>(null);
+  const csvFileRef = useRef<HTMLInputElement>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvMessage, setCsvMessage] = useState({ type: "", text: "" });
 
   // Profile editing state
   const [editingProfile, setEditingProfile] = useState(false);
@@ -78,18 +88,20 @@ export default function Settings() {
 
   async function loadData() {
     try {
-      const [smtpData, info, prof, hibpData, imapData] = await Promise.all([
+      const [smtpData, info, prof, hibpData, imapData, notifyData] = await Promise.all([
         api.getSmtpStatus(),
         api.getAppInfo(),
         api.getProfile(),
         api.getHibpStatus(),
         api.getImapStatus(),
+        api.getNotificationStatus(),
       ]);
       smtp.setStatus(smtpData);
       setAppInfo(info);
       setProfile(prof);
       hibp.setStatus(hibpData);
       imap.setStatus(imapData);
+      setNotifyStatus(notifyData);
       if (imapData.configured) {
         setImapForm({ host: imapData.host || "", port: imapData.port || 993, username: imapData.username || "", password: "", folder: imapData.folder || "INBOX", poll_interval_minutes: imapData.poll_interval_minutes || 5, starttls: imapData.starttls ?? false });
       }
@@ -521,6 +533,60 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Push Notifications */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <Bell className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <h2 className="font-semibold">Push Notifications</h2>
+        </div>
+        <div className="p-5">
+          {notifyStatus && !notifyStatus.configured && (
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                Get notified when brokers reply, requests become overdue, or data reappears.
+                Supports Ntfy, Gotify, and generic webhooks.
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Set the <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">INCOGNITO_NOTIFY_URL</code> environment variable to enable.
+                Example: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">https://ntfy.sh/my-incognito-alerts</code>
+              </p>
+            </div>
+          )}
+
+          {notifyStatus && notifyStatus.configured && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-700 dark:text-green-400 font-medium">Notifications enabled</span>
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                <p><span className="font-medium">URL:</span> {notifyStatus.url}</p>
+              </div>
+              <button
+                onClick={async () => {
+                  setNotifyTesting(true);
+                  setNotifyMessage({ type: "", text: "" });
+                  try {
+                    await api.testNotification();
+                    setNotifyMessage({ type: "success", text: "Test notification sent." });
+                  } catch (e) {
+                    setNotifyMessage({ type: "error", text: e instanceof Error ? e.message : "Test failed" });
+                  } finally {
+                    setNotifyTesting(false);
+                  }
+                }}
+                disabled={notifyTesting}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition disabled:opacity-50"
+              >
+                {notifyTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                Send test notification
+              </button>
+              <SettingsMessage message={notifyMessage} />
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Profile Info */}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
         <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
@@ -612,6 +678,8 @@ export default function Settings() {
             <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
               <p><span className="font-medium">Version:</span> {appInfo.version}</p>
               <p><span className="font-medium">Brokers:</span> {appInfo.broker_count} in registry</p>
+              {appInfo.dpa_count != null && <p><span className="font-medium">DPAs:</span> {appInfo.dpa_count} authorities</p>}
+              {appInfo.locale_count != null && <p><span className="font-medium">Languages:</span> {appInfo.locale_count}</p>}
               <p><span className="font-medium">Data:</span> {appInfo.data_dir}</p>
             </div>
           ) : (
@@ -659,6 +727,50 @@ export default function Settings() {
             />
           </div>
           <SettingsMessage message={backupMessage} />
+
+          {/* CSV Import */}
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+              Migrating from DeleteMe, Optery, or another service? Import your request history from a CSV file.
+              Expected columns: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">broker, status, date</code>
+            </p>
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => csvFileRef.current?.click()}
+                disabled={csvImporting}
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50"
+              >
+                {csvImporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                Import CSV
+              </button>
+              <input
+                ref={csvFileRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setCsvImporting(true);
+                  setCsvMessage({ type: "", text: "" });
+                  try {
+                    const text = await file.text();
+                    const result = await api.importCsv(text);
+                    setCsvMessage({
+                      type: "success",
+                      text: `Imported ${result.imported} requests, skipped ${result.skipped}.${result.errors.length ? ` Errors: ${result.errors.slice(0, 3).join("; ")}` : ""}`,
+                    });
+                  } catch (err) {
+                    setCsvMessage({ type: "error", text: err instanceof Error ? err.message : "Import failed" });
+                  } finally {
+                    setCsvImporting(false);
+                    if (csvFileRef.current) csvFileRef.current.value = "";
+                  }
+                }}
+              />
+            </div>
+            <SettingsMessage message={csvMessage} />
+          </div>
         </div>
       </div>
     </div>
