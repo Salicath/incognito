@@ -7,14 +7,16 @@ interface BrokerItem { id: string; name: string; domain: string; category: strin
 export default function Brokers() {
   const [brokers, setBrokers] = useState<BrokerItem[]>([]);
   const [search, setSearch] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => { api.getBrokers().then((data) => setBrokers(data as unknown as BrokerItem[])); }, []);
 
   const filtered = brokers.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()) || b.domain.toLowerCase().includes(search.toLowerCase()));
 
-  async function handleCreateRequest(brokerId: string, type: string) {
-    await api.createRequest(brokerId, type);
-    alert(`${type} request created for ${brokerId}`);
+  async function handleCreateRequest(brokerId: string, requestType: string) {
+    await api.createRequest(brokerId, requestType);
+    setSuccessMessage(`${requestType === "access" ? "Art. 15" : "Art. 17"} request created for ${brokerId}`);
+    setTimeout(() => setSuccessMessage(""), 3000);
   }
 
   return (
@@ -27,6 +29,11 @@ export default function Brokers() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input type="text" placeholder="Search brokers..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm" />
       </div>
+      {successMessage && (
+        <div className="bg-green-50 text-green-700 px-4 py-2 rounded-lg text-sm mb-4">
+          {successMessage}
+        </div>
+      )}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         {filtered.length === 0 ? (
           <p className="px-5 py-8 text-gray-500 text-center text-sm">No brokers found.</p>
