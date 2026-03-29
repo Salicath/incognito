@@ -1,7 +1,7 @@
 # IMAP Reply Monitoring — Design Spec
 
 **Date:** 2026-03-29
-**Status:** Draft
+**Status:** Implemented
 **Purpose:** Automatically detect broker responses to GDPR requests, completing the end-to-end enforcement pipeline: send request → detect reply → track deadline → escalate via DPA complaint.
 
 ## Context
@@ -53,7 +53,7 @@ class ImapConfig(BaseModel):
     password: str
     folder: str = "INBOX"
     poll_interval_minutes: int = 5
-    tls: bool = True
+    starttls: bool = False
 ```
 
 ### Dashboard counter
@@ -156,7 +156,7 @@ GET  /api/settings/imap          → ImapConfig (password masked) or 404
 POST /api/settings/imap          → Save ImapConfig, start/restart poller
 DELETE /api/settings/imap        → Remove config, stop poller
 POST /api/settings/imap/test     → Test connection: connect, list folders, return folder list
-GET  /api/imap/status            → { enabled, last_check, next_check, matched_count, unmatched_count }
+GET  /api/settings/imap/status   → { enabled, last_check, matched_count, unmatched_count, poll_interval_minutes, last_error }
 ```
 
 ### Settings Page
