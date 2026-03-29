@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
-import { ArrowLeft, Clock, Send, CheckCircle, XCircle, AlertTriangle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Clock, Send, CheckCircle, XCircle, AlertTriangle, ExternalLink, FileText, Copy, Loader2 } from "lucide-react";
 
 interface RequestDetail {
   id: string;
@@ -39,6 +39,12 @@ export default function RequestDetailPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState("");
+  const [complaint, setComplaint] = useState<{
+    complaint_text: string;
+    dpa: { name: string; short_name: string; email: string | null; url: string } | null;
+  } | null>(null);
+  const [complaintLoading, setComplaintLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (id) loadData(id);
@@ -68,6 +74,26 @@ export default function RequestDetailPage() {
     } finally {
       setActionLoading("");
     }
+  }
+
+  async function handleGenerateComplaint() {
+    if (!id) return;
+    setComplaintLoading(true);
+    try {
+      const result = await api.generateComplaint(id);
+      setComplaint({ complaint_text: result.complaint_text, dpa: result.dpa });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate complaint");
+    } finally {
+      setComplaintLoading(false);
+    }
+  }
+
+  async function handleCopyComplaint() {
+    if (!complaint) return;
+    await navigator.clipboard.writeText(complaint.complaint_text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   if (!request) {
@@ -213,6 +239,55 @@ export default function RequestDetailPage() {
           )}
         </div>
       </div>
+
+      {/* DPA Complaint — for escalated/overdue/refused requests */}
+      {(request.status === "escalated" || request.status === "overdue" || request.status === "refused") && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">DPA Complaint</h2>
+            {!complaint && (
+              <button
+                onClick={handleGenerateComplaint}
+                disabled={complaintLoading}
+                className="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {complaintLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                Generate Complaint
+              </button>
+            )}
+          </div>
+          {!complaint && (
+            <p className="text-sm text-gray-500">
+              Generate a pre-filled complaint to send to the relevant Data Protection Authority.
+              They can fine the broker up to 4% of annual revenue for non-compliance.
+            </p>
+          )}
+          {complaint && (
+            <div>
+              {complaint.dpa && (
+                <div className="bg-gray-50 rounded-lg p-3 mb-3 text-sm">
+                  <p className="font-medium">{complaint.dpa.name}</p>
+                  {complaint.dpa.email && <p className="text-gray-500">Email: {complaint.dpa.email}</p>}
+                  <a href={complaint.dpa.url} target="_blank" rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline flex items-center gap-1 mt-1">
+                    <ExternalLink className="w-3 h-3" /> Submit complaint online
+                  </a>
+                </div>
+              )}
+              <pre className="bg-gray-50 rounded-lg p-4 text-xs whitespace-pre-wrap max-h-64 overflow-y-auto mb-3">
+                {complaint.complaint_text}
+              </pre>
+              <button
+                onClick={handleCopyComplaint}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {copied ? "Copied!" : "Copy to clipboard"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Event Timeline */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
