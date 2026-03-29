@@ -9,7 +9,7 @@ from backend.core.broker import BrokerRegistry
 from backend.core.profile import Profile, SmtpConfig
 from backend.core.request import RequestManager
 from backend.core.template import TemplateRenderer
-from backend.db.models import Request, RequestEvent, RequestStatus
+from backend.db.models import EmailDirection, EmailMessage, Request, RequestEvent, RequestStatus
 from backend.senders.email import EmailSender
 
 
@@ -92,6 +92,16 @@ async def run_follow_ups(
                     )
 
                     if send_result.status.value == "success":
+                        outbound = EmailMessage(
+                            request_id=req.id,
+                            message_id=f"<{req.id}@incognito.local>",
+                            direction=EmailDirection.OUTBOUND,
+                            from_address=smtp.username,
+                            to_address=broker.dpo_email,
+                            subject=f"Follow-Up [REF-{req.id[:8].upper()}]",
+                            body_text=rendered,
+                        )
+                        session.add(outbound)
                         event = RequestEvent(
                             request_id=req.id,
                             event_type="follow_up_sent",
@@ -132,6 +142,16 @@ async def run_follow_ups(
                         )
 
                         if send_result.status.value == "success":
+                            outbound = EmailMessage(
+                                request_id=req.id,
+                                message_id=f"<{req.id}@incognito.local>",
+                                direction=EmailDirection.OUTBOUND,
+                                from_address=smtp.username,
+                                to_address=broker.dpo_email,
+                                subject=f"Escalation Warning [REF-{req.id[:8].upper()}]",
+                                body_text=rendered,
+                            )
+                            session.add(outbound)
                             mgr.mark_escalated(req.id)
                             event = RequestEvent(
                                 request_id=req.id,

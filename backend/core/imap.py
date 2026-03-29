@@ -104,6 +104,7 @@ class ImapPoller:
         self._running = False
         self._task: asyncio.Task | None = None
         self.last_check: datetime | None = None
+        self.last_error: str | None = None
         self.matched_count = 0
         self.unmatched_count = 0
 
@@ -220,7 +221,9 @@ class ImapPoller:
                     if result is not None and msg.uid:
                         mailbox.flag(msg.uid, MailMessageFlags.SEEN, True)
                     processed += 1
+            self.last_error = None
         except Exception as exc:
+            self.last_error = str(exc)
             log.error("IMAP poll failed: %s", exc)
 
         self.last_check = datetime.now(UTC)

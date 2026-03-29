@@ -34,7 +34,7 @@ incognito brokers stats      # Broker registry statistics
 
 **Backend** (`backend/`):
 - `api/` — FastAPI routes (auth, blast, brokers, requests, scan, settings, setup)
-- `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry)
+- `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry, IMAP poller)
 - `db/` — SQLAlchemy models + Alembic migrations. SQLite with WAL mode.
 - `scanner/` — DuckDuckGo search, Holehe account discovery, HIBP breach check
 - `senders/` — Email sender (SMTP via aiosmtplib)
@@ -92,7 +92,6 @@ CI builds and smoke-tests the container on every push.
 
 ## What's Not Built Yet
 
-- IMAP response monitoring (auto-parse broker replies)
 - Playwright web form sender (`senders/web.py`)
 - API sender (`senders/api.py`, Data Rights Protocol)
 - Multi-profile / family support

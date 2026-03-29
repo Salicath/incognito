@@ -225,6 +225,7 @@ def create_settings_router(
         return {
             "enabled": True,
             "last_check": poller.last_check.isoformat() if poller.last_check else None,
+            "last_error": poller.last_error,
             "matched_count": poller.matched_count,
             "unmatched_count": poller.unmatched_count,
             "poll_interval": poller._config.poll_interval_minutes,
