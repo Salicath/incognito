@@ -1,0 +1,24 @@
+Subject: Plainte RGPD — Non-respect par {{ broker_name }} [{{ reference_id }}]
+
+À l'attention de : {{ dpa_name }}
+
+Madame, Monsieur,
+
+Par la présente, je dépose une plainte en vertu de l'article 77 du Règlement Général sur la Protection des Données (UE) 2016/679 concernant le non-respect de mes droits en matière de protection des données personnelles par {{ broker_name }} (contact : {{ broker_email }}).
+
+Exposé des faits :
+- Le {{ original_date }}, j'ai adressé une demande relative à la protection de mes données personnelles à {{ broker_name }} (Réf : {{ reference_id }}).
+- Le délai légal de réponse d'un mois prévu par l'article 12, paragraphe 3, du RGPD est expiré.
+- J'ai envoyé une relance ainsi qu'une mise en demeure, sans obtenir de réponse substantielle.
+
+Mes coordonnées :
+- Nom : {{ profile.full_name }}
+- E-mail : {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Adresse : {{ profile.addresses[0].formatted }}
+{% endif %}
+Je demande à l'autorité de contrôle d'examiner cette situation et de prendre les mesures d'exécution appropriées.
+
+Cordialement,
+{{ profile.full_name }}
+
+Réf : {{ reference_id }}

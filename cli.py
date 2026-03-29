@@ -128,10 +128,16 @@ def follow_up(
             vault = ProfileVault(config.vault_path)
 
             import os
-            password = os.environ.get("INCOGNITO_PASSWORD", "")
+            import sys
+            password = os.environ.get("INCOGNITO_PASSWORD")
             if not password:
-                import getpass
-                password = getpass.getpass("Master password: ")
+                if sys.stdin.isatty():
+                    import getpass
+                    password = getpass.getpass("Master password: ")
+                else:
+                    msg = "Error: INCOGNITO_PASSWORD required for non-interactive use."
+                    print(msg, file=sys.stderr)
+                    raise typer.Exit(code=1)
 
             profile, smtp = vault.load(password)
 
@@ -320,6 +326,7 @@ def rescan():
     """Run a scan and check for data that reappeared after removal."""
     import asyncio
     import os
+    import sys
 
     config = get_config()
 
@@ -332,10 +339,15 @@ def rescan():
     from backend.db.session import init_db
     from backend.scanner.duckduckgo import scan_profile
 
-    password = os.environ.get("INCOGNITO_PASSWORD", "")
+    password = os.environ.get("INCOGNITO_PASSWORD")
     if not password:
-        import getpass
-        password = getpass.getpass("Master password: ")
+        if sys.stdin.isatty():
+            import getpass
+            password = getpass.getpass("Master password: ")
+        else:
+            msg = "Error: INCOGNITO_PASSWORD required for non-interactive use."
+            print(msg, file=sys.stderr)
+            raise typer.Exit(code=1)
 
     vault = ProfileVault(config.vault_path)
     profile, _ = vault.load(password)

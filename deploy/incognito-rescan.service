@@ -3,4 +3,6 @@ Description=Incognito re-scan runner
 
 [Service]
 Type=oneshot
+# INCOGNITO_PASSWORD must be set in the container environment for non-interactive use.
+# Pass it via podman run -e or set Environment= here if not using container secrets.
 ExecStart=podman exec incognito incognito rescan

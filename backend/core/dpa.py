@@ -43,6 +43,13 @@ DPA_REGISTRY: dict[str, dict] = {
         "url": "https://www.dsb.gv.at/",
         "language": "de",
     },
+    "BE": {
+        "name": "Autorité de protection des données",
+        "short_name": "APD",
+        "email": "contact@apd-gba.be",
+        "url": "https://www.autoriteprotectiondonnees.be/citoyen/agir/introduire-une-plainte",
+        "language": "fr",
+    },
     "CH": {
         "name": "Eidgenössischer Datenschutz- und Öffentlichkeitsbeauftragter (EDÖB)",
         "short_name": "EDÖB",
