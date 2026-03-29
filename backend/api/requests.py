@@ -2,9 +2,11 @@ from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from datetime import UTC, datetime
+
 from backend.api.deps import SessionStore
 from backend.core.request import InvalidTransitionError, RequestManager
-from backend.db.models import Request, RequestEvent, RequestStatus, RequestType
+from backend.db.models import EmailMessage, Request, RequestEvent, RequestStatus, RequestType
 
 
 def create_requests_router(
@@ -113,6 +115,28 @@ def create_requests_router(
                         "country": broker.country,
                         "language": broker.language,
                     }
+
+            emails = db.query(EmailMessage).filter_by(request_id=request_id).order_by(EmailMessage.received_at).all()
+            result["email_messages"] = [
+                {
+                    "id": e.id,
+                    "direction": e.direction.value,
+                    "from_address": e.from_address,
+                    "to_address": e.to_address,
+                    "subject": e.subject,
+                    "body_text": e.body_text,
+                    "received_at": e.received_at.isoformat() if e.received_at else None,
+                }
+                for e in emails
+            ]
+
+            # Mark replies as read
+            if emails and req.reply_read_at is None:
+                has_inbound = any(e.direction.value == "inbound" for e in emails)
+                if has_inbound:
+                    req.reply_read_at = datetime.now(UTC)
+                    db.commit()
+
             return result
         finally:
             db.close()

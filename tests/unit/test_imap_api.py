@@ -48,3 +48,13 @@ def test_imap_status_not_configured(client):
 def test_test_imap_not_configured(client):
     res = client.post("/api/settings/imap/test")
     assert res.status_code == 400
+
+
+def test_request_detail_includes_emails(client):
+    res = client.post("/api/requests", json={"broker_id": "broker0-com", "request_type": "erasure"})
+    req_id = res.json()["id"]
+    res = client.get(f"/api/requests/{req_id}")
+    assert res.status_code == 200
+    data = res.json()
+    assert "email_messages" in data
+    assert data["email_messages"] == []
