@@ -63,12 +63,29 @@ class LoginRateLimiter:
 class SessionStore:
     """Stores session tokens mapped to derived encryption keys (never raw passwords)."""
 
+    MAX_SESSIONS = 3
+
     def __init__(self, timeout_minutes: int):
         self._timeout_minutes = timeout_minutes
         # Maps token -> (derived_key, salt, last_access)
         self._sessions: dict[str, tuple[bytes, bytes, datetime]] = {}
 
+    def _cleanup_expired(self) -> None:
+        """Remove expired sessions."""
+        now = datetime.now(UTC)
+        expired = [
+            tok for tok, (_, _, last) in self._sessions.items()
+            if (now - last).total_seconds() > self._timeout_minutes * 60
+        ]
+        for tok in expired:
+            del self._sessions[tok]
+
     def create(self, derived_key: bytes, salt: bytes) -> str:
+        self._cleanup_expired()
+        # Evict oldest session if at limit
+        while len(self._sessions) >= self.MAX_SESSIONS:
+            oldest = min(self._sessions, key=lambda t: self._sessions[t][2])
+            del self._sessions[oldest]
         token = secrets.token_urlsafe(32)
         self._sessions[token] = (derived_key, salt, datetime.now(UTC))
         return token
