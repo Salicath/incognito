@@ -55,6 +55,7 @@ export default function RequestDetailPage() {
   } | null>(null);
   const [complaintLoading, setComplaintLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: string; text: string } | null>(null);
 
   useEffect(() => {
     if (id) loadData(id);
@@ -195,10 +196,7 @@ export default function RequestDetailPage() {
           )}
           {request.status === "sent" && (
             <>
-              <button onClick={() => {
-                const body = prompt("Enter the broker's response:");
-                if (body) handleAction("mark_acknowledged", body);
-              }} disabled={!!actionLoading}
+              <button onClick={() => setPendingAction({ type: "mark_acknowledged", text: "" })} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition disabled:opacity-50">
                 <CheckCircle className="w-3.5 h-3.5" /> Mark Acknowledged
               </button>
@@ -214,10 +212,7 @@ export default function RequestDetailPage() {
                 className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition disabled:opacity-50">
                 <CheckCircle className="w-3.5 h-3.5" /> Mark Completed
               </button>
-              <button onClick={() => {
-                const reason = prompt("Reason for refusal:");
-                if (reason) handleAction("mark_refused", reason);
-              }} disabled={!!actionLoading}
+              <button onClick={() => setPendingAction({ type: "mark_refused", text: "" })} disabled={!!actionLoading}
                 className="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition disabled:opacity-50">
                 <XCircle className="w-3.5 h-3.5" /> Mark Refused
               </button>
@@ -248,6 +243,39 @@ export default function RequestDetailPage() {
             </a>
           )}
         </div>
+        {pendingAction && (
+          <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {pendingAction.type === "mark_acknowledged" ? "Broker's response:" : "Reason for refusal:"}
+            </label>
+            <textarea
+              value={pendingAction.text}
+              onChange={(e) => setPendingAction({ ...pendingAction, text: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+              rows={3}
+              placeholder={pendingAction.type === "mark_acknowledged" ? "Paste or describe the broker's response..." : "Why did the broker refuse?"}
+              autoFocus
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => {
+                  handleAction(pendingAction.type, pendingAction.text);
+                  setPendingAction(null);
+                }}
+                disabled={!pendingAction.text.trim() || !!actionLoading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setPendingAction(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition dark:border-gray-600 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Email Thread */}
