@@ -14,7 +14,7 @@ def test_get_dpa_for_unknown_country():
 
 
 def test_dpa_registry_has_major_eu_countries():
-    for code in ["DE", "FR", "NL", "IE", "GB", "AT", "IT", "ES"]:
+    for code in ["DE", "FR", "NL", "IE", "GB", "AT", "IT", "ES", "FI", "PT", "CZ", "GR", "HU", "RO", "BE"]:
         assert code in DPA_REGISTRY, f"Missing DPA for {code}"
 
 
@@ -24,3 +24,7 @@ def test_dpa_entries_have_required_fields():
         assert "short_name" in dpa, f"{code} missing short_name"
         assert "url" in dpa, f"{code} missing url"
         assert "language" in dpa, f"{code} missing language"
+
+
+def test_dpa_registry_has_expected_count():
+    assert len(DPA_REGISTRY) == 21, f"Expected 21 DPAs, got {len(DPA_REGISTRY)}"
