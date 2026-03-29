@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Cookie, FastAPI, Request, Response
@@ -14,6 +15,7 @@ from backend.api.settings import create_settings_router
 from backend.api.setup import create_setup_router
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
+from backend.core.imap import ImapPoller
 from backend.core.profile import ProfileVault
 from backend.db.session import init_db
 
@@ -33,13 +35,23 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    poller = getattr(app.state, "imap_poller", None)
+    if poller:
+        poller.start()
+    yield
+    if poller:
+        poller.stop()
+
+
 def create_app(config: AppConfig | None = None) -> FastAPI:
     if config is None:
         config = AppConfig()
 
     config.setup_logging()
 
-    app = FastAPI(title="Incognito", version="0.1.0", docs_url=None, redoc_url=None)
+    app = FastAPI(title="Incognito", version="0.1.0", docs_url=None, redoc_url=None, lifespan=lifespan)
 
     # CORS: localhost by default, extra origins via config
     origins = [
@@ -80,6 +92,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     broker_registry = BrokerRegistry.load(brokers_dir)
     app.state.broker_registry = broker_registry
+
+    app.state.imap_poller = None
+    broker_domain_set = {b.domain.lower() for b in broker_registry.brokers}
+    app.state.broker_domains = broker_domain_set
 
     app.include_router(create_auth_router(
         vault, session_store, rate_limiter,
