@@ -4,7 +4,7 @@ import { api } from "../api/client";
 import { Send, Eye, Loader2 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 
-interface RequestItem { id: string; broker_id: string; request_type: string; status: string; sent_at: string | null; deadline_at: string | null; created_at: string | null; }
+interface RequestItem { id: string; broker_id: string; broker_name?: string; request_type: string; status: string; sent_at: string | null; deadline_at: string | null; created_at: string | null; }
 interface RequestEvent { id: number; event_type: string; details: string | null; created_at: string | null; }
 
 export default function Requests() {
@@ -60,7 +60,7 @@ export default function Requests() {
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
                     <span className="font-medium sm:w-40 truncate cursor-pointer hover:text-indigo-600"
                       onClick={() => navigate(`/requests/${req.id}`)}>
-                      {req.broker_id}
+                      {req.broker_name || req.broker_id}
                     </span>
                     <span className="hidden sm:block text-gray-500 dark:text-gray-400 w-24">{req.request_type}</span>
                     <StatusBadge status={req.status} />

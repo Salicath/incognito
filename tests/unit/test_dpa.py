@@ -14,7 +14,11 @@ def test_get_dpa_for_unknown_country():
 
 
 def test_dpa_registry_has_major_eu_countries():
-    for code in ["DE", "FR", "NL", "IE", "GB", "AT", "IT", "ES", "FI", "PT", "CZ", "GR", "HU", "RO", "BE"]:
+    eu_codes = [
+        "DE", "FR", "NL", "IE", "GB", "AT", "IT", "ES",
+        "FI", "PT", "CZ", "GR", "HU", "RO", "BE",
+    ]
+    for code in eu_codes:
         assert code in DPA_REGISTRY, f"Missing DPA for {code}"
 
 

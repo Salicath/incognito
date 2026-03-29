@@ -68,8 +68,9 @@ def create_requests_router(
             if status:
                 query = query.filter(Request.status == status)
             requests = query.order_by(Request.created_at.desc()).all()
-            return [
-                {
+            results = []
+            for req in requests:
+                item = {
                     "id": req.id,
                     "broker_id": req.broker_id,
                     "request_type": req.request_type.value,
@@ -78,8 +79,12 @@ def create_requests_router(
                     "deadline_at": req.deadline_at.isoformat() if req.deadline_at else None,
                     "created_at": req.created_at.isoformat() if req.created_at else None,
                 }
-                for req in requests
-            ]
+                if broker_registry:
+                    broker = broker_registry.get(req.broker_id)
+                    if broker:
+                        item["broker_name"] = broker.name
+                results.append(item)
+            return results
         finally:
             db.close()
 

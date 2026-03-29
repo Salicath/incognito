@@ -400,7 +400,7 @@ export default function Dashboard() {
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {recentRequests.map((req) => (
               <div key={req.id as string} className="px-5 py-3 flex items-center justify-between text-sm">
-                <div><span className="font-medium">{req.broker_id as string}</span><span className="text-gray-400 dark:text-gray-500 mx-2">&middot;</span><span className="text-gray-500 dark:text-gray-400">{req.request_type as string}</span></div>
+                <div><span className="font-medium">{(req.broker_name as string) || (req.broker_id as string)}</span><span className="text-gray-400 dark:text-gray-500 mx-2">&middot;</span><span className="text-gray-500 dark:text-gray-400">{req.request_type as string}</span></div>
                 <StatusBadge status={req.status as string} />
               </div>
             ))}
