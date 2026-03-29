@@ -112,6 +112,9 @@ export default function Dashboard() {
   const progressPct = brokerCount > 0 ? Math.round((resolved / brokerCount) * 100) : 0;
   const contactedPct = brokerCount > 0 ? Math.round((contacted / brokerCount) * 100) : 0;
 
+  // Estimated time saved (15 min per broker contacted — conservative, manual opt-out takes longer)
+  const hoursSaved = Math.round((contacted * 15) / 60);
+
   // Ring color based on progress
   const ringColor = progressPct >= 80 ? "#16a34a" : progressPct >= 40 ? "#4f46e5" : "#6366f1";
 
@@ -136,7 +139,7 @@ export default function Dashboard() {
                 <span className="text-xs text-gray-500 dark:text-gray-400">resolved</span>
               </div>
             </div>
-            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-4">
               <div>
                 <p className="text-2xl font-bold text-green-600">{resolved}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Resolved</p>
@@ -153,6 +156,12 @@ export default function Dashboard() {
                 <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{contacted}<span className="text-sm font-normal text-gray-400 dark:text-gray-500">/{brokerCount}</span></p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Brokers contacted</p>
               </div>
+              {hoursSaved > 0 && (
+                <div>
+                  <p className="text-2xl font-bold text-violet-600">~{hoursSaved}h</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Time saved</p>
+                </div>
+              )}
             </div>
           </div>
           {contactedPct < 100 && contacted > 0 && (
