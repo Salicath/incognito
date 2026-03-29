@@ -1,0 +1,9 @@
+[Unit]
+Description=Incognito weekly re-scan for data reappearance
+
+[Timer]
+OnCalendar=Mon *-*-* 10:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

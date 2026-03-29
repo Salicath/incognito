@@ -1,0 +1,6 @@
+[Unit]
+Description=Incognito re-scan runner
+
+[Service]
+Type=oneshot
+ExecStart=podman exec incognito incognito rescan

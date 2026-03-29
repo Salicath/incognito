@@ -315,5 +315,89 @@ def send(
         session.close()
 
 
+@app.command()
+def rescan():
+    """Run a scan and check for data that reappeared after removal."""
+    import asyncio
+    import os
+
+    config = get_config()
+
+    if not config.vault_path.exists():
+        console.print("[yellow]Not initialized.[/]")
+        return
+
+    from backend.core.profile import ProfileVault
+    from backend.core.rescan import check_for_reappearances, save_scan_results
+    from backend.db.session import init_db
+    from backend.scanner.duckduckgo import scan_profile
+
+    password = os.environ.get("INCOGNITO_PASSWORD", "")
+    if not password:
+        import getpass
+        password = getpass.getpass("Master password: ")
+
+    vault = ProfileVault(config.vault_path)
+    profile, _ = vault.load(password)
+    registry = _load_broker_registry(config)
+
+    console.print("[blue]Scanning for your data across broker sites...[/]")
+    broker_domains = [(b.domain, b.name) for b in registry.brokers]
+
+    def on_progress(checked, total):
+        if checked % 10 == 0 or checked == total:
+            console.print(f"  {checked}/{total} searches completed")
+
+    report = asyncio.run(scan_profile(profile, broker_domains, on_progress))
+    console.print(
+        f"\n[bold]Scan complete:[/] {len(report.hits)} hits "
+        f"from {report.checked} searches"
+    )
+
+    if not report.hits:
+        console.print("[green]No data found in search results.[/]")
+        return
+
+    session_factory = init_db(config.db_path)
+    db = session_factory()
+
+    try:
+        # Save results
+        hits = [
+            {
+                "broker_domain": h.broker_domain,
+                "broker_name": h.broker_name,
+                "snippet": h.snippet,
+                "url": h.url,
+            }
+            for h in report.hits
+        ]
+        save_scan_results(db, hits, source="duckduckgo")
+
+        # Check for reappearances
+        rescan = check_for_reappearances(db, hits)
+
+        if rescan.reappeared:
+            console.print(
+                f"\n[bold red]WARNING: {len(rescan.reappeared)} broker(s) "
+                "re-listed your data after confirmed deletion![/]"
+            )
+            for alert in rescan.reappeared:
+                console.print(
+                    f"  [red]- {alert.broker_name} ({alert.broker_domain})"
+                    f" — removed {alert.previous_removal_date}[/]"
+                )
+
+        if rescan.new_exposures:
+            console.print(
+                f"\n[yellow]{len(rescan.new_exposures)} new exposure(s) "
+                "not seen in previous scans:[/]"
+            )
+            for alert in rescan.new_exposures:
+                console.print(f"  - {alert.broker_name} ({alert.broker_domain})")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     app()
