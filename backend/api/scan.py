@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
@@ -8,6 +9,8 @@ from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
 from backend.core.profile import ProfileVault
 from backend.scanner.duckduckgo import scan_profile
+
+log = logging.getLogger("incognito.scan")
 
 
 def create_scan_router(
@@ -45,7 +48,8 @@ def create_scan_router(
             _state["report"] = report
             _state["error"] = None
         except Exception as e:
-            _state["error"] = str(e)
+            log.error("DuckDuckGo scan failed: %s", e)
+            _state["error"] = "Scan failed. Check logs for details."
         finally:
             _state["running"] = False
 
@@ -131,7 +135,8 @@ def create_scan_router(
             _account_state["report"] = report
             _account_state["error"] = None
         except Exception as e:
-            _account_state["error"] = str(e)
+            log.error("Account scan failed: %s", e)
+            _account_state["error"] = "Account scan failed. Check logs for details."
         finally:
             _account_state["running"] = False
 
@@ -212,7 +217,8 @@ def create_scan_router(
             _breach_state["report"] = report
             _breach_state["error"] = report.error
         except Exception as e:
-            _breach_state["error"] = str(e)
+            log.error("Breach check failed: %s", e)
+            _breach_state["error"] = "Breach check failed. Check logs for details."
         finally:
             _breach_state["running"] = False
 

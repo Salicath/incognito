@@ -113,7 +113,11 @@ def create_settings_router(
         if result.status.value == "success":
             return {"status": "success", "message": f"Test email sent to {smtp.username}"}
         else:
-            raise HTTPException(status_code=400, detail=f"SMTP test failed: {result.message}")
+            log.error("SMTP test failed: %s", result.message)
+            raise HTTPException(
+                status_code=400,
+                detail="SMTP test failed. Check your server, port, and credentials.",
+            )
 
     class BackupRequest(BaseModel):
         password: str

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from email.message import EmailMessage
 
 from aiosmtplib import SMTP
 
 from backend.core.profile import SmtpConfig
 from backend.senders.base import SenderResult, SenderStatus
+
+log = logging.getLogger("incognito.email")
 
 
 class EmailSender:
@@ -41,4 +44,8 @@ class EmailSender:
 
             return SenderResult(status=SenderStatus.SUCCESS, message=f"Sent to {to_email}")
         except Exception as exc:
-            return SenderResult(status=SenderStatus.FAILURE, message=str(exc))
+            log.error("SMTP send to %s failed: %s", to_email, exc)
+            return SenderResult(
+                status=SenderStatus.FAILURE,
+                message=f"Failed to send to {to_email}. Check SMTP settings.",
+            )

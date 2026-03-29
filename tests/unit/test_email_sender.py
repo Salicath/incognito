@@ -71,4 +71,5 @@ async def test_email_sender_send_failure(smtp_config):
         )
 
     assert result.status == SenderStatus.FAILURE
-    assert "Connection refused" in result.message
+    assert "dpo@broker.com" in result.message
+    assert "Check SMTP settings" in result.message
