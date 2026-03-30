@@ -121,21 +121,27 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.include_router(create_blast_router(
         vault, session_store, broker_registry, db_session_factory, config,
     ))
-    app.include_router(create_settings_router(vault, session_store, broker_registry, config))
+    app.include_router(create_settings_router(
+        vault, session_store, broker_registry, config, db_session_factory,
+    ))
 
     @app.get("/api/metrics")
     def metrics():
         """Prometheus-compatible metrics endpoint."""
+        from sqlalchemy import func
+
         from backend.db.models import Request, RequestStatus, ScanResult
         db = db_session_factory()
         try:
-            all_req = db.query(Request).all()
+            rows = (
+                db.query(Request.status, func.count())
+                .group_by(Request.status)
+                .all()
+            )
             scans = db.query(ScanResult).count()
-            status_counts = {}
-            for s in RequestStatus:
-                status_counts[s.value] = sum(
-                    1 for r in all_req if r.status == s
-                )
+            status_counts = {s.value: 0 for s in RequestStatus}
+            for status_val, count in rows:
+                status_counts[status_val.value] = count
 
             lines = [
                 "# HELP incognito_requests_total Total requests by status",
@@ -163,9 +169,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         health_status = {"status": "healthy", "version": "0.3.0"}
         try:
             db = db_session_factory()
-            db.execute(Request.__table__.select().limit(1))
-            db.close()
-            health_status["database"] = "ok"
+            try:
+                db.execute(Request.__table__.select().limit(1))
+                health_status["database"] = "ok"
+            finally:
+                db.close()
         except Exception:
             health_status["database"] = "error"
             health_status["status"] = "degraded"

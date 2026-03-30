@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -67,17 +68,23 @@ async def run_follow_ups(
             .all()
         )
 
+        # Pre-fetch all events for overdue requests in a single query
+        overdue_ids = [req.id for req in all_overdue]
+        all_events = (
+            session.query(RequestEvent)
+            .filter(RequestEvent.request_id.in_(overdue_ids))
+            .all()
+        ) if overdue_ids else []
+        events_by_request: dict[str, list[RequestEvent]] = {}
+        for ev in all_events:
+            events_by_request.setdefault(ev.request_id, []).append(ev)
+
         for req in all_overdue:
             broker = broker_registry.get(req.broker_id)
             if broker is None:
                 continue
 
-            # Check if we already sent a follow-up for this request
-            events = (
-                session.query(RequestEvent)
-                .filter_by(request_id=req.id)
-                .all()
-            )
+            events = events_by_request.get(req.id, [])
             event_types = [e.event_type for e in events]
 
             if "follow_up_sent" not in event_types:
@@ -101,7 +108,7 @@ async def run_follow_ups(
                     if send_result.status.value == "success":
                         outbound = EmailMessage(
                             request_id=req.id,
-                            message_id=f"<{req.id}@incognito.local>",
+                            message_id=f"<{uuid.uuid4()}@incognito.local>",
                             direction=EmailDirection.OUTBOUND,
                             from_address=smtp.username,
                             to_address=broker.dpo_email,
@@ -126,13 +133,15 @@ async def run_follow_ups(
                         f"Error sending follow-up to {broker.name}: {e}"
                     )
 
-            elif "escalation_sent" not in event_types:
+            if "follow_up_sent" in event_types and "escalation_sent" not in event_types:
                 # Check if enough time has passed since the follow-up for escalation
                 follow_up_event = next(
                     (e for e in events if e.event_type == "follow_up_sent"), None,
                 )
+                if not follow_up_event:
+                    continue
                 aware_ts = _ensure_aware(follow_up_event.created_at)
-                if follow_up_event and (now - aware_ts).days >= escalation_days:
+                if (now - aware_ts).total_seconds() >= escalation_days * 86400:
                     try:
                         rendered = renderer.render_localized(
                             "escalation_warning",
@@ -152,7 +161,7 @@ async def run_follow_ups(
                         if send_result.status.value == "success":
                             outbound = EmailMessage(
                                 request_id=req.id,
-                                message_id=f"<{req.id}@incognito.local>",
+                                message_id=f"<{uuid.uuid4()}@incognito.local>",
                                 direction=EmailDirection.OUTBOUND,
                                 from_address=smtp.username,
                                 to_address=broker.dpo_email,

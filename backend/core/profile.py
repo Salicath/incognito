@@ -82,12 +82,16 @@ class ProfileVault:
         data = salt + payload.to_bytes()
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        # O_CREAT | O_EXCL: fails atomically if file already exists
+        # O_CREAT | O_EXCL: fails atomically if file already exists (portable)
         fd = os.open(str(self._path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
             os.write(fd, data)
-        finally:
+        except BaseException:
             os.close(fd)
+            # Clean up partial write so retry is possible
+            self._path.unlink(missing_ok=True)
+            raise
+        os.close(fd)
 
     def save_with_key(
         self,

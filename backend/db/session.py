@@ -14,7 +14,7 @@ ALEMBIC_INI = Path(__file__).parent.parent.parent / "alembic.ini"
 
 def get_engine(db_path: Path):
     url = f"sqlite:///{db_path}"
-    engine = create_engine(url, echo=False)
+    engine = create_engine(url, echo=False, connect_args={"timeout": 15})
 
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):

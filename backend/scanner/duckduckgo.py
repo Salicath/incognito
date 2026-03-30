@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import httpx
@@ -76,7 +77,7 @@ async def _search_ddg(query: str, client: httpx.AsyncClient) -> list[dict]:
 async def scan_profile(
     profile: Profile,
     broker_domains: list[tuple[str, str]],  # list of (domain, name)
-    on_progress: callable | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> ScanReport:
     """
     Scan DuckDuckGo for the user's data across broker sites.

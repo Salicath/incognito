@@ -21,7 +21,10 @@ class AppConfig(BaseSettings):
     trusted_proxy_header: str = ""  # e.g. "Remote-User" for Authentik/Authelia
 
     def setup_logging(self) -> logging.Logger:
-        level = getattr(logging, self.log_level.upper(), logging.INFO)
+        level = getattr(logging, self.log_level.upper(), None)
+        if level is None:
+            level = logging.INFO
+            logging.warning("Invalid log level '%s', defaulting to INFO", self.log_level)
         logging.basicConfig(
             level=level,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",

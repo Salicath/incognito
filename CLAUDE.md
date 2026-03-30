@@ -14,6 +14,12 @@ python -m pytest tests/ -v
 # Lint
 ruff check .
 
+# Security scan
+bandit -r backend/ -c pyproject.toml -ll -q
+
+# Full quality check (lint + security + tests)
+ruff check . && bandit -r backend/ -c pyproject.toml -ll -q && python -m pytest tests/ -x -q
+
 # Frontend dev (proxies API to :8080)
 cd frontend && npm run dev
 
@@ -127,6 +133,41 @@ Prometheus metrics at `/api/metrics`.
 CI builds and smoke-tests the container on every push.
 Systemd timers: follow-up (daily 9am), rescan (weekly Monday 10am), check-replies (every 15 min).
 Timer services use `EnvironmentFile` for password (`~/.config/incognito/env`).
+
+## Code Quality Tooling
+
+**Quick commands:**
+```bash
+# Full quality check (lint + security + tests + types)
+ruff check . && bandit -r backend/ -c pyproject.toml -ll -q && python -m pytest tests/ -x -q
+
+# Type checking
+python -m mypy backend/ --config-file pyproject.toml
+
+# Frontend type check
+cd frontend && npx tsc --noEmit
+
+# Dependency vulnerability scan
+pip-audit
+cd frontend && npm audit
+```
+
+**Claude Code commands** (`.claude/commands/`):
+- `/audit <file-or-directory>` — Focused security + quality audit: runs bandit, mypy, ruff on target, then manual code review for OWASP issues, race conditions, data integrity, performance
+- `/check` — Run full quality suite: ruff, bandit, pytest, mypy, tsc
+
+**Claude Code hooks** (`.claude/settings.json`): Post-edit hook auto-runs ruff on changed Python files via `.claude/hooks/lint-after-edit.sh`.
+
+**Pre-commit hooks** (`.pre-commit-config.yaml`): ruff lint+format, bandit security scan, gitleaks secret detection. Install with `pre-commit install`.
+
+**CI pipeline** (`.github/workflows/ci.yml`): Runs ruff, bandit, pytest, TypeScript type check, broker YAML validation, container build+smoke test on every push/PR.
+
+**Tool config** in `pyproject.toml`:
+- `[tool.bandit]` — excludes tests/frontend, skips B101 (assert)
+- `[tool.mypy]` — Python 3.12, `check_untyped_defs = true`, `ignore_missing_imports = true`
+- `[tool.pytest.ini_options]` — asyncio_mode auto
+
+**Dev dependencies** (`pip install -e ".[dev]"`): bandit (security), pip-audit (CVE scanning), pre-commit, mypy (type checking), ruff (lint), pytest-cov (coverage).
 
 ## What's Not Built Yet
 

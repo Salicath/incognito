@@ -52,7 +52,11 @@ async def check_breaches(email: str, api_key: str) -> BreachReport:
                 report.error = f"HIBP API returned status {resp.status_code}"
                 return report
 
-            data = resp.json()
+            try:
+                data = resp.json()
+            except Exception:
+                report.error = "Failed to parse HIBP response"
+                return report
             for breach in data:
                 report.breaches.append(BreachInfo(
                     name=breach.get("Name", ""),

@@ -36,7 +36,9 @@ class RequestManager:
         self._session = session
         self._deadline_days = gdpr_deadline_days
 
-    def _transition(self, request_id: str, new_status: RequestStatus, details: str | None = None):
+    def _transition(
+        self, request_id: str, new_status: RequestStatus, details: str | None = None,
+    ) -> Request:
         req = self._session.get(Request, request_id)
         if req is None:
             raise ValueError(f"Request {request_id} not found")

@@ -14,12 +14,18 @@ export default function Requests() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [events, setEvents] = useState<RequestEvent[]>([]);
   const [transitionLoading, setTransitionLoading] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => { loadRequests(); }, [filter]);
 
   async function loadRequests() {
-    const data = await api.getRequests(filter || undefined);
-    setRequests(data as unknown as RequestItem[]);
+    try {
+      const data = await api.getRequests(filter || undefined);
+      setRequests(data as unknown as RequestItem[]);
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load requests");
+    }
   }
 
   async function viewEvents(id: string) {
@@ -49,6 +55,7 @@ export default function Requests() {
           <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${filter === s ? "bg-indigo-600 text-white" : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>{s || "All"}</button>
         ))}
       </div>
+      {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         {requests.length === 0 ? (
           <p className="px-5 py-8 text-gray-500 dark:text-gray-400 text-center text-sm">No requests found.</p>

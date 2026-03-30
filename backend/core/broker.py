@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import enum
+import logging
 import re
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, computed_field
+
+log = logging.getLogger("incognito.broker")
 
 
 class RemovalMethod(enum.StrEnum):
@@ -37,7 +40,7 @@ class Broker(BaseModel):
 
 class BrokerRegistry:
     def __init__(self, brokers: list[Broker]):
-        self.brokers = brokers
+        self.brokers: list[Broker] = brokers
         self._by_id = {b.id: b for b in brokers}
 
     def get(self, broker_id: str) -> Broker | None:
@@ -52,8 +55,11 @@ class BrokerRegistry:
         for path in sorted(directory.glob("*.yaml")):
             if path.stem == "schema":
                 continue
-            data = yaml.safe_load(path.read_text())
-            if data and isinstance(data, dict) and "name" in data:
-                brokers.append(Broker.model_validate(data))
+            try:
+                data = yaml.safe_load(path.read_text())
+                if data and isinstance(data, dict) and "name" in data:
+                    brokers.append(Broker.model_validate(data))
+            except Exception as e:
+                log.warning("Failed to load broker %s: %s", path.name, e)
 
         return cls(brokers)

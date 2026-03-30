@@ -12,7 +12,13 @@ export default function Brokers() {
   const [successMessage, setSuccessMessage] = useState("");
   const [creatingRequest, setCreatingRequest] = useState("");
 
-  useEffect(() => { api.getBrokers().then((data) => setBrokers(data as unknown as BrokerItem[])); }, []);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.getBrokers()
+      .then((data) => setBrokers(data as unknown as BrokerItem[]))
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load brokers"));
+  }, []);
 
   const filtered = brokers.filter((b) => {
     const matchesSearch = b.name.toLowerCase().includes(search.toLowerCase()) || b.domain.toLowerCase().includes(search.toLowerCase());
@@ -104,6 +110,7 @@ export default function Brokers() {
         </div>
       </div>
 
+      {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
       {successMessage && (
         <div className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg text-sm mb-4" role="alert">
           {successMessage}

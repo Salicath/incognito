@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -55,6 +56,7 @@ def create_scan_router(
         "total": 0,
         "error": None,
     }
+    _scan_lock = asyncio.Lock()
 
     # Auto-clear stuck scans after 10 minutes
     stuck_timeout = 600
@@ -105,16 +107,17 @@ def create_scan_router(
         key, _salt = session_store.validate(session)
         profile, _, _ = vault.load_with_key(key)
 
-        if _state["running"] and not _is_stuck():
-            raise HTTPException(status_code=409, detail="Scan already running")
+        async with _scan_lock:
+            if _state["running"] and not _is_stuck():
+                raise HTTPException(status_code=409, detail="Scan already running")
 
-        _state["running"] = True
-        _state["started_at"] = time.time()
-        _state["progress"] = 0
-        _state["error"] = None
+            _state["running"] = True
+            _state["started_at"] = time.time()
+            _state["progress"] = 0
+            _state["error"] = None
 
-        broker_domains = [(b.domain, b.name) for b in broker_registry.brokers]
-        _state["total"] = len(broker_domains) + len(profile.emails)
+            broker_domains = [(b.domain, b.name) for b in broker_registry.brokers]
+            _state["total"] = len(broker_domains) + len(profile.emails)
 
         # Run in background so the request returns immediately
         background_tasks.add_task(_run_scan, profile, broker_domains)
@@ -166,6 +169,7 @@ def create_scan_router(
         "total": 0,
         "error": None,
     }
+    _account_lock = asyncio.Lock()
 
     async def _run_account_scan(email: str):
         try:
@@ -193,10 +197,6 @@ def create_scan_router(
         key, _salt = session_store.validate(session)
         profile, _, _ = vault.load_with_key(key)
 
-        elapsed = time.time() - _account_state["started_at"]
-        if _account_state["running"] and not (elapsed > stuck_timeout):
-            raise HTTPException(status_code=409, detail="Account scan already running")
-
         validated = _validate_email(email)
         target_email = validated
         if not target_email:
@@ -204,10 +204,15 @@ def create_scan_router(
                 raise HTTPException(status_code=400, detail="No email addresses provided")
             target_email = profile.emails[0]
 
-        _account_state["running"] = True
-        _account_state["started_at"] = time.time()
-        _account_state["progress"] = 0
-        _account_state["error"] = None
+        async with _account_lock:
+            elapsed = time.time() - _account_state["started_at"]
+            if _account_state["running"] and not (elapsed > stuck_timeout):
+                raise HTTPException(status_code=409, detail="Account scan already running")
+
+            _account_state["running"] = True
+            _account_state["started_at"] = time.time()
+            _account_state["progress"] = 0
+            _account_state["error"] = None
 
         background_tasks.add_task(_run_account_scan, target_email)
 
@@ -254,6 +259,7 @@ def create_scan_router(
         "started_at": 0,
         "error": None,
     }
+    _breach_lock = asyncio.Lock()
 
     async def _run_breach_check(email: str, api_key: str):
         try:
@@ -287,18 +293,19 @@ def create_scan_router(
             )
         api_key = key_path.read_text().strip()
 
-        elapsed = time.time() - _breach_state["started_at"]
-        if _breach_state["running"] and not (elapsed > stuck_timeout):
-            raise HTTPException(status_code=409, detail="Breach check already running")
-
         validated = _validate_email(email)
         target_email = validated or (profile.emails[0] if profile.emails else None)
         if not target_email:
             raise HTTPException(status_code=400, detail="No email provided")
 
-        _breach_state["running"] = True
-        _breach_state["started_at"] = time.time()
-        _breach_state["error"] = None
+        async with _breach_lock:
+            elapsed = time.time() - _breach_state["started_at"]
+            if _breach_state["running"] and not (elapsed > stuck_timeout):
+                raise HTTPException(status_code=409, detail="Breach check already running")
+
+            _breach_state["running"] = True
+            _breach_state["started_at"] = time.time()
+            _breach_state["error"] = None
 
         background_tasks.add_task(_run_breach_check, target_email, api_key)
 

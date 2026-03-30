@@ -38,11 +38,18 @@ def create_requests_router(
         session_store.validate(session)
         db = _get_db()
         try:
-            all_requests = db.query(Request).all()
-            counts = {}
-            for status in RequestStatus:
-                counts[status.value] = sum(1 for req in all_requests if req.status == status)
-            counts["total"] = len(all_requests)
+            from sqlalchemy import func
+            status_counts = (
+                db.query(Request.status, func.count())
+                .group_by(Request.status)
+                .all()
+            )
+            counts = {s.value: 0 for s in RequestStatus}
+            total = 0
+            for status_val, count in status_counts:
+                counts[status_val.value] = count
+                total += count
+            counts["total"] = total
             counts["broker_count"] = len(broker_registry.brokers) if broker_registry else 0
             counts["unread_replies"] = (
                 db.query(Request)
@@ -74,8 +81,18 @@ def create_requests_router(
         try:
             query = db.query(Request)
             if status:
-                query = query.filter(Request.status == status)
+                try:
+                    status_enum = RequestStatus(status)
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400, detail=f"Invalid status: {status}",
+                    ) from None
+                query = query.filter(Request.status == status_enum)
             requests = query.order_by(Request.created_at.desc()).all()
+            broker_names = (
+                {b.id: b.name for b in broker_registry.brokers}
+                if broker_registry else {}
+            )
             results = []
             for req in requests:
                 item = {
@@ -87,10 +104,9 @@ def create_requests_router(
                     "deadline_at": req.deadline_at.isoformat() if req.deadline_at else None,
                     "created_at": req.created_at.isoformat() if req.created_at else None,
                 }
-                if broker_registry:
-                    broker = broker_registry.get(req.broker_id)
-                    if broker:
-                        item["broker_name"] = broker.name
+                name = broker_names.get(req.broker_id)
+                if name:
+                    item["broker_name"] = name
                 results.append(item)
             return results
         finally:
@@ -253,14 +269,14 @@ def create_requests_router(
                 })
 
             emails_by_req = {}
-            for e in emails:
-                emails_by_req.setdefault(e.request_id, []).append({
-                    "direction": e.direction.value,
-                    "from": e.from_address,
-                    "to": e.to_address,
-                    "subject": e.subject,
+            for em in emails:
+                emails_by_req.setdefault(em.request_id, []).append({
+                    "direction": em.direction.value,
+                    "from": em.from_address,
+                    "to": em.to_address,
+                    "subject": em.subject,
                     "date": (
-                        e.received_at.isoformat() if e.received_at else None
+                        em.received_at.isoformat() if em.received_at else None
                     ),
                 })
 

@@ -26,6 +26,7 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
     hasResults: false,
   });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
 
   function stopPolling() {
     if (pollRef.current) {
@@ -37,6 +38,7 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
   async function loadResults() {
     try {
       const data = await resultsFn();
+      if (!mountedRef.current) return;
       setState((prev) => ({
         ...prev,
         results: data,
@@ -52,6 +54,7 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
     pollRef.current = setInterval(async () => {
       try {
         const status = await statusFn();
+        if (!mountedRef.current) return;
         setState((prev) => ({
           ...prev,
           progress: status.progress ?? prev.progress,
@@ -96,7 +99,7 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
       const data = await startFn(...args);
       setState((prev) => ({
         ...prev,
-        total: (data as Record<string, unknown>).total as number ?? prev.total,
+        total: ((data as Record<string, unknown>).total as number | undefined) ?? prev.total,
       }));
       startPolling();
       return data;
@@ -108,9 +111,13 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
   }
 
   useEffect(() => {
+    mountedRef.current = true;
     loadResults();
     checkIfRunning();
-    return stopPolling;
+    return () => {
+      mountedRef.current = false;
+      stopPolling();
+    };
   }, []);
 
   return { ...state, start, loadResults };

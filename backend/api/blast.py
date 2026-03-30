@@ -135,114 +135,122 @@ def create_blast_router(
             failed = 0
             results = []
 
+            import asyncio
+
             for req in pending:
-                broker = broker_registry.get(req.broker_id)
-                if broker is None:
-                    results.append({
-                        "broker_id": req.broker_id,
-                        "status": "skipped",
-                        "reason": "broker not found",
-                    })
-                    continue
+                try:
+                    broker = broker_registry.get(req.broker_id)
+                    if broker is None:
+                        results.append({
+                            "broker_id": req.broker_id,
+                            "status": "skipped",
+                            "reason": "broker not found",
+                        })
+                        continue
 
-                # Non-email brokers: try web form automation, else manual
-                if broker.removal_method != RemovalMethod.EMAIL:
-                    if broker.removal_method == RemovalMethod.WEB_FORM:
-                        from pathlib import Path
+                    # Non-email brokers: try web form automation, else manual
+                    if broker.removal_method != RemovalMethod.EMAIL:
+                        if broker.removal_method == RemovalMethod.WEB_FORM:
+                            from pathlib import Path
 
-                        from backend.senders.web import WebFormSender
+                            from backend.senders.web import WebFormSender
 
-                        forms_dir = Path(__file__).parent.parent.parent / "brokers" / "forms"
-                        web_sender = WebFormSender(profile, forms_dir)
-                        web_result = await web_sender.send(
-                            broker.domain, broker.removal_url or broker.domain,
-                            request_id=req.id,
-                        )
-                        if web_result.status.value == "success":
-                            mgr.mark_sent(req.id)
-                            sent += 1
-                            results.append({
-                                "broker_id": req.broker_id,
-                                "broker_name": broker.name,
-                                "status": "sent",
-                                "method": "web_form",
-                            })
-                            import asyncio
-                            delay = 3600 / max(config.rate_limit_per_hour, 1)
-                            await asyncio.sleep(delay)
-                            continue
+                            forms_dir = Path(__file__).parent.parent.parent / "brokers" / "forms"
+                            web_sender = WebFormSender(profile, forms_dir)
+                            web_result = await web_sender.send(
+                                broker.domain, broker.removal_url or broker.domain,
+                                request_id=req.id,
+                            )
+                            if web_result.status.value == "success":
+                                mgr.mark_sent(req.id)
+                                sent += 1
+                                results.append({
+                                    "broker_id": req.broker_id,
+                                    "broker_name": broker.name,
+                                    "status": "sent",
+                                    "method": "web_form",
+                                })
+                                delay = 3600 / max(config.rate_limit_per_hour, 1)
+                                await asyncio.sleep(delay)
+                                continue
 
-                    url = broker.removal_url or broker.domain
-                    method = broker.removal_method
-                    reason = f"Broker requires {method} — visit {url}"
-                    mgr.mark_manual_action_needed(req.id, reason)
-                    results.append({
-                        "broker_id": req.broker_id,
-                        "status": "manual",
-                        "reason": f"requires {method}",
-                    })
-                    continue
+                        url = broker.removal_url or broker.domain
+                        method = broker.removal_method
+                        reason = f"Broker requires {method} — visit {url}"
+                        mgr.mark_manual_action_needed(req.id, reason)
+                        results.append({
+                            "broker_id": req.broker_id,
+                            "status": "manual",
+                            "reason": f"requires {method}",
+                        })
+                        continue
 
-                # Determine template and language
-                if req.request_type == RequestType.ACCESS:
-                    template_name = "access_request"
-                else:
-                    template_name = "erasure_request"
+                    # Determine template and language
+                    if req.request_type == RequestType.ACCESS:
+                        template_name = "access_request"
+                    else:
+                        template_name = "erasure_request"
 
-                rendered = renderer.render_localized(
-                    template_name,
-                    broker.language,
-                    profile=profile,
-                    reference_id=req.id[:8].upper(),
-                    broker_name=broker.name,
-                )
-
-                result = await sender.send(
-                    to_email=broker.dpo_email,
-                    rendered_text=rendered,
-                    request_id=req.id,
-                )
-
-                if result.status.value == "success":
-                    # Store message_id on request
-                    req.message_id = f"<{req.id}@incognito.local>"
-
-                    # Store outbound email record
-                    outbound_record = EmailMessageModel(
-                        request_id=req.id,
-                        message_id=req.message_id,
-                        direction=EmailDirection.OUTBOUND,
-                        from_address=smtp.username,
-                        to_address=broker.dpo_email,
-                        subject=f"GDPR Request [REF-{req.id[:8].upper()}]",
-                        body_text=rendered,
+                    rendered = renderer.render_localized(
+                        template_name,
+                        broker.language,
+                        profile=profile,
+                        reference_id=req.id[:8].upper(),
+                        broker_name=broker.name,
                     )
-                    db.add(outbound_record)
-                    db.commit()
 
-                    mgr.mark_sent(req.id)
-                    sent += 1
-                    results.append({
-                        "broker_id": req.broker_id,
-                        "broker_name": broker.name,
-                        "status": "sent",
-                        "email": broker.dpo_email,
-                    })
-                else:
+                    result = await sender.send(
+                        to_email=broker.dpo_email,
+                        rendered_text=rendered,
+                        request_id=req.id,
+                    )
+
+                    if result.status.value == "success":
+                        # Store message_id on request
+                        req.message_id = f"<{req.id}@incognito.local>"
+
+                        # Store outbound email record
+                        outbound_record = EmailMessageModel(
+                            request_id=req.id,
+                            message_id=req.message_id,
+                            direction=EmailDirection.OUTBOUND,
+                            from_address=smtp.username,
+                            to_address=broker.dpo_email,
+                            subject=f"GDPR Request [REF-{req.id[:8].upper()}]",
+                            body_text=rendered,
+                        )
+                        db.add(outbound_record)
+
+                        mgr.mark_sent(req.id)
+                        sent += 1
+                        results.append({
+                            "broker_id": req.broker_id,
+                            "broker_name": broker.name,
+                            "status": "sent",
+                            "email": broker.dpo_email,
+                        })
+                    else:
+                        failed += 1
+                        results.append({
+                            "broker_id": req.broker_id,
+                            "broker_name": broker.name,
+                            "status": "failed",
+                            "reason": result.message,
+                        })
+
+                    # Rate limit: space emails according to configured hourly limit
+                    delay = 3600 / max(config.rate_limit_per_hour, 1)
+                    log.info("Sent to %s, waiting %.0fs (rate: %d/hr)",
+                             broker.dpo_email, delay, config.rate_limit_per_hour)
+                    await asyncio.sleep(delay)
+                except Exception as e:
+                    log.error("Error processing broker %s: %s", req.broker_id, e)
                     failed += 1
                     results.append({
                         "broker_id": req.broker_id,
-                        "broker_name": broker.name,
-                        "status": "failed",
-                        "reason": result.message,
+                        "status": "error",
+                        "reason": str(e),
                     })
-
-                # Rate limit: space emails according to configured hourly limit
-                import asyncio
-                delay = 3600 / max(config.rate_limit_per_hour, 1)
-                log.info("Sent to %s, waiting %.0fs (rate: %d/hr)",
-                         broker.dpo_email, delay, config.rate_limit_per_hour)
-                await asyncio.sleep(delay)
 
             manual = sum(1 for r in results if r.get("status") == "manual")
             log.info(

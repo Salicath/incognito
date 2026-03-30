@@ -21,7 +21,7 @@ class EmailSender:
         if lines and lines[0].startswith("Subject:"):
             subject = lines[0][len("Subject:"):].strip()
             body = "\n".join(lines[1:]).strip()
-            return subject, body
+            return subject or "GDPR Request", body
         return "GDPR Request", text.strip()
 
     def build_message(

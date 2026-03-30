@@ -125,21 +125,30 @@ class ImapPoller:
 
         return outbound_ids, ref_code_map, domain_request_map
 
-    def process_message(self, msg) -> MatchResult | None:
+    def process_message(self, msg, *, _lookup_maps=None) -> MatchResult | None:
         db = self._db_factory()
         try:
-            outbound_ids, ref_code_map, domain_request_map = self._build_lookup_maps(db)
+            if _lookup_maps is not None:
+                outbound_ids, ref_code_map, domain_request_map = _lookup_maps
+            else:
+                outbound_ids, ref_code_map, domain_request_map = self._build_lookup_maps(db)
 
             in_reply_to = ""
             references = ""
-            if hasattr(msg, "headers"):
+            if hasattr(msg, "headers") and msg.headers:
                 in_reply_to_vals = msg.headers.get("in-reply-to", ("",))
                 in_reply_to = in_reply_to_vals[0] if in_reply_to_vals else ""
                 ref_vals = msg.headers.get("references", ("",))
                 references = ref_vals[0] if ref_vals else ""
 
-            from_addr = msg.from_ if isinstance(msg.from_, str) else str(msg.from_)
-            to_addr = msg.to[0] if isinstance(msg.to, (list, tuple)) and msg.to else str(msg.to)
+            if isinstance(msg.from_, str):
+                from_addr = msg.from_
+            else:
+                from_addr = str(msg.from_) if msg.from_ else ""
+            if isinstance(msg.to, (list, tuple)) and msg.to:
+                to_addr = msg.to[0]
+            else:
+                to_addr = str(msg.to) if msg.to else ""
 
             result = match_reply(
                 in_reply_to=in_reply_to,
@@ -176,7 +185,10 @@ class ImapPoller:
                 if req and req.status in valid:
                     req.status = RequestStatus.ACKNOWLEDGED
                     req.response_at = datetime.now(UTC)
-                    req.response_body = body_text[:2000] if body_text else ""
+                    if body_text and len(body_text) > 2000:
+                        req.response_body = body_text[:2000] + "\n...[truncated]"
+                    else:
+                        req.response_body = body_text or ""
                     req.updated_at = datetime.now(UTC)
 
                     event = RequestEvent(
@@ -214,6 +226,7 @@ class ImapPoller:
                 ssl_ctx.check_hostname = False
                 ssl_ctx.verify_mode = ssl_mod.CERT_NONE
 
+            mb: MailBox | MailBoxStartTls
             if self._config.starttls:
                 mb = MailBoxStartTls(
                     host=self._config.host,
@@ -226,8 +239,15 @@ class ImapPoller:
             with mb.login(
                 self._config.username, self._config.password, self._config.folder,
             ) as mailbox:
+                # Build lookup maps once per poll cycle instead of per message
+                lookup_db = self._db_factory()
+                try:
+                    lookup_maps = self._build_lookup_maps(lookup_db)
+                finally:
+                    lookup_db.close()
+
                 for msg in mailbox.fetch(AND(seen=False), mark_seen=False):
-                    result = self.process_message(msg)
+                    result = self.process_message(msg, _lookup_maps=lookup_maps)
                     if result is not None and msg.uid:
                         mailbox.flag(msg.uid, MailMessageFlags.SEEN, True)
                     processed += 1

@@ -84,11 +84,13 @@ class Notifier:
 
     def _send_ntfy(self, event: EventType, title: str, body: str) -> None:
         priority, tags = _NTFY_META.get(event, ("3", "bell"))
+        # Sanitize title to prevent header injection (strip newlines)
+        safe_title = title.replace("\r", "").replace("\n", " ")[:256]
         httpx.post(
             self._url,
             content=body.encode(),
             headers={
-                "Title": title,
+                "Title": safe_title,
                 "Priority": priority,
                 "Tags": tags,
             },

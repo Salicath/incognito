@@ -29,7 +29,7 @@ class LoginRateLimiter:
         # Check active lockout
         locked_until = self._lockouts.get(key)
         if locked_until and now < locked_until:
-            remaining = int((locked_until - now).total_seconds())
+            remaining = max(0, int((locked_until - now).total_seconds()))
             raise HTTPException(
                 status_code=429,
                 detail=f"Too many failed attempts. Try again in {remaining} seconds.",

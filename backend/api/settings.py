@@ -17,6 +17,7 @@ def create_settings_router(
     session_store: SessionStore,
     broker_registry: BrokerRegistry,
     config: AppConfig,
+    db_session_factory=None,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -89,6 +90,8 @@ def create_settings_router(
         key = body.get("api_key", "").strip()
         if not key:
             raise HTTPException(status_code=400, detail="API key required")
+        if len(key) > 10_000:
+            raise HTTPException(status_code=400, detail="API key too long")
         import os
         key_path = config.data_dir / "hibp_key.txt"
         tmp_path = key_path.with_suffix(".tmp")
@@ -210,6 +213,7 @@ def create_settings_router(
                 ssl_ctx.check_hostname = False
                 ssl_ctx.verify_mode = ssl_mod.CERT_NONE
 
+            mb: MailBox | MailBoxStartTls
             if imap.starttls:
                 mb = MailBoxStartTls(host=imap.host, port=imap.port, ssl_context=ssl_ctx)
             else:
@@ -289,11 +293,12 @@ def create_settings_router(
         if len(csv_text) > 1_000_000:  # 1MB limit
             raise HTTPException(status_code=400, detail="CSV too large (max 1MB)")
 
+        if db_session_factory is None:
+            raise HTTPException(status_code=500, detail="Database not available")
+
         db_session = None
         try:
-            from backend.db.session import init_db
-            db_factory = init_db(config.db_path)
-            db_session = db_factory()
+            db_session = db_session_factory()
 
             reader = csv.DictReader(io.StringIO(csv_text))
             imported = 0
@@ -473,16 +478,50 @@ def create_settings_router(
         db_b64 = body.get("database", "")
         hibp_key = body.get("hibp_key", "")
 
-        if vault_b64:
-            vault_bytes = base64.b64decode(vault_b64)
-            config.vault_path.write_bytes(vault_bytes)
+        max_backup_size = 100 * 1024 * 1024  # 100MB
 
-        if db_b64:
-            db_bytes = base64.b64decode(db_b64)
-            config.db_path.write_bytes(db_bytes)
+        # Decode and validate ALL data before writing anything
+        vault_bytes = None
+        db_bytes = None
+        try:
+            if vault_b64:
+                vault_bytes = base64.b64decode(vault_b64)
+                if len(vault_bytes) > max_backup_size:
+                    raise HTTPException(
+                        status_code=400, detail="Vault backup too large",
+                    )
+            if db_b64:
+                db_bytes = base64.b64decode(db_b64)
+                if len(db_bytes) > max_backup_size:
+                    raise HTTPException(
+                        status_code=400, detail="Database backup too large",
+                    )
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(
+                status_code=400, detail="Invalid backup data encoding",
+            ) from None
+
+        # All validation passed — write atomically with proper permissions
+        import os as _os
+
+        def _atomic_write(path, data: bytes) -> None:
+            tmp = path.with_suffix(".tmp")
+            fd = _os.open(str(tmp), _os.O_WRONLY | _os.O_CREAT | _os.O_TRUNC, 0o600)
+            try:
+                _os.write(fd, data)
+            finally:
+                _os.close(fd)
+            _os.replace(tmp, path)
+
+        if vault_bytes is not None:
+            _atomic_write(config.vault_path, vault_bytes)
+        if db_bytes is not None:
+            _atomic_write(config.db_path, db_bytes)
 
         if hibp_key:
-            (config.data_dir / "hibp_key.txt").write_text(hibp_key)
+            _atomic_write(config.data_dir / "hibp_key.txt", hibp_key.encode())
 
         log.warning("Backup imported — application data overwritten")
         return {"status": "imported", "message": "Backup restored. Please restart the application."}

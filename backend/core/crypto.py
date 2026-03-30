@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import struct
 from dataclasses import dataclass
+from typing import Literal, overload
 
 from argon2.low_level import Type, hash_secret_raw
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -13,6 +14,23 @@ _ARGON2_PARALLELISM = 4
 _ARGON2_HASH_LEN = 32  # 256 bits
 _SALT_LEN = 16
 _NONCE_LEN = 12
+
+
+@overload
+def derive_key(
+    password: str,
+    salt: bytes | None = None,
+    *,
+    return_salt: Literal[True],
+) -> tuple[bytes, bytes]: ...
+
+
+@overload
+def derive_key(
+    password: str,
+    salt: bytes | None = None,
+    return_salt: Literal[False] = ...,
+) -> bytes: ...
 
 
 def derive_key(

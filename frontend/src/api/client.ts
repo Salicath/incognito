@@ -34,7 +34,7 @@ export const api = {
   getBroker: (id: string) => request<Record<string, unknown>>(`/brokers/${id}`),
   getRequests: (status?: string) =>
     request<Array<Record<string, unknown>>>(
-      `/requests${status ? `?status=${status}` : ""}`
+      `/requests${status ? `?status=${encodeURIComponent(status)}` : ""}`
     ),
   getRequest: (id: string) => request<Record<string, unknown>>(`/requests/${id}`),
   getRequestEvents: (id: string) =>

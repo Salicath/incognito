@@ -25,9 +25,7 @@ def create_brokers_router(registry: BrokerRegistry, session_store: SessionStore)
             "by_country": dict(countries.most_common()),
             "by_method": dict(methods.most_common()),
             "gdpr_applicable": sum(1 for b in brokers if b.gdpr_applies),
-            "email_capable": sum(
-                1 for b in brokers if b.removal_method.value == "email"
-            ),
+            "email_capable": methods.get("email", 0),
         }
 
     @r.get("/{broker_id}")

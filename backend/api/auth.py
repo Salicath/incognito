@@ -54,6 +54,7 @@ def create_auth_router(
             httponly=True,
             samesite="strict",
             secure=secure_cookies,
+            path="/",
         )
         log.info("Vault unlocked from %s", client_ip)
         return {"status": "unlocked"}

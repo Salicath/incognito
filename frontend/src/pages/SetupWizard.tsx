@@ -42,6 +42,8 @@ export default function SetupWizard() {
       setError(e instanceof Error ? e.message : "Setup failed");
     } finally {
       setLoading(false);
+      setPassword("");
+      setConfirmPassword("");
     }
   }
 

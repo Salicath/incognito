@@ -63,7 +63,7 @@ def check_for_reappearances(
 
     # Get all completed (deleted) requests — these brokers should no longer have data
     completed = (
-        session.query(Request)
+        session.query(Request.broker_id, Request.updated_at)
         .filter(Request.status == RequestStatus.COMPLETED)
         .all()
     )
@@ -73,9 +73,10 @@ def check_for_reappearances(
         for r in completed
     }
 
-    # Get broker IDs that had previous scan hits
-    previous_results = session.query(ScanResult).all()
-    previously_seen = {r.broker_id for r in previous_results}
+    # Get broker IDs that had previous scan hits (only fetch the column we need)
+    previously_seen = {
+        r[0] for r in session.query(ScanResult.broker_id).distinct().all()
+    }
 
     for hit in current_hits:
         domain = hit.get("broker_domain", "")
