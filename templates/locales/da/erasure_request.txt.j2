@@ -1,0 +1,26 @@
+Subject: Anmodning om sletning af personoplysninger jf. artikel 17 i Databeskyttelsesforordningen — {{ profile.full_name }} [{{ reference_id }}]
+
+Til Databeskyttelsesrådgiveren hos {{ broker_name }},
+
+Jeg anmoder hermed om sletning af alle personoplysninger, som I behandler om mig, i medfør af artikel 17 i Den almindelige databeskyttelsesforordning (EU) 2016/679.
+
+Jeg udøver min ret til sletning på følgende grundlag:
+- Oplysningerne er ikke længere nødvendige til opfyldelse af de formål, hvortil de blev indsamlet (art. 17, stk. 1, litra a)
+- Jeg tilbagekalder mit samtykke, og der er ikke andet retsgrundlag for behandlingen (art. 17, stk. 1, litra b)
+- Jeg gør indsigelse mod behandlingen, og der foreligger ikke vægtige legitime grunde til behandlingen (art. 17, stk. 1, litra c)
+
+Mine identifikationsoplysninger:
+- Navn: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefon: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Fødselsdato: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adresse: {{ profile.addresses[0].formatted }}
+{% endif %}
+I bedes bekræfte sletningen inden for én måned, jf. artikel 12, stk. 3. Såfremt I mener, at en undtagelse efter artikel 17, stk. 3 finder anvendelse, bedes I angive det retlige grundlag herfor.
+
+Manglende svar inden for den lovbestemte frist kan medføre klage til Datatilsynet i medfør af artikel 77.
+
+Med venlig hilsen,
+{{ profile.full_name }}
+
+Vedr.: {{ reference_id }}

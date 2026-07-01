@@ -1,0 +1,22 @@
+Subject: GDPR-klage — manglende overholdelse fra {{ broker_name }} [{{ reference_id }}]
+
+Til: {{ dpa_name }}
+
+Jeg indgiver hermed klage i medfør af artikel 77 i Den almindelige databeskyttelsesforordning (EU) 2016/679 vedrørende {{ broker_name }}s (kontakt: {{ broker_email }}) manglende overholdelse af mine rettigheder efter forordningen.
+
+Klagens nærmere omstændigheder:
+- Den {{ original_date }} indgav jeg en anmodning om databeskyttelse til {{ broker_name }} (Vedr.: {{ reference_id }}).
+- Den lovbestemte svarfrist på én måned, jf. artikel 12, stk. 3, er overskredet.
+- Jeg har afsendt en rykker og en sidste varsling, men har ikke modtaget et materielt svar.
+
+Mine identifikationsoplysninger:
+- Navn: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.addresses %}- Adresse: {{ profile.addresses[0].formatted }}
+{% endif %}
+Jeg anmoder Datatilsynet om at undersøge sagen og træffe relevante håndhævelsesforanstaltninger.
+
+Med venlig hilsen,
+{{ profile.full_name }}
+
+Vedr.: {{ reference_id }}

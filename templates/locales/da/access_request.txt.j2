@@ -1,0 +1,25 @@
+Subject: Anmodning om indsigt jf. artikel 15 i Databeskyttelsesforordningen — {{ profile.full_name }} [{{ reference_id }}]
+
+Til Databeskyttelsesrådgiveren hos {{ broker_name }},
+
+I medfør af artikel 15 i Den almindelige databeskyttelsesforordning (EU) 2016/679 anmoder jeg om bekræftelse af, hvorvidt I behandler personoplysninger om mig. Såfremt det er tilfældet, anmoder jeg om en kopi af samtlige personoplysninger, I har om mig, samt følgende oplysninger, jf. artikel 15, stk. 1:
+
+- Formålene med behandlingen
+- De berørte kategorier af personoplysninger
+- De modtagere, som oplysningerne er videregivet til
+- Det påtænkte tidsrum for opbevaring eller kriterierne herfor
+- Kilden til oplysningerne, hvis de ikke er indsamlet hos mig
+
+Mine identifikationsoplysninger:
+- Navn: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Telefon: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Fødselsdato: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adresse: {{ profile.addresses[0].formatted }}
+{% endif %}
+I bedes besvare anmodningen inden for én måned, jf. artikel 12, stk. 3. Manglende svar inden for den lovbestemte frist udgør en overtrædelse af forordningen og kan medføre klage til Datatilsynet.
+
+Med venlig hilsen,
+{{ profile.full_name }}
+
+Vedr.: {{ reference_id }}
