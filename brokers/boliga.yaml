@@ -1,0 +1,12 @@
+name: Boliga
+domain: boliga.dk
+category: other
+dpo_email: info@boliga.dk
+removal_method: email
+removal_url: null
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "DK property listing/sales-history archive. Photos shown only with listing agency permission — removal requires contacting both Boliga and the agent."

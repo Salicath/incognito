@@ -1,0 +1,12 @@
+name: Das Telefonbuch
+domain: dastelefonbuch.de
+category: people_search
+dpo_email: datenschutz@dastelefonbuch.de
+removal_method: web_form
+removal_url: https://www.dastelefonbuch.de/eintragloeschen
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-05-13"
+notes: "German phone directory. Self-service Eintragslöschung form."

@@ -1,0 +1,12 @@
+name: Boligsiden
+domain: boligsiden.dk
+category: other
+dpo_email: kontakt@boligsiden.dk
+removal_method: email
+removal_url: null
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "DK property listing aggregator. Historical listings retained indefinitely. Removal of personal photos in old listings: contact agency or kontakt@boligsiden.dk per GDPR Art. 17. Sale data is public-record-adjacent and may not be erased."

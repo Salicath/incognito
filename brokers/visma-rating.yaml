@@ -1,0 +1,12 @@
+name: Visma Rating
+domain: vismarating.dk
+category: credit_agency
+dpo_email: privacy@visma.com
+removal_method: email
+removal_url: null
+country: DK
+gdpr_applies: true
+verification_required: true
+language: da
+last_verified: "2026-05-13"
+notes: "Datatilsynet-approved kreditoplysningsbureau (Visma). Statutory retention applies."

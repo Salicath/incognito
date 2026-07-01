@@ -1,0 +1,12 @@
+name: ErhvervsKrak
+domain: erhvervskrak.dk
+category: data_broker
+dpo_email: privacy@eniro.com
+removal_method: web_form
+removal_url: https://www.erhvervskrak.dk/privacy
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "B2B variant of Krak (Eniro Group). Aggregates CVR data — covered by CVR adressebeskyttelse on next refresh cycle."

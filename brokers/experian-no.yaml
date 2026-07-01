@@ -1,0 +1,12 @@
+name: Experian Norge
+domain: experian.no
+category: credit_agency
+dpo_email: dpo.no@experian.com
+removal_method: web_form
+removal_url: https://www.experian.no/personvern
+country: "NO"
+gdpr_applies: true
+verification_required: true
+language: nb
+last_verified: "2026-05-13"
+notes: "Norwegian credit bureau. Statutory retention applies."

@@ -1,0 +1,12 @@
+name: Allabolag
+domain: allabolag.se
+category: data_broker
+dpo_email: dataskydd@uc.se
+removal_method: web_form
+removal_url: https://www.uc.se/personuppgifter
+country: SE
+gdpr_applies: true
+verification_required: false
+language: sv
+last_verified: "2026-05-13"
+notes: "Swedish company-data aggregator. Owned by UC AB (D&B Nordic) — uses UC's privacy portal."

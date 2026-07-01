@@ -1,0 +1,12 @@
+name: Finder.fi
+domain: finder.fi
+category: data_broker
+dpo_email: tietosuoja@fonecta.fi
+removal_method: web_form
+removal_url: https://www.finder.fi/tietosuoja
+country: FI
+gdpr_applies: true
+verification_required: false
+language: fi
+last_verified: "2026-05-13"
+notes: "Finnish B2B aggregator. Operated by Fonecta — shared privacy portal."

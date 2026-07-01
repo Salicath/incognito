@@ -1,0 +1,12 @@
+name: Debitor Registret
+domain: registret.dk
+category: credit_agency
+dpo_email: dpo@dnb.com
+removal_method: web_form
+removal_url: https://www.registret.dk/kontakt
+country: DK
+gdpr_applies: true
+verification_required: true
+language: da
+last_verified: "2026-05-13"
+notes: "Datatilsynet-approved kreditoplysningsbureau (D&B Denmark). Statutory retention applies — registered debt cannot be erased before lovbestemt frist."

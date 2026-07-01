@@ -1,0 +1,12 @@
+name: MeinProspekt
+domain: meinprospekt.de
+category: marketing
+dpo_email: datenschutz@meinprospekt.de
+removal_method: web_form
+removal_url: https://www.meinprospekt.de/datenschutz
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-05-13"
+notes: "German prospect/marketing aggregator."

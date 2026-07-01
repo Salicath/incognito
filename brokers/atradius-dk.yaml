@@ -1,0 +1,12 @@
+name: Atradius Danmark
+domain: atradius.dk
+category: credit_agency
+dpo_email: dataprotection@atradius.com
+removal_method: web_form
+removal_url: https://group.atradius.com/privacy-statement
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "Datatilsynet-approved B2B credit/insurance bureau. Personal exposure usually limited to sole proprietors and company directors."

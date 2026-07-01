@@ -1,0 +1,12 @@
+name: Lexbase
+domain: lexbase.se
+category: people_search
+dpo_email: kontakt@lexbase.se
+removal_method: web_form
+removal_url: https://www.lexbase.se/kontakt
+country: SE
+gdpr_applies: false
+verification_required: false
+language: sv
+last_verified: "2026-05-13"
+notes: "Swedish court-records publisher operating under utgivningsbevis (publishing certificate) — legally GDPR-exempt. Voluntary opt-out exists. Högsta domstolen ruling 2024 restricts new data feeds. Treat as best-effort."

@@ -1,0 +1,12 @@
+name: UC AB
+domain: uc.se
+category: credit_agency
+dpo_email: dataskydd@uc.se
+removal_method: web_form
+removal_url: https://www.uc.se/personuppgifter
+country: SE
+gdpr_applies: true
+verification_required: true
+language: sv
+last_verified: "2026-05-13"
+notes: "Nordic credit bureau (D&B-owned). Parent of Allabolag. Statutory retention applies to credit history."

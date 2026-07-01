@@ -1,0 +1,12 @@
+name: Experian Danmark (RKI / KOB / DinInfo)
+domain: experian.dk
+category: credit_agency
+dpo_email: dpo.dk@experian.com
+removal_method: web_form
+removal_url: https://www.dininfo.dk
+country: DK
+gdpr_applies: true
+verification_required: true
+language: da
+last_verified: "2026-05-13"
+notes: "Datatilsynet-approved kreditoplysningsbureau. Operates RKI (Ribers Kreditinformation) and KOB. Self-service indsigt at dininfo.dk (MitID). Statutory retention applies — credit history cannot be erased while a registreret skyldforhold exists."

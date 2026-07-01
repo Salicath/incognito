@@ -1,0 +1,12 @@
+name: Risika
+domain: risika.dk
+category: credit_agency
+dpo_email: dpo@risika.com
+removal_method: web_form
+removal_url: https://risika.dk/da/privacy/
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "Danish CVR aggregator and approved kreditoplysningsbureau. Refreshes from CVR/tinglysning/statstidende — CVR adressebeskyttelse propagates here on next ingest. Honours GDPR Art. 16/21 directly."

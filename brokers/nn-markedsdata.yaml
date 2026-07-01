@@ -1,0 +1,12 @@
+name: NN Markedsdata
+domain: nnmarkedsdata.dk
+category: marketing
+dpo_email: compliance@dnb.com
+removal_method: web_form
+removal_url: https://www.dnb.com/da-dk/privacy
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "DK B2B marketing lists. Owned by D&B/Bisnode DK — covered by parent DSR portal."

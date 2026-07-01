@@ -1,0 +1,12 @@
+name: Yasni
+domain: yasni.de
+category: people_search
+dpo_email: datenschutz@yasni.de
+removal_method: web_form
+removal_url: https://www.yasni.de/?action=privacy
+country: DE
+gdpr_applies: true
+verification_required: false
+language: de
+last_verified: "2026-05-13"
+notes: "German people-search engine indexing public web mentions. EU-wide reach despite DE focus."

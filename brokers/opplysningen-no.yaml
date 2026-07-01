@@ -1,0 +1,12 @@
+name: Opplysningen 1881
+domain: opplysningen.no
+category: people_search
+dpo_email: personvern@1881.no
+removal_method: web_form
+removal_url: https://www.1881.no/Personvern/
+country: "NO"
+gdpr_applies: true
+verification_required: false
+language: nb
+last_verified: "2026-05-13"
+notes: "Same operator as 1881.no (Digitale Medier 1881). Telco-fed — hemmelig nummer flag propagates here."

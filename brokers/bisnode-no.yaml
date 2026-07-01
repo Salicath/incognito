@@ -1,0 +1,12 @@
+name: Bisnode Norge
+domain: bisnode.no
+category: credit_agency
+dpo_email: compliance@dnb.com
+removal_method: web_form
+removal_url: https://www.dnb.com/no-no/privacy
+country: "NO"
+gdpr_applies: true
+verification_required: false
+language: nb
+last_verified: "2026-05-13"
+notes: "D&B Norway. Covered by parent D&B DSR portal."

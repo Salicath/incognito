@@ -1,0 +1,12 @@
+name: De Gule Sider
+domain: degulesider.dk
+category: people_search
+dpo_email: privacy@eniro.com
+removal_method: web_form
+removal_url: https://www.degulesider.dk/privacy
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "Danish phone and business directory. Shared backend with Krak (same Eniro DK platform). CPR navne-/adressebeskyttelse cascades here within roughly a day."

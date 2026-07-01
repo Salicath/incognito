@@ -1,0 +1,12 @@
+name: Proff Iceland
+domain: proff.is
+category: data_broker
+dpo_email: personuvernd@proff.is
+removal_method: web_form
+removal_url: https://www.proff.is/personuvernd
+country: IS
+gdpr_applies: true
+verification_required: false
+language: is
+last_verified: "2026-05-13"
+notes: "Icelandic company-data aggregator. Enento Group footprint."

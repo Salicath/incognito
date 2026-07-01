@@ -1,0 +1,12 @@
+name: Creditsafe Danmark
+domain: creditsafe.com
+category: credit_agency
+dpo_email: dataprotection@creditsafe.com
+removal_method: web_form
+removal_url: https://www.creditsafe.com/dk/da/privacy
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "Datatilsynet-approved kreditoplysningsbureau. Personal data exposure for sole proprietors via CVR feed."

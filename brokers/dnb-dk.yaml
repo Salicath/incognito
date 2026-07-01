@@ -1,0 +1,12 @@
+name: Dun & Bradstreet Danmark (Bisnode DK)
+domain: dnb.com
+category: data_broker
+dpo_email: compliance@dnb.com
+removal_method: web_form
+removal_url: https://www.dnb.com/da-dk/privacy
+country: DK
+gdpr_applies: true
+verification_required: false
+language: da
+last_verified: "2026-05-13"
+notes: "D&B took over Bisnode Danmark. Owns NN Markedsdata, Greens, Soliditet, Infodirekt. Chokepoint — a single DSR portal covers the entire D&B DK cluster."

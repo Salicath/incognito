@@ -1,0 +1,12 @@
+name: Enento Group
+domain: enento.com
+category: credit_agency
+dpo_email: privacy@enento.com
+removal_method: web_form
+removal_url: https://www.enento.com/privacy
+country: FI
+gdpr_applies: true
+verification_required: false
+language: en
+last_verified: "2026-05-13"
+notes: "Nordic credit-information parent. Owns Asiakastieto, UC AB, Proff (incl. NO/IS). Chokepoint."
