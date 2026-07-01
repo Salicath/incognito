@@ -1,4 +1,5 @@
 """Tests for the brokers update CLI command."""
+import re
 from unittest.mock import MagicMock, patch
 
 import yaml
@@ -7,6 +8,13 @@ from typer.testing import CliRunner
 from cli import app
 
 runner = CliRunner()
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain(output: str) -> str:
+    """Strip ANSI color codes so assertions survive FORCE_COLOR environments."""
+    return _ANSI.sub("", output)
 
 
 def _mock_github_api(yaml_files: list[dict]):
@@ -62,7 +70,7 @@ def test_brokers_update_adds_new(mock_get, tmp_path, monkeypatch):
 
     result = runner.invoke(app, ["brokers", "update"])
     assert result.exit_code == 0
-    assert "1 new" in result.output
+    assert "1 new" in _plain(result.output)
     assert (brokers_dir / "new-broker.yaml").exists()
 
 
@@ -88,7 +96,7 @@ def test_brokers_update_skips_invalid_yaml(mock_get, tmp_path, monkeypatch):
 
     result = runner.invoke(app, ["brokers", "update"])
     assert result.exit_code == 0
-    assert "0 new" in result.output
+    assert "0 new" in _plain(result.output)
 
 
 @patch("httpx.get")
@@ -101,4 +109,4 @@ def test_brokers_update_network_error(mock_get, tmp_path, monkeypatch):
 
     result = runner.invoke(app, ["brokers", "update"])
     assert result.exit_code == 1
-    assert "Failed" in result.output
+    assert "Failed" in _plain(result.output)
