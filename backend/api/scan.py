@@ -168,6 +168,7 @@ def create_scan_router(
         "progress": 0,
         "total": 0,
         "error": None,
+        "email": "",
     }
     _account_lock = asyncio.Lock()
 
@@ -182,6 +183,26 @@ def create_scan_router(
             report = await check_email_accounts(email, on_progress=on_progress)
             _account_state["report"] = report
             _account_state["error"] = None
+
+            # Persist per-email so the history survives the next scan overwriting in-memory state
+            if db_session_factory and report.hits:
+                from backend.core.rescan import save_scan_results
+                db = db_session_factory()
+                try:
+                    hits = [
+                        {
+                            "broker_domain": h.url,
+                            "broker_name": h.service,
+                            "email": report.email,
+                            "url": h.url,
+                            "email_recovery": h.email_recovery,
+                            "phone_recovery": h.phone_recovery,
+                        }
+                        for h in report.hits
+                    ]
+                    save_scan_results(db, hits, source=f"holehe:{report.email}")
+                finally:
+                    db.close()
         except Exception as e:
             log.error("Account scan failed: %s", e)
             _account_state["error"] = "Account scan failed. Check logs for details."
@@ -213,6 +234,7 @@ def create_scan_router(
             _account_state["started_at"] = time.time()
             _account_state["progress"] = 0
             _account_state["error"] = None
+            _account_state["email"] = target_email
 
         background_tasks.add_task(_run_account_scan, target_email)
 
@@ -250,6 +272,7 @@ def create_scan_router(
             "progress": _account_state["progress"],
             "total": _account_state["total"],
             "error": _account_state.get("error"),
+            "email": _account_state.get("email", ""),
         }
 
     # HIBP breach check state

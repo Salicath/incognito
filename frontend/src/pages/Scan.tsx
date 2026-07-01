@@ -537,7 +537,7 @@ export default function Scan() {
             <div className="flex items-center gap-3 mb-3">
               <Loader2 className="w-5 h-5 text-violet-600 animate-spin" />
               <p className="text-violet-900 font-medium">
-                Checking {accountEmail}... {account.progress}/{account.total} services checked
+                Checking {account.runningLabel || accountEmail}... {account.progress}/{account.total} services checked
               </p>
             </div>
             <div className="w-full bg-violet-200 rounded-full h-2">

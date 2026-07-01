@@ -7,11 +7,12 @@ interface TaskState<T> {
   error: string;
   results: T | null;
   hasResults: boolean;
+  runningLabel: string;
 }
 
 interface UseAsyncTaskOptions<T> {
   startFn: (...args: unknown[]) => Promise<{ status: string; [key: string]: unknown }>;
-  statusFn: () => Promise<{ running: boolean; progress?: number; total?: number; error?: string | null }>;
+  statusFn: () => Promise<{ running: boolean; progress?: number; total?: number; error?: string | null; email?: string }>;
   resultsFn: () => Promise<T & { has_results: boolean }>;
   pollInterval?: number;
 }
@@ -24,6 +25,7 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
     error: "",
     results: null,
     hasResults: false,
+    runningLabel: "",
   });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
@@ -59,6 +61,7 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
           ...prev,
           progress: status.progress ?? prev.progress,
           total: status.total ?? prev.total,
+          runningLabel: status.email ?? prev.runningLabel,
         }));
         if (status.error) {
           setState((prev) => ({ ...prev, error: status.error!, running: false }));
@@ -94,12 +97,14 @@ export function useAsyncTask<T>({ startFn, statusFn, resultsFn, pollInterval = 2
   }
 
   async function start(...args: unknown[]) {
-    setState((prev) => ({ ...prev, running: true, error: "", progress: 0 }));
+    setState((prev) => ({ ...prev, running: true, error: "", progress: 0, results: null, hasResults: false, runningLabel: "" }));
     try {
       const data = await startFn(...args);
+      const dataObj = data as Record<string, unknown>;
       setState((prev) => ({
         ...prev,
-        total: ((data as Record<string, unknown>).total as number | undefined) ?? prev.total,
+        total: (dataObj.total as number | undefined) ?? prev.total,
+        runningLabel: (dataObj.email as string | undefined) ?? prev.runningLabel,
       }));
       startPolling();
       return data;

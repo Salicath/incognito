@@ -60,8 +60,8 @@ async def check_email_accounts(email: str, on_progress=None) -> AccountReport:
                     ))
 
             report.checked = total
-    except ImportError:
-        report.errors.append("holehe not installed — pip install holehe")
+    except ImportError as e:
+        report.errors.append(f"holehe or one of its dependencies failed to import: {e}")
     except Exception as e:
         report.errors.append(str(e))
 
