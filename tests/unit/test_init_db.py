@@ -133,7 +133,12 @@ def test_init_db_schema_ahead_of_migrations(tmp_path):
             text("SELECT version_num FROM alembic_version")
         ).scalar()
         # Should be at head now, not stuck at old revision
-        assert version == "728004833dea"
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+
+        from backend.db.session import ALEMBIC_INI
+        head = ScriptDirectory.from_config(Config(str(ALEMBIC_INI))).get_current_head()
+        assert version == head
 
 
 def test_schema_matches_models_complete(tmp_path):

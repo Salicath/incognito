@@ -8,6 +8,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from backend.api.auth import create_auth_router
 from backend.api.blast import create_blast_router
 from backend.api.brokers import create_brokers_router
+from backend.api.cpr_levers import create_cpr_levers_router
 from backend.api.deps import LoginRateLimiter, SessionStore
 from backend.api.requests import create_requests_router
 from backend.api.scan import create_scan_router
@@ -15,6 +16,7 @@ from backend.api.settings import create_settings_router
 from backend.api.setup import create_setup_router
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
+from backend.core.cpr_lever import CprLeverRegistry
 from backend.core.notifier import init_notifier
 from backend.core.profile import ProfileVault
 from backend.db.session import init_db
@@ -98,6 +100,9 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     broker_registry = BrokerRegistry.load(brokers_dir)
     app.state.broker_registry = broker_registry
 
+    lever_registry = CprLeverRegistry.load(brokers_dir / "cpr_levers.yaml")
+    app.state.lever_registry = lever_registry
+
     app.state.imap_poller = None
     broker_domain_set = {b.domain.lower() for b in broker_registry.brokers}
     app.state.broker_domains = broker_domain_set
@@ -112,6 +117,9 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         secure_cookies=config.secure_cookies,
     ))
     app.include_router(create_brokers_router(broker_registry, session_store))
+    app.include_router(create_cpr_levers_router(
+        lever_registry, broker_registry, session_store, db_session_factory,
+    ))
     app.include_router(create_requests_router(
         db_session_factory, session_store, config.gdpr_deadline_days, broker_registry,
     ))
@@ -120,6 +128,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     ))
     app.include_router(create_blast_router(
         vault, session_store, broker_registry, db_session_factory, config,
+        lever_registry=lever_registry,
     ))
     app.include_router(create_settings_router(
         vault, session_store, broker_registry, config, db_session_factory,

@@ -33,6 +33,15 @@ class EmailDirection(enum.StrEnum):
     OUTBOUND = "outbound"
 
 
+class CprLeverStatus(enum.StrEnum):
+    NEW = "new"
+    USER_NOTIFIED = "user_notified"
+    ACTIVE = "active"
+    RENEWAL_DUE = "renewal_due"
+    EXPIRED = "expired"
+    USER_DEFERRED = "user_deferred"
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -94,6 +103,24 @@ class EmailMessage(Base):
     body_text: Mapped[str] = mapped_column(Text, nullable=False)
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+
+class CprLeverState(Base):
+    __tablename__ = "cpr_lever_state"
+
+    lever_id: Mapped[str] = mapped_column(String, primary_key=True)
+    status: Mapped[CprLeverStatus] = mapped_column(
+        Enum(CprLeverStatus), nullable=False, default=CprLeverStatus.NEW
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    user_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
     )
 
 

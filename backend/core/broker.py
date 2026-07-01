@@ -53,7 +53,7 @@ class BrokerRegistry:
             return cls(brokers)
 
         for path in sorted(directory.glob("*.yaml")):
-            if path.stem == "schema":
+            if path.stem in ("schema", "cpr_levers"):
                 continue
             try:
                 data = yaml.safe_load(path.read_text())

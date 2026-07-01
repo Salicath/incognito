@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (242 tests, 201 brokers, 23 DPAs)
+# Run tests (268 tests, 228 brokers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -42,7 +42,7 @@ incognito report             # Privacy score and exposure report
 ## Architecture
 
 **Backend** (`backend/`):
-- `api/` — FastAPI routes (auth, blast, brokers, requests, scan, settings, setup)
+- `api/` — FastAPI routes (auth, blast, brokers, cpr_levers, requests, scan, settings, setup)
 - `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry, IMAP poller)
 - `db/` — SQLAlchemy models + Alembic migrations. SQLite with WAL mode.
 - `scanner/` — DuckDuckGo search, Holehe account discovery, HIBP breach check
@@ -59,7 +59,8 @@ incognito report             # Privacy score and exposure report
 - Session store holds derived keys, never raw passwords
 - Each API router is a factory function receiving its dependencies (no global state)
 - Broker registry loaded from YAML files in `brokers/`
-- Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, de, fr, es, it, nl, pl, ccpa
+- Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl, ccpa
+- CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`)
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
@@ -114,6 +115,7 @@ pytest tests/unit/test_init_db.py -v          # DB migration handling
 pytest tests/unit/test_notifier.py -v         # Push notification system
 pytest tests/unit/test_exposure_report.py -v  # Exposure report API
 pytest tests/unit/test_brokers_update.py -v   # Broker update command
+pytest tests/unit/test_cpr_lever.py -v        # CPR lever track (DK upstream protections)
 ```
 
 ## Dependencies

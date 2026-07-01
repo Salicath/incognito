@@ -1,0 +1,101 @@
+# CPR lever track — Danish upstream protections (see docs/tracks/cpr_lever.md).
+# Not a broker file: loaded by CprLeverRegistry, skipped by BrokerRegistry.
+# Facts verified 2026-07-01 against borger.dk, cpr.dk, forbrugerombudsmanden.dk, krak.dk.
+
+levers:
+  - lever_id: dk_cpr_navnebeskyttelse
+    name: Navne- og adressebeskyttelse (CPR)
+    description: >
+      Blocks release of your name and address from CPR to private parties,
+      including directories and postal services. Applied via your municipality
+      on borger.dk. Expires after one year — you must reapply yourself.
+    url: https://www.borger.dk/bolig-og-flytning/flytning_oversigt/navne-og-adressebeskyttelse
+    requires_mitid: true
+    expires_after_days: 365
+    cascade_broker_ids:
+      - krak-dk
+      - degulesider-dk
+      - 118-dk
+      - eniro-dk
+    mutual_exclusion:
+      - dk_robinsonlisten
+    notes: >
+      Highest-leverage single action for a Dane. Also auto-applies CVR address
+      protection. Cascades to directory sites within days-to-weeks via CPR/telco
+      feed refreshes. Municipality can grant longer than 1 year only in special
+      circumstances.
+
+  - lever_id: dk_robinsonlisten
+    name: Robinsonlisten (markedsføringsbeskyttelse)
+    description: >
+      CPR marketing-protection flag. Companies must check the list before
+      sending addressed sales mail or cold-calling. Takes up to 3 months to
+      take effect. Does not cover unaddressed flyers, email, or SMS.
+    url: https://www.borger.dk/bolig-og-flytning/beskyttelse-mod-reklamer/Robinsonlisten-markedsfoeringsbeskyttelse
+    requires_mitid: true
+    expires_after_days: null
+    cascade_broker_ids: []
+    mutual_exclusion:
+      - dk_cpr_navnebeskyttelse
+    notes: >
+      Registry rule: you cannot join Robinsonlisten while navne- og
+      adressebeskyttelse is active (the list may not contain protected persons).
+      Navnebeskyttelse is the superset — prefer it.
+
+  - lever_id: dk_krak_selvbetjening
+    name: Krak / De Gule Sider selvbetjening
+    description: >
+      Remove or edit your entry on krak.dk directly via opdater.krak.dk
+      (MitID + SMS one-time code). Krak and De Gule Sider share one backend,
+      so removal applies to both.
+    url: https://opdater.krak.dk/person
+    requires_mitid: true
+    expires_after_days: null
+    cascade_broker_ids:
+      - krak-dk
+      - degulesider-dk
+    notes: >
+      Independent of the CPR path — works even without navnebeskyttelse,
+      and faster (immediate vs feed-refresh delay).
+
+  - lever_id: dk_telco_hemmeligt_nummer
+    name: Hemmeligt nummer hos teleudbyder
+    description: >
+      Request an unlisted number with your telco (TDC/YouSee, Telia, Telenor,
+      3). Stops your number feeding into 118.dk and directory sites on the
+      next feed refresh.
+    url: ""
+    requires_mitid: false
+    expires_after_days: null
+    cascade_broker_ids:
+      - 118-dk
+    notes: Per-provider self-service or support call; free on all major Danish telcos.
+
+  - lever_id: dk_nej_tak_reklamer
+    name: Reklamer Nej Tak (PostNord)
+    description: >
+      Physical opt-out sticker/registration for unaddressed flyers. Complements
+      Robinsonlisten (which only covers addressed mail and calls).
+    url: https://www.postnord.dk/modtag-post-og-pakker/reklamer-nej-tak
+    requires_mitid: false
+    expires_after_days: null
+    cascade_broker_ids: []
+
+  - lever_id: dk_cvr_adressebeskyttelse
+    name: Adressebeskyttelse i CVR
+    description: >
+      Hides your private address on CVR roles (director, board member, owner).
+      Auto-applied if CPR navne- og adressebeskyttelse is active; otherwise
+      request it at Erhvervsstyrelsen. Protection has a 5-year tail after a
+      role ends.
+    url: https://erhvervsstyrelsen.dk/nemmere-faa-adressebeskyttelse-i-cvr
+    requires_mitid: true
+    expires_after_days: null
+    cascade_broker_ids:
+      - erhvervskrak-dk
+      - risika-dk
+      - nnmarkedsdata-dk
+      - vismarating-dk
+    notes: >
+      Kills the private-address exposure that CVR aggregators republish.
+      Only relevant if you hold or held a CVR role.

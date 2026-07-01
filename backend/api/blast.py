@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry, RemovalMethod
 from backend.core.config import AppConfig
+from backend.core.cpr_lever import CprLeverRegistry, covered_broker_ids
 from backend.core.profile import ProfileVault
 from backend.core.request import RequestManager
 from backend.core.template import TemplateRenderer
@@ -20,6 +21,7 @@ def create_blast_router(
     broker_registry: BrokerRegistry,
     db_session_factory,
     config: AppConfig,
+    lever_registry: CprLeverRegistry | None = None,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/blast", tags=["blast"])
 
@@ -58,12 +60,27 @@ def create_blast_router(
             ).all()
             existing_broker_ids = {req.broker_id for req in existing}
 
+            # Brokers already covered by an active CPR lever need no Art. 17 send
+            lever_covered: set[str] = set()
+            if lever_registry and lever_registry.levers:
+                from backend.db.models import CprLeverState
+                lever_states = {
+                    s.lever_id: (s.status.value, s.expires_at)
+                    for s in db.query(CprLeverState).all()
+                }
+                lever_covered = covered_broker_ids(lever_registry, lever_states)
+
             created = []
             skipped = []
+            covered = []
 
             for broker in broker_registry.brokers:
                 if broker.id in existing_broker_ids:
                     skipped.append(broker.id)
+                    continue
+
+                if broker.id in lever_covered:
+                    covered.append(broker.id)
                     continue
 
                 if body.dry_run:
@@ -93,6 +110,7 @@ def create_blast_router(
                 "dry_run": body.dry_run,
                 "created": len(created),
                 "skipped": len(skipped),
+                "covered_by_lever": len(covered),
                 "total_brokers": len(broker_registry.brokers),
                 "requests": created,
             }
