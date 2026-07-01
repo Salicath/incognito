@@ -32,6 +32,11 @@ export const api = {
   getProfile: () => request<Record<string, unknown>>("/profile"),
   getBrokers: () => request<Array<Record<string, unknown>>>("/brokers"),
   getBroker: (id: string) => request<Record<string, unknown>>(`/brokers/${id}`),
+  getCprLevers: () => request<Array<Record<string, unknown>>>("/cpr-levers"),
+  confirmCprLever: (id: string) =>
+    request<{ status: string; activated_at: string; expires_at: string | null }>(`/cpr-levers/${id}/confirm`, { method: "POST" }),
+  deferCprLever: (id: string, note: string) =>
+    request<{ status: string }>(`/cpr-levers/${id}/defer`, { method: "POST", body: JSON.stringify({ note }) }),
   getRequests: (status?: string) =>
     request<Array<Record<string, unknown>>>(
       `/requests${status ? `?status=${encodeURIComponent(status)}` : ""}`

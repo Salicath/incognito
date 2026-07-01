@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut, Menu, X, Moon, Sun, FileBarChart } from "lucide-react";
+import { Shield, LayoutDashboard, Send, Database, Search, Settings, LogOut, Menu, X, Moon, Sun, FileBarChart, Fingerprint } from "lucide-react";
 import { api } from "../api/client";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/requests", icon: Send, label: "Requests" },
   { to: "/brokers", icon: Database, label: "Brokers" },
+  { to: "/levers", icon: Fingerprint, label: "CPR Levers" },
   { to: "/scan", icon: Search, label: "Scan" },
   { to: "/report", icon: FileBarChart, label: "Report" },
   { to: "/settings", icon: Settings, label: "Settings" },
