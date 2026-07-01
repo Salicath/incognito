@@ -76,8 +76,9 @@ export default function Settings() {
   // Profile editing state
   const [editingProfile, setEditingProfile] = useState(false);
   const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPhone, setEditPhone] = useState("");
+  const [editEmails, setEditEmails] = useState<string[]>([""]);
+  const [editPhones, setEditPhones] = useState<string[]>([""]);
+  const [editPreviousNames, setEditPreviousNames] = useState<string[]>([]);
   const [editDob, setEditDob] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState({ type: "", text: "" });
@@ -107,8 +108,11 @@ export default function Settings() {
       }
       // Populate profile edit fields with current values
       setEditName((prof.full_name as string) || "");
-      setEditEmail(((prof.emails as string[]) || [])[0] || "");
-      setEditPhone(((prof.phones as string[]) || [])[0] || "");
+      const emails = (prof.emails as string[]) || [];
+      setEditEmails(emails.length > 0 ? emails : [""]);
+      const phones = (prof.phones as string[]) || [];
+      setEditPhones(phones.length > 0 ? phones : [""]);
+      setEditPreviousNames((prof.previous_names as string[]) || []);
       setEditDob((prof.date_of_birth as string) || "");
       if (smtpData.configured) {
         setSmtpForm({ host: smtpData.host || "", port: smtpData.port || 587, username: smtpData.username || "", password: "" });
@@ -200,8 +204,9 @@ export default function Settings() {
     try {
       await api.saveProfile({
         full_name: editName,
-        emails: [editEmail].filter((e) => e.trim()),
-        phones: [editPhone].filter((p) => p.trim()),
+        previous_names: editPreviousNames.map((n) => n.trim()).filter(Boolean),
+        emails: editEmails.map((e) => e.trim()).filter(Boolean),
+        phones: editPhones.map((p) => p.trim()).filter(Boolean),
         date_of_birth: editDob || undefined,
       });
       setProfileMessage({ type: "success", text: "Profile saved." });
@@ -596,34 +601,128 @@ export default function Settings() {
         <div className="p-5">
           {profile ? (
             editingProfile ? (
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Full name"
-                  className={inputClass}
-                />
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="Primary email"
-                  className={inputClass}
-                />
-                <input
-                  type="tel"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  placeholder="Phone (optional)"
-                  className={inputClass}
-                />
-                <input
-                  type="date"
-                  value={editDob}
-                  onChange={(e) => setEditDob(e.target.value)}
-                  className={inputClass}
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Full name</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Full name"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Previous names <span className="text-gray-400">(maiden, married, old legal)</span></label>
+                    <button
+                      type="button"
+                      onClick={() => setEditPreviousNames([...editPreviousNames, ""])}
+                      className="text-xs text-indigo-600 hover:text-indigo-700"
+                    >
+                      + Add name
+                    </button>
+                  </div>
+                  {editPreviousNames.length === 0 && (
+                    <p className="text-xs text-gray-400 italic">None</p>
+                  )}
+                  {editPreviousNames.map((name, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setEditPreviousNames(editPreviousNames.map((n, j) => j === i ? e.target.value : n))}
+                        placeholder="Previous name"
+                        className={inputClass}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditPreviousNames(editPreviousNames.filter((_, j) => j !== i))}
+                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Emails <span className="text-gray-400">(current + every old/alt you can recall — broader = better scan)</span></label>
+                    <button
+                      type="button"
+                      onClick={() => setEditEmails([...editEmails, ""])}
+                      className="text-xs text-indigo-600 hover:text-indigo-700"
+                    >
+                      + Add email
+                    </button>
+                  </div>
+                  {editEmails.map((email, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEditEmails(editEmails.map((v, j) => j === i ? e.target.value : v))}
+                        placeholder={i === 0 ? "Primary email" : "Alt / old email"}
+                        className={inputClass}
+                      />
+                      {editEmails.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setEditEmails(editEmails.filter((_, j) => j !== i))}
+                          className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Phones <span className="text-gray-400">(current + old numbers)</span></label>
+                    <button
+                      type="button"
+                      onClick={() => setEditPhones([...editPhones, ""])}
+                      className="text-xs text-indigo-600 hover:text-indigo-700"
+                    >
+                      + Add phone
+                    </button>
+                  </div>
+                  {editPhones.map((phone, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setEditPhones(editPhones.map((v, j) => j === i ? e.target.value : v))}
+                        placeholder={i === 0 ? "Primary phone" : "Old phone"}
+                        className={inputClass}
+                      />
+                      {editPhones.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setEditPhones(editPhones.filter((_, j) => j !== i))}
+                          className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Date of birth</label>
+                  <input
+                    type="date"
+                    value={editDob}
+                    onChange={(e) => setEditDob(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     onClick={handleSaveProfile}
@@ -645,10 +744,13 @@ export default function Settings() {
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-4">
                   <p><span className="font-medium">Name:</span> {profile.full_name as string}</p>
-                  <p><span className="font-medium">Email:</span> {(profile.emails as string[])?.join(", ")}</p>
+                  {(profile.previous_names as string[])?.length > 0 && (
+                    <p><span className="font-medium">Previous:</span> {(profile.previous_names as string[]).join(", ")}</p>
+                  )}
+                  <p><span className="font-medium">Emails:</span> {(profile.emails as string[])?.join(", ")}</p>
                   {profile.date_of_birth != null && <p><span className="font-medium">DOB:</span> {String(profile.date_of_birth)}</p>}
                   {(profile.phones as string[])?.length > 0 && (profile.phones as string[])[0] && (
-                    <p><span className="font-medium">Phone:</span> {(profile.phones as string[]).join(", ")}</p>
+                    <p><span className="font-medium">Phones:</span> {(profile.phones as string[]).join(", ")}</p>
                   )}
                 </div>
                 <button
