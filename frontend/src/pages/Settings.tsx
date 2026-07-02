@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useSettingsSection } from "../hooks/useSettingsSection";
-import { Mail, Inbox, User, Info, CheckCircle, Loader2, ShieldAlert, Download, Upload, Bell } from "lucide-react";
+import { Mail, Inbox, User, Info, CheckCircle, Loader2, ShieldAlert, Download, Upload, Bell, Github } from "lucide-react";
 
 interface SmtpStatus {
   configured: boolean;
@@ -21,6 +21,11 @@ interface ImapStatus {
 }
 
 interface HibpStatus {
+  configured: boolean;
+  key_preview?: string;
+}
+
+interface GithubStatus {
   configured: boolean;
   key_preview?: string;
 }
@@ -47,6 +52,7 @@ export default function Settings() {
   const smtp = useSettingsSection<SmtpStatus>();
   const imap = useSettingsSection<ImapStatus>();
   const hibp = useSettingsSection<HibpStatus>();
+  const githubTok = useSettingsSection<GithubStatus>();
 
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
@@ -59,6 +65,9 @@ export default function Settings() {
 
   const [hibpKeyInput, setHibpKeyInput] = useState("");
   const [hibpDeleting, setHibpDeleting] = useState(false);
+
+  const [githubTokenInput, setGithubTokenInput] = useState("");
+  const [githubDeleting, setGithubDeleting] = useState(false);
 
   const [notifyStatus, setNotifyStatus] = useState<{ configured: boolean; url: string | null } | null>(null);
   const [notifyTesting, setNotifyTesting] = useState(false);
@@ -90,18 +99,20 @@ export default function Settings() {
 
   async function loadData() {
     try {
-      const [smtpData, info, prof, hibpData, imapData, notifyData] = await Promise.all([
+      const [smtpData, info, prof, hibpData, imapData, notifyData, githubData] = await Promise.all([
         api.getSmtpStatus(),
         api.getAppInfo(),
         api.getProfile(),
         api.getHibpStatus(),
         api.getImapStatus(),
         api.getNotificationStatus(),
+        api.getGithubTokenStatus(),
       ]);
       smtp.setStatus(smtpData);
       setAppInfo(info);
       setProfile(prof);
       hibp.setStatus(hibpData);
+      githubTok.setStatus(githubData);
       imap.setStatus(imapData);
       setNotifyStatus(notifyData);
       if (imapData.configured) {
@@ -132,6 +143,30 @@ export default function Settings() {
       setHibpKeyInput("");
       loadData();
     });
+  }
+
+  async function handleSaveGithubToken() {
+    await githubTok.withSaving(async () => {
+      await api.saveGithubToken(githubTokenInput.trim());
+      githubTok.setMessage({ type: "success", text: "Token saved." });
+      githubTok.setShowForm(false);
+      setGithubTokenInput("");
+      loadData();
+    });
+  }
+
+  async function handleDeleteGithubToken() {
+    setGithubDeleting(true);
+    githubTok.setMessage({ type: "", text: "" });
+    try {
+      await api.deleteGithubToken();
+      githubTok.setMessage({ type: "success", text: "Token removed." });
+      loadData();
+    } catch (e) {
+      githubTok.setMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
+    } finally {
+      setGithubDeleting(false);
+    }
   }
 
   async function handleDeleteHibpKey() {
@@ -538,6 +573,88 @@ export default function Settings() {
           )}
 
           <SettingsMessage message={hibp.message} />
+        </div>
+      </div>
+
+      {/* GitHub Code Search Token */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <Github className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <h2 className="font-semibold">GitHub token (code leak scan)</h2>
+        </div>
+        <div className="p-5">
+          {githubTok.status && !githubTok.status.configured && !githubTok.showForm && (
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                Optional: add a{" "}
+                <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer"
+                  className="text-indigo-600 underline hover:text-indigo-800">
+                  GitHub personal access token
+                </a>{" "}
+                so the Scan page can search public code for your leaked email or phone.
+                A classic token with no scopes selected is enough.
+              </p>
+              <button onClick={() => githubTok.setShowForm(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                Add Token
+              </button>
+            </div>
+          )}
+
+          {githubTok.status && githubTok.status.configured && !githubTok.showForm && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-700 font-medium">GitHub token configured</span>
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                <p><span className="font-medium">Token:</span> {githubTok.status.key_preview}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => githubTok.setShowForm(true)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                  Update
+                </button>
+                <button onClick={handleDeleteGithubToken} disabled={githubDeleting}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition disabled:opacity-50">
+                  {githubDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Remove Token
+                </button>
+              </div>
+            </div>
+          )}
+
+          {githubTok.showForm && (
+            <div className="space-y-3">
+              <input
+                type="password"
+                placeholder="Paste your GitHub token here (ghp_...)"
+                value={githubTokenInput}
+                onChange={(e) => setGithubTokenInput(e.target.value)}
+                className={inputClass}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Create one at{" "}
+                <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer"
+                  className="text-indigo-600 underline">
+                  github.com/settings/tokens
+                </a>. No scopes needed. The token is stored in plain text in your data directory.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={handleSaveGithubToken} disabled={githubTok.saving || !githubTokenInput.trim()}
+                  className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50">
+                  {githubTok.saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Save
+                </button>
+                <button onClick={() => { githubTok.setShowForm(false); setGithubTokenInput(""); githubTok.setMessage({ type: "", text: "" }); }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          <SettingsMessage message={githubTok.message} />
         </div>
       </div>
 

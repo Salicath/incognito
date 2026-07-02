@@ -67,6 +67,14 @@ export const api = {
   getWaybackResults: () =>
     request<{ has_results: boolean; usernames: string[]; checked: number; hits: Array<{ platform: string; username: string; url: string; snapshots: number; first_snapshot: string; last_snapshot: string; archive_url: string }>; errors: string[] }>("/scan/wayback/results"),
   getWaybackStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/wayback/status"),
+  startGithubScan: () =>
+    request<{ status: string; identifiers: string[] }>("/scan/github/start", { method: "POST" }),
+  getGithubResults: () =>
+    request<{ has_results: boolean; identifiers: string[]; checked: number; hits: Array<{ identifier: string; repository: string; path: string; url: string }>; errors: string[] }>("/scan/github/results"),
+  getGithubStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/github/status"),
+  getGithubTokenStatus: () => request<{ configured: boolean; key_preview?: string }>("/settings/github"),
+  saveGithubToken: (apiKey: string) => request("/settings/github", { method: "POST", body: JSON.stringify({ api_key: apiKey }) }),
+  deleteGithubToken: () => request("/settings/github", { method: "DELETE" }),
   getHibpStatus: () => request<{ configured: boolean; key_preview?: string }>("/settings/hibp"),
   saveHibpKey: (apiKey: string) => request("/settings/hibp", { method: "POST", body: JSON.stringify({ api_key: apiKey }) }),
   deleteHibpKey: () => request("/settings/hibp", { method: "DELETE" }),

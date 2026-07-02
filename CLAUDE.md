@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (292 tests, 220 brokers, 23 DPAs)
+# Run tests (309 tests, 220 brokers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -45,7 +45,7 @@ incognito report             # Privacy score and exposure report
 - `api/` — FastAPI routes (auth, blast, brokers, cpr_levers, requests, scan, settings, setup)
 - `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry, IMAP poller)
 - `db/` — SQLAlchemy models + Alembic migrations. SQLite with WAL mode.
-- `scanner/` — DuckDuckGo search, Holehe account discovery, HIBP breach check, Wayback CDX archived-profile scan
+- `scanner/` — DuckDuckGo search, Holehe account discovery, HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan
 - `senders/` — Email sender (SMTP), web form sender (Playwright), base result types
 
 **Frontend** (`frontend/src/`):
@@ -117,6 +117,7 @@ pytest tests/unit/test_exposure_report.py -v  # Exposure report API
 pytest tests/unit/test_brokers_update.py -v   # Broker update command
 pytest tests/unit/test_cpr_lever.py -v        # CPR lever track (DK upstream protections)
 pytest tests/unit/test_wayback.py -v          # Wayback CDX archived-profile scanner
+pytest tests/unit/test_github_scanner.py -v   # GitHub code-leak scanner
 ```
 
 ## Dependencies

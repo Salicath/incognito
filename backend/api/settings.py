@@ -111,6 +111,43 @@ def create_settings_router(
             key_path.unlink()
         return {"status": "deleted"}
 
+    @r.get("/github")
+    def get_github_token(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        key_path = config.data_dir / "github_token.txt"
+        if key_path.exists():
+            key = key_path.read_text().strip()
+            preview = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
+            return {"configured": True, "key_preview": preview}
+        return {"configured": False}
+
+    @r.post("/github")
+    def update_github_token(body: dict, session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        key = body.get("api_key", "").strip()
+        if not key:
+            raise HTTPException(status_code=400, detail="Token required")
+        if len(key) > 10_000:
+            raise HTTPException(status_code=400, detail="Token too long")
+        import os
+        key_path = config.data_dir / "github_token.txt"
+        tmp_path = key_path.with_suffix(".tmp")
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, key.encode())
+        finally:
+            os.close(fd)
+        os.replace(tmp_path, key_path)
+        return {"status": "saved"}
+
+    @r.delete("/github")
+    def delete_github_token(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        key_path = config.data_dir / "github_token.txt"
+        if key_path.exists():
+            key_path.unlink()
+        return {"status": "deleted"}
+
     @r.post("/test-smtp")
     async def test_smtp(session: str | None = Cookie(default=None)):
         key, _salt = session_store.validate(session)

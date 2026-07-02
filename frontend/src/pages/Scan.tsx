@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAsyncTask } from "../hooks/useAsyncTask";
-import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail, ShieldAlert, RefreshCw } from "lucide-react";
+import { Search, ExternalLink, AlertTriangle, CheckCircle, Loader2, Mail, ShieldAlert, RefreshCw, Github } from "lucide-react";
 
 interface ScanHit {
   broker_domain: string;
@@ -56,6 +56,21 @@ interface WaybackResults {
   errors: string[];
 }
 
+interface GithubHit {
+  identifier: string;
+  repository: string;
+  path: string;
+  url: string;
+}
+
+interface GithubResults {
+  has_results: boolean;
+  identifiers: string[];
+  checked: number;
+  hits: GithubHit[];
+  errors: string[];
+}
+
 interface BreachResults {
   has_results: boolean;
   email: string;
@@ -87,6 +102,13 @@ export default function Scan() {
     resultsFn: api.getWaybackResults,
   });
 
+  const [githubConfigured, setGithubConfigured] = useState<boolean | null>(null);
+  const github = useAsyncTask<GithubResults>({
+    startFn: () => api.startGithubScan(),
+    statusFn: api.getGithubStatus,
+    resultsFn: api.getGithubResults,
+  });
+
   const [breachEmailInput, setBreachEmailInput] = useState("");
   const [hibpConfigured, setHibpConfigured] = useState<boolean | null>(null);
   const breach = useAsyncTask<BreachResults>({
@@ -109,6 +131,7 @@ export default function Scan() {
 
   useEffect(() => {
     api.getHibpStatus().then((s) => setHibpConfigured(s.configured)).catch(() => setHibpConfigured(false));
+    api.getGithubTokenStatus().then((s) => setGithubConfigured(s.configured)).catch(() => setGithubConfigured(false));
     api.getProfile().then((p) => {
       const emails = (p as Record<string, unknown>).emails as string[] | undefined;
       if (emails && emails.length > 0) setProfileEmails(emails);
@@ -787,6 +810,136 @@ export default function Scan() {
                 <p className="text-green-900 font-medium">No archived profiles found</p>
                 <p className="text-green-700 text-sm mt-1">
                   The Wayback Machine has no snapshots of profile pages for these usernames.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* GitHub Code Search Scanner */}
+      <div className="mt-10">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold">Code Leak Scanner</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
+            Search public GitHub code for your email or phone — leaked in old commits, <code>.env</code> files, and gists
+          </p>
+          {githubConfigured === false && (
+            <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg mb-4 text-sm">
+              A GitHub personal access token is required (code search is authenticated-only).
+              Add one under Settings → GitHub token. A classic token with no scopes is enough.
+            </div>
+          )}
+          <button
+            onClick={() => github.start()}
+            disabled={github.running || !githubConfigured}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-900 transition disabled:opacity-50"
+          >
+            {github.running ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Searching...</>
+            ) : (
+              <><Github className="w-4 h-4" /> {github.hasResults ? "Search Again" : "Search Code"}</>
+            )}
+          </button>
+        </div>
+
+        {github.error && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{github.error}</div>
+        )}
+
+        {github.running && (
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className="w-5 h-5 text-gray-700 dark:text-gray-300 animate-spin" />
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                Searching {github.runningLabel}... {github.progress}/{github.total} identifiers checked
+              </p>
+            </div>
+            <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-2">
+              <div
+                className="bg-gray-700 dark:bg-gray-400 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${github.total > 0 ? Math.round((github.progress / github.total) * 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-gray-500 dark:text-gray-400 text-xs mt-2">
+              GitHub code search is rate-limited to ~10 queries/min, so this paces itself (~7s per identifier).
+            </p>
+          </div>
+        )}
+
+        {!github.running && !github.hasResults && !github.error && githubConfigured && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+            <Github className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No code scan results yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
+              Click "Search Code" to search public GitHub for your email and phone.
+              Hits often point to leaked config committed by a service you signed up with.
+            </p>
+          </div>
+        )}
+
+        {!github.running && github.hasResults && (
+          <>
+            {((github.results as GithubResults | null)?.errors ?? []).map((err) => (
+              <div key={err} className="bg-yellow-50 text-yellow-800 px-4 py-3 rounded-lg mb-4 text-sm">{err}</div>
+            ))}
+            <div className="flex gap-4 mb-6">
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex-1">
+                <div className="flex items-center gap-3">
+                  {((github.results as GithubResults | null)?.hits.length ?? 0) > 0 ? (
+                    <AlertTriangle className="w-8 h-8 text-orange-500" />
+                  ) : (
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                  )}
+                  <div>
+                    <p className="text-2xl font-bold">{(github.results as GithubResults | null)?.hits.length ?? 0}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">code matches found</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex-1">
+                <p className="text-2xl font-bold">{(github.results as GithubResults | null)?.checked ?? 0}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  identifiers searched: <span className="font-medium">{((github.results as GithubResults | null)?.identifiers ?? []).join(", ")}</span>
+                </p>
+              </div>
+            </div>
+
+            {((github.results as GithubResults | null)?.hits.length ?? 0) > 0 ? (
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold">Code Matches Found</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Your identifier appears in these public files. Open an issue or contact the repo owner to have it removed.
+                  </p>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {((github.results as GithubResults | null)?.hits ?? []).map((hit) => (
+                    <div key={hit.url} className="px-5 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Github className="w-4 h-4 text-gray-500 shrink-0" />
+                            <span className="font-medium text-sm truncate">{hit.repository}</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{hit.identifier}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{hit.path}</p>
+                        </div>
+                        <a href={hit.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0 ml-4">
+                          <ExternalLink className="w-3 h-3" /> View file
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
+                <p className="text-green-900 font-medium">No code leaks found</p>
+                <p className="text-green-700 text-sm mt-1">
+                  None of your identifiers appear in public GitHub code.
                 </p>
               </div>
             )}

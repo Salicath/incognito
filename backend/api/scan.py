@@ -399,6 +399,126 @@ def create_scan_router(
             "email": ", ".join(_wayback_state.get("usernames", [])),
         }
 
+    # GitHub Code Search scan state
+    _github_state: dict = {
+        "report": None,
+        "running": False,
+        "started_at": 0,
+        "progress": 0,
+        "total": 0,
+        "error": None,
+        "identifiers": [],
+    }
+    _github_lock = asyncio.Lock()
+
+    async def _run_github_scan(identifiers: list[str], token: str):
+        try:
+            from backend.scanner.github_scanner import check_github_exposure
+
+            def on_progress(checked, total):
+                _github_state["progress"] = checked
+                _github_state["total"] = total
+
+            report = await check_github_exposure(
+                identifiers, token, on_progress=on_progress
+            )
+            _github_state["report"] = report
+            _github_state["error"] = None
+
+            if db_session_factory and report.hits:
+                from backend.core.rescan import save_scan_results
+                db = db_session_factory()
+                try:
+                    hits = [
+                        {
+                            "broker_domain": h.repository,
+                            "broker_name": f"GitHub: {h.repository}",
+                            "url": h.url,
+                            "identifier": h.identifier,
+                            "path": h.path,
+                        }
+                        for h in report.hits
+                    ]
+                    save_scan_results(db, hits, source="github")
+                finally:
+                    db.close()
+        except Exception as e:
+            log.error("GitHub scan failed: %s", e)
+            _github_state["error"] = "GitHub scan failed. Check logs for details."
+        finally:
+            _github_state["running"] = False
+
+    @r.post("/github/start")
+    async def start_github_scan(
+        background_tasks: BackgroundTasks,
+        session: str | None = Cookie(default=None),
+    ):
+        key, _salt = session_store.validate(session)
+        profile, _, _ = vault.load_with_key(key)
+
+        token_path = (config.data_dir / "github_token.txt") if config else None
+        if not token_path or not token_path.exists():
+            raise HTTPException(status_code=400, detail="GitHub token not configured")
+        token = token_path.read_text().strip()
+
+        from backend.scanner.github_scanner import identifiers_from_profile
+
+        identifiers = identifiers_from_profile(profile.emails, profile.phones)
+        if not identifiers:
+            raise HTTPException(status_code=400, detail="No identifiers to search")
+
+        async with _github_lock:
+            elapsed = time.time() - _github_state["started_at"]
+            if _github_state["running"] and not (elapsed > stuck_timeout):
+                raise HTTPException(status_code=409, detail="GitHub scan already running")
+
+            _github_state["running"] = True
+            _github_state["started_at"] = time.time()
+            _github_state["progress"] = 0
+            _github_state["error"] = None
+            _github_state["identifiers"] = identifiers
+
+        background_tasks.add_task(_run_github_scan, identifiers, token)
+
+        return {"status": "started", "identifiers": identifiers}
+
+    @r.get("/github/results")
+    def get_github_results(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+
+        report = _github_state.get("report")
+        if report is None:
+            return {"hits": [], "checked": 0, "has_results": False, "identifiers": []}
+
+        return {
+            "has_results": True,
+            "identifiers": report.identifiers,
+            "checked": report.checked,
+            "hits": [
+                {
+                    "identifier": h.identifier,
+                    "repository": h.repository,
+                    "path": h.path,
+                    "url": h.url,
+                }
+                for h in report.hits
+            ],
+            "errors": report.errors,
+        }
+
+    @r.get("/github/status")
+    def github_scan_status(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        elapsed = time.time() - _github_state["started_at"]
+        running = _github_state["running"] and not (elapsed > stuck_timeout)
+        return {
+            "running": running,
+            "progress": _github_state["progress"],
+            "total": _github_state["total"],
+            "error": _github_state.get("error"),
+            "email": ", ".join(_github_state.get("identifiers", [])),
+        }
+
     # HIBP breach check state
     _breach_state: dict = {
         "report": None,
