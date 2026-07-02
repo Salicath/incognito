@@ -37,8 +37,10 @@ PROFILE_URL_PATTERNS: list[tuple[str, str]] = [
     ("About.me", "about.me/{u}"),
 ]
 
-# Politeness delay between CDX queries; the endpoint rate-limits bursts.
-REQUEST_DELAY_SECONDS = 0.3
+# Politeness delay between CDX queries; the endpoint rate-limits bursts
+# aggressively at the IP level (observed 429s on single requests).
+REQUEST_DELAY_SECONDS = 1.5
+RATE_LIMIT_BACKOFF_SECONDS = 20
 
 
 @dataclass
@@ -93,10 +95,21 @@ async def check_wayback_profiles(
     if own_client:
         client = httpx.AsyncClient(timeout=30.0, headers={"User-Agent": "incognito-selfscan"})
 
+    async def _query_with_retry(url: str) -> list[list[str]]:
+        try:
+            return await _query_cdx(client, url)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 429:
+                raise
+            retry_after = e.response.headers.get("Retry-After")
+            delay = int(retry_after) if retry_after and retry_after.isdigit() else 0
+            await asyncio.sleep(min(max(delay, RATE_LIMIT_BACKOFF_SECONDS), 60))
+            return await _query_cdx(client, url)
+
     try:
         for i, (platform, username, url) in enumerate(checks):
             try:
-                rows = await _query_cdx(client, url)
+                rows = await _query_with_retry(url)
                 if rows:
                     timestamps = sorted(row[0] for row in rows)
                     last = timestamps[-1]

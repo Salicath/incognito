@@ -46,6 +46,7 @@ def _cdx_handler(archived_urls: dict[str, list[list[str]]]):
 class TestScanner:
     async def _scan(self, usernames, handler, monkeypatch):
         monkeypatch.setattr("backend.scanner.wayback.REQUEST_DELAY_SECONDS", 0)
+        monkeypatch.setattr("backend.scanner.wayback.RATE_LIMIT_BACKOFF_SECONDS", 0)
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             return await check_wayback_profiles(usernames, client=client)
 
@@ -87,15 +88,28 @@ class TestScanner:
             )
         assert seen[-1] == (len(PROFILE_URL_PATTERNS), len(PROFILE_URL_PATTERNS))
 
-    async def test_rate_limit_stops_scan_with_partial_results(self, monkeypatch):
+    async def test_persistent_rate_limit_stops_scan(self, monkeypatch):
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(429)
 
         report = await self._scan(["someone"], handler, monkeypatch)
         assert report.hits == []
         assert any("Rate limited" in e for e in report.errors)
-        # stopped early, did not hammer the endpoint
+        # stopped early after the one backoff retry, did not hammer the endpoint
         assert report.checked < len(PROFILE_URL_PATTERNS)
+
+    async def test_transient_rate_limit_recovers_after_retry(self, monkeypatch):
+        calls = {"n": 0}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return httpx.Response(429)
+            return httpx.Response(200, json=[])
+
+        report = await self._scan(["someone"], handler, monkeypatch)
+        assert report.errors == []
+        assert report.checked == len(PROFILE_URL_PATTERNS)
 
     async def test_multiple_usernames_checked(self, monkeypatch):
         handler = _cdx_handler({
