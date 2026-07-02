@@ -116,6 +116,10 @@ class CprLeverState(Base):
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     user_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Renewal notification ladder: 0=none, 1=T-30 sent, 2=T-7 sent, 3=expiry sent
+    reminder_stage: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

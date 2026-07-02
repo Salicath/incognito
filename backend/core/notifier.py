@@ -25,6 +25,8 @@ class EventType(enum.StrEnum):
     NEW_EXPOSURE = "new_exposure"
     BLAST_COMPLETE = "blast_complete"
     FOLLOW_UP_COMPLETE = "follow_up_complete"
+    LEVER_RENEWAL_DUE = "lever_renewal_due"
+    LEVER_EXPIRED = "lever_expired"
 
 
 # Map event types to Ntfy priorities and tags
@@ -36,6 +38,8 @@ _NTFY_META: dict[EventType, tuple[str, str]] = {
     EventType.NEW_EXPOSURE: ("4", "eyes"),
     EventType.BLAST_COMPLETE: ("3", "outbox_tray"),
     EventType.FOLLOW_UP_COMPLETE: ("3", "calendar"),
+    EventType.LEVER_RENEWAL_DUE: ("4", "calendar"),
+    EventType.LEVER_EXPIRED: ("5", "hourglass"),
 }
 
 

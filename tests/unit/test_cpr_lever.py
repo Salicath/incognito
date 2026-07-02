@@ -3,6 +3,8 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from backend.core.broker import BrokerRegistry
 from backend.core.cpr_lever import (
     CprLever,
@@ -204,3 +206,147 @@ class TestBlastIntegration:
             "/api/blast/create", json={"request_type": "erasure", "dry_run": True}
         )
         assert resp.json()["covered_by_lever"] == 0
+
+
+class TestRenewalCheck:
+    """Nightly renewal job: stage-tracked notifications at T-30, T-7, and expiry."""
+
+    @pytest.fixture
+    def db(self, tmp_path):
+        from backend.db.session import init_db
+
+        factory = init_db(tmp_path / "test.db")
+        session = factory()
+        yield session
+        session.close()
+
+    @pytest.fixture
+    def sent(self, monkeypatch):
+        events = []
+        monkeypatch.setattr(
+            "backend.core.cpr_lever.notify",
+            lambda event, title, body: events.append((event, title, body)),
+        )
+        return events
+
+    def _seed(self, db, expires_in_days, status=None, stage=0):
+        from backend.db.models import CprLeverState, CprLeverStatus
+
+        now = datetime.now(UTC)
+        state = CprLeverState(
+            lever_id="test_lever",
+            status=status or CprLeverStatus.ACTIVE,
+            activated_at=now - timedelta(days=1),
+            expires_at=(
+                now + timedelta(days=expires_in_days)
+                if expires_in_days is not None
+                else None
+            ),
+            reminder_stage=stage,
+        )
+        db.add(state)
+        db.commit()
+        return state
+
+    def _check(self, db):
+        from backend.core.cpr_lever import check_lever_renewals
+
+        return check_lever_renewals(db, CprLeverRegistry([_lever()]))
+
+    def test_far_from_expiry_does_nothing(self, db, sent):
+        self._seed(db, expires_in_days=200)
+        result = self._check(db)
+        assert result.renewal_due == result.escalated == result.expired == []
+        assert sent == []
+
+    def test_persistent_lever_untouched(self, db, sent):
+        self._seed(db, expires_in_days=None)
+        result = self._check(db)
+        assert result.renewal_due == []
+        assert sent == []
+
+    def test_t30_notifies_once_and_persists_renewal_due(self, db, sent):
+        from backend.db.models import CprLeverState, CprLeverStatus
+
+        self._seed(db, expires_in_days=20)
+        result = self._check(db)
+        assert result.renewal_due == ["test_lever"]
+        assert len(sent) == 1
+
+        state = db.get(CprLeverState, "test_lever")
+        assert state.status == CprLeverStatus.RENEWAL_DUE
+        assert state.reminder_stage == 1
+
+        # second nightly run: no duplicate notification
+        assert self._check(db).renewal_due == []
+        assert len(sent) == 1
+
+    def test_t7_escalates_once(self, db, sent):
+        from backend.db.models import CprLeverState, CprLeverStatus
+
+        self._seed(db, expires_in_days=5, status=CprLeverStatus.RENEWAL_DUE, stage=1)
+        result = self._check(db)
+        assert result.escalated == ["test_lever"]
+        assert len(sent) == 1
+        assert db.get(CprLeverState, "test_lever").reminder_stage == 2
+
+        assert self._check(db).escalated == []
+        assert len(sent) == 1
+
+    def test_expiry_transitions_and_notifies(self, db, sent):
+        from backend.db.models import CprLeverState, CprLeverStatus
+
+        self._seed(db, expires_in_days=-1, status=CprLeverStatus.RENEWAL_DUE, stage=2)
+        result = self._check(db)
+        assert result.expired == ["test_lever"]
+        assert len(sent) == 1
+
+        state = db.get(CprLeverState, "test_lever")
+        assert state.status == CprLeverStatus.EXPIRED
+        assert state.reminder_stage == 3
+
+        # expired levers drop out of the query — nothing further happens
+        assert self._check(db).expired == []
+        assert len(sent) == 1
+
+    def test_skips_stages_when_already_inside_window(self, db, sent):
+        """Confirmed 5 days before expiry: goes straight to the T-7 escalation."""
+        from backend.db.models import CprLeverState
+
+        self._seed(db, expires_in_days=5)
+        result = self._check(db)
+        assert result.escalated == ["test_lever"]
+        assert result.renewal_due == []
+        assert len(sent) == 1
+        assert db.get(CprLeverState, "test_lever").reminder_stage == 2
+
+    def test_unknown_lever_in_db_ignored(self, db, sent):
+        from backend.core.cpr_lever import check_lever_renewals
+
+        self._seed(db, expires_in_days=5)
+        result = check_lever_renewals(db, CprLeverRegistry([]))
+        assert result.renewal_due == result.escalated == result.expired == []
+        assert sent == []
+
+    def test_reconfirm_resets_reminder_stage(self, authenticated_client):
+        from backend.db.models import CprLeverState
+
+        authenticated_client.post("/api/cpr-levers/dk_cpr_navnebeskyttelse/confirm")
+
+        factory = authenticated_client.app.state.db_session_factory
+        db = factory()
+        try:
+            state = db.get(CprLeverState, "dk_cpr_navnebeskyttelse")
+            state.expires_at = datetime.now(UTC) - timedelta(days=2)
+            state.reminder_stage = 3
+            db.commit()
+        finally:
+            db.close()
+
+        authenticated_client.post("/api/cpr-levers/dk_cpr_navnebeskyttelse/confirm")
+        db = factory()
+        try:
+            state = db.get(CprLeverState, "dk_cpr_navnebeskyttelse")
+            assert state.reminder_stage == 0
+        finally:
+            db.close()

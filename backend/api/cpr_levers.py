@@ -96,6 +96,7 @@ def create_cpr_levers_router(
             state.status = CprLeverStatus.ACTIVE
             state.activated_at = now
             state.expires_at = compute_expiry(lever, now)
+            state.reminder_stage = 0
             db.merge(state)
             db.commit()
             return {

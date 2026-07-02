@@ -188,6 +188,24 @@ def follow_up(
     session = session_factory()
 
     try:
+        from pathlib import Path
+
+        from backend.core.cpr_lever import CprLeverRegistry, check_lever_renewals
+        from backend.core.notifier import init_notifier
+
+        init_notifier(config.notify_url)
+
+        levers_path = config.brokers_dir / "cpr_levers.yaml"
+        if not levers_path.exists():
+            levers_path = Path(__file__).parent / "brokers" / "cpr_levers.yaml"
+        renewals = check_lever_renewals(session, CprLeverRegistry.load(levers_path))
+        for lever_id in renewals.renewal_due:
+            console.print(f"[yellow]CPR lever due for renewal: {lever_id}[/]")
+        for lever_id in renewals.escalated:
+            console.print(f"[red]CPR lever expires within 7 days: {lever_id}[/]")
+        for lever_id in renewals.expired:
+            console.print(f"[red]CPR lever EXPIRED — cascade brokers re-exposed: {lever_id}[/]")
+
         mgr = RequestManager(session, config.gdpr_deadline_days)
         overdue = mgr.find_overdue()
 
@@ -203,8 +221,6 @@ def follow_up(
                 )
 
         if auto:
-            from pathlib import Path
-
             from backend.core.scheduler import run_follow_ups
             from backend.core.template import TemplateRenderer
 
@@ -223,9 +239,6 @@ def follow_up(
                     raise typer.Exit(code=1)
 
             profile, smtp, _ = vault.load(password)
-
-            from backend.core.notifier import init_notifier
-            init_notifier(config.notify_url)
 
             templates_dir = Path(__file__).parent / "templates"
             if not templates_dir.exists():

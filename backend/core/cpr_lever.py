@@ -9,15 +9,19 @@ See docs/tracks/cpr_lever.md for the full state machine.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel
 
+from backend.core.notifier import EventType, notify
+
 log = logging.getLogger("incognito.cpr_lever")
 
 RENEWAL_WARNING_DAYS = 30
+ESCALATION_WARNING_DAYS = 7
 
 
 class CprLever(BaseModel):
@@ -94,3 +98,77 @@ def covered_broker_ids(
         if status in ("active", "renewal_due"):
             covered.update(lever.cascade_broker_ids)
     return covered
+
+
+@dataclass
+class RenewalCheckResult:
+    renewal_due: list[str] = field(default_factory=list)
+    escalated: list[str] = field(default_factory=list)
+    expired: list[str] = field(default_factory=list)
+
+
+def check_lever_renewals(db, registry: CprLeverRegistry) -> RenewalCheckResult:
+    """Nightly job: walk time-dependent lever states and notify once per stage.
+
+    Stage ladder on CprLeverState.reminder_stage keeps this idempotent:
+    0 -> 1 at T-30 (renewal due), 1 -> 2 at T-7 (escalated), 2 -> 3 at expiry.
+    A lever confirmed inside a window skips straight to the current stage.
+    """
+    from backend.db.models import CprLeverState, CprLeverStatus
+
+    result = RenewalCheckResult()
+    now = datetime.now(UTC)
+    states = (
+        db.query(CprLeverState)
+        .filter(CprLeverState.status.in_([CprLeverStatus.ACTIVE, CprLeverStatus.RENEWAL_DUE]))
+        .all()
+    )
+    dirty = False
+    for state in states:
+        lever = registry.get(state.lever_id)
+        if lever is None or state.expires_at is None:
+            continue
+        expires_at = state.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+
+        if now >= expires_at:
+            if state.reminder_stage < 3:
+                state.status = CprLeverStatus.EXPIRED
+                state.reminder_stage = 3
+                notify(
+                    EventType.LEVER_EXPIRED,
+                    f"{lever.name} has expired",
+                    f"{len(lever.cascade_broker_ids)} covered broker(s) are re-exposed. "
+                    f"Renew now: {lever.url}",
+                )
+                result.expired.append(state.lever_id)
+                dirty = True
+        elif now >= expires_at - timedelta(days=ESCALATION_WARNING_DAYS):
+            if state.reminder_stage < 2:
+                state.status = CprLeverStatus.RENEWAL_DUE
+                state.reminder_stage = 2
+                notify(
+                    EventType.LEVER_RENEWAL_DUE,
+                    f"{lever.name} expires in under {ESCALATION_WARNING_DAYS} days",
+                    f"Renew before {expires_at.date().isoformat()} or "
+                    f"{len(lever.cascade_broker_ids)} broker(s) become re-exposed: {lever.url}",
+                )
+                result.escalated.append(state.lever_id)
+                dirty = True
+        elif (
+            now >= expires_at - timedelta(days=RENEWAL_WARNING_DAYS)
+            and state.reminder_stage < 1
+        ):
+            state.status = CprLeverStatus.RENEWAL_DUE
+            state.reminder_stage = 1
+            notify(
+                EventType.LEVER_RENEWAL_DUE,
+                f"{lever.name} is due for renewal",
+                f"Expires {expires_at.date().isoformat()}. Renew via MitID: {lever.url}",
+            )
+            result.renewal_due.append(state.lever_id)
+            dirty = True
+    if dirty:
+        db.commit()
+    return result
