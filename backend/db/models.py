@@ -139,3 +139,6 @@ class ScanResult(Base):
         DateTime(timezone=True), nullable=False, default=_utcnow
     )
     actioned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Triage disposition: None = needs triage; else "actioned" | "dismissed" | "legally_impossible"
+    disposition: Mapped[str | None] = mapped_column(String, nullable=True)
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")

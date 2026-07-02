@@ -108,6 +108,16 @@ export const api = {
       total_checked: number;
       scan_date?: string;
     }>("/scan/rescan"),
+  getExposures: () =>
+    request<{
+      exposures: Array<{ id: number; source: string; source_label: string; title: string; url: string; data: Record<string, unknown>; scanned_at: string | null; disposition: string | null; note: string }>;
+      summary: { total: number; needs_triage: number; actioned: number; dismissed: number; legally_impossible: number };
+    }>("/scan/exposures"),
+  setExposureDisposition: (id: number, disposition: string | null, note?: string) =>
+    request<{ id: number; disposition: string | null; note: string; actioned: boolean }>(`/scan/exposures/${id}/disposition`, {
+      method: "POST",
+      body: JSON.stringify({ disposition, note: note ?? "" }),
+    }),
   getScanHistory: () =>
     request<{
       results: Array<{ id: number; source: string; broker_id: string; found_data: unknown; scanned_at: string | null; actioned: boolean }>;

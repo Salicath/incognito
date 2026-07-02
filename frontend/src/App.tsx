@@ -9,6 +9,7 @@ import RequestDetailPage from "./pages/RequestDetail";
 import Brokers from "./pages/Brokers";
 import CprLevers from "./pages/CprLevers";
 import Scan from "./pages/Scan";
+import Exposures from "./pages/Exposures";
 import Settings from "./pages/Settings";
 import Report from "./pages/Report";
 
@@ -57,6 +58,7 @@ function App() {
           <Route path="/brokers" element={<Brokers />} />
           <Route path="/levers" element={<CprLevers />} />
           <Route path="/scan" element={<Scan />} />
+          <Route path="/exposures" element={<Exposures />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/report" element={<Report />} />
         </Route>

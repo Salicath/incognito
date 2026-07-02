@@ -701,4 +701,117 @@ def create_scan_router(
         finally:
             db.close()
 
+    # --- Exposure triage inbox ---
+    # Aggregates every scan hit across sources into one queue so each can be
+    # driven to a terminal disposition (the v1 "route everything" goal).
+    valid_dispositions = {"actioned", "dismissed", "legally_impossible"}
+
+    # Human labels per scanner source.
+    source_labels = {
+        "duckduckgo": "Web search",
+        "wayback": "Web archive",
+        "github": "Code leak",
+    }
+
+    def _source_label(source: str) -> str:
+        # holehe:<email> and similar carry a suffix
+        base = source.split(":", 1)[0]
+        if base == "holehe":
+            return "Account"
+        return source_labels.get(base, base)
+
+    def _exposure_title(source: str, data) -> str:
+        if not isinstance(data, dict):
+            return source
+        return (
+            data.get("broker_name")
+            or data.get("service")
+            or data.get("repository")
+            or data.get("broker_domain")
+            or source
+        )
+
+    @r.get("/exposures")
+    def list_exposures(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        if db_session_factory is None:
+            return {"exposures": [], "summary": {"total": 0, "needs_triage": 0}}
+
+        db = db_session_factory()
+        try:
+            rows = (
+                db.query(ScanResult)
+                .order_by(ScanResult.scanned_at.desc())
+                .limit(500)
+                .all()
+            )
+            exposures = []
+            summary = {
+                "total": 0,
+                "needs_triage": 0,
+                "actioned": 0,
+                "dismissed": 0,
+                "legally_impossible": 0,
+            }
+            for r_ in rows:
+                data = _safe_json(r_.found_data)
+                disposition = r_.disposition
+                summary["total"] += 1
+                if disposition in summary:
+                    summary[disposition] += 1
+                if disposition is None:
+                    summary["needs_triage"] += 1
+                url = data.get("url", "") if isinstance(data, dict) else ""
+                exposures.append(
+                    {
+                        "id": r_.id,
+                        "source": r_.source.split(":", 1)[0],
+                        "source_label": _source_label(r_.source),
+                        "title": _exposure_title(r_.source, data),
+                        "url": url,
+                        "data": data if isinstance(data, dict) else {"raw": data},
+                        "scanned_at": r_.scanned_at.isoformat() if r_.scanned_at else None,
+                        "disposition": disposition,
+                        "note": r_.note or "",
+                    }
+                )
+            return {"exposures": exposures, "summary": summary}
+        finally:
+            db.close()
+
+    @r.post("/exposures/{exposure_id}/disposition")
+    def set_exposure_disposition(
+        exposure_id: int,
+        body: dict,
+        session: str | None = Cookie(default=None),
+    ):
+        session_store.validate(session)
+        if db_session_factory is None:
+            raise HTTPException(status_code=503, detail="Database unavailable")
+
+        disposition = body.get("disposition")
+        note = (body.get("note") or "").strip()
+        if disposition is not None and disposition not in valid_dispositions:
+            raise HTTPException(status_code=400, detail="Invalid disposition")
+        if len(note) > 2000:
+            raise HTTPException(status_code=400, detail="Note too long")
+
+        db = db_session_factory()
+        try:
+            row = db.get(ScanResult, exposure_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="Exposure not found")
+            row.disposition = disposition
+            row.actioned = disposition is not None
+            row.note = note
+            db.commit()
+            return {
+                "id": row.id,
+                "disposition": row.disposition,
+                "note": row.note,
+                "actioned": row.actioned,
+            }
+        finally:
+            db.close()
+
     return r
