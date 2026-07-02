@@ -275,6 +275,130 @@ def create_scan_router(
             "email": _account_state.get("email", ""),
         }
 
+    # Wayback Machine archived-profile scan state
+    _wayback_state: dict = {
+        "report": None,
+        "running": False,
+        "started_at": 0,
+        "progress": 0,
+        "total": 0,
+        "error": None,
+        "usernames": [],
+    }
+    _wayback_lock = asyncio.Lock()
+
+    async def _run_wayback_scan(usernames: list[str]):
+        try:
+            from backend.scanner.wayback import check_wayback_profiles
+
+            def on_progress(checked, total):
+                _wayback_state["progress"] = checked
+                _wayback_state["total"] = total
+
+            report = await check_wayback_profiles(usernames, on_progress=on_progress)
+            _wayback_state["report"] = report
+            _wayback_state["error"] = None
+
+            if db_session_factory and report.hits:
+                from backend.core.rescan import save_scan_results
+                db = db_session_factory()
+                try:
+                    hits = [
+                        {
+                            "broker_domain": h.url,
+                            "broker_name": f"Wayback: {h.platform}",
+                            "url": h.archive_url,
+                            "username": h.username,
+                            "snapshots": h.snapshots,
+                            "last_snapshot": h.last_snapshot,
+                        }
+                        for h in report.hits
+                    ]
+                    save_scan_results(db, hits, source="wayback")
+                finally:
+                    db.close()
+        except Exception as e:
+            log.error("Wayback scan failed: %s", e)
+            _wayback_state["error"] = "Wayback scan failed. Check logs for details."
+        finally:
+            _wayback_state["running"] = False
+
+    @r.post("/wayback/start")
+    async def start_wayback_scan(
+        background_tasks: BackgroundTasks,
+        session: str | None = Cookie(default=None),
+        usernames: str | None = None,
+    ):
+        key, _salt = session_store.validate(session)
+        profile, _, _ = vault.load_with_key(key)
+
+        from backend.scanner.wayback import usernames_from_profile
+
+        if usernames:
+            requested = [u for u in usernames.split(",") if u.strip()]
+            targets = usernames_from_profile(requested, [])
+        else:
+            targets = usernames_from_profile(profile.usernames, profile.emails)
+        if not targets:
+            raise HTTPException(status_code=400, detail="No usernames to check")
+        if len(targets) > 10:
+            raise HTTPException(status_code=400, detail="Too many usernames (max 10)")
+
+        async with _wayback_lock:
+            elapsed = time.time() - _wayback_state["started_at"]
+            if _wayback_state["running"] and not (elapsed > stuck_timeout):
+                raise HTTPException(status_code=409, detail="Wayback scan already running")
+
+            _wayback_state["running"] = True
+            _wayback_state["started_at"] = time.time()
+            _wayback_state["progress"] = 0
+            _wayback_state["error"] = None
+            _wayback_state["usernames"] = targets
+
+        background_tasks.add_task(_run_wayback_scan, targets)
+
+        return {"status": "started", "usernames": targets}
+
+    @r.get("/wayback/results")
+    def get_wayback_results(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+
+        report = _wayback_state.get("report")
+        if report is None:
+            return {"hits": [], "checked": 0, "has_results": False, "usernames": []}
+
+        return {
+            "has_results": True,
+            "usernames": report.usernames,
+            "checked": report.checked,
+            "hits": [
+                {
+                    "platform": h.platform,
+                    "username": h.username,
+                    "url": h.url,
+                    "snapshots": h.snapshots,
+                    "first_snapshot": h.first_snapshot,
+                    "last_snapshot": h.last_snapshot,
+                    "archive_url": h.archive_url,
+                }
+                for h in report.hits
+            ],
+            "errors": report.errors,
+        }
+
+    @r.get("/wayback/status")
+    def wayback_scan_status(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        elapsed = time.time() - _wayback_state["started_at"]
+        running = _wayback_state["running"] and not (elapsed > stuck_timeout)
+        return {
+            "running": running,
+            "progress": _wayback_state["progress"],
+            "total": _wayback_state["total"],
+            "error": _wayback_state.get("error"),
+            "email": ", ".join(_wayback_state.get("usernames", [])),
+        }
+
     # HIBP breach check state
     _breach_state: dict = {
         "report": None,

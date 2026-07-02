@@ -24,6 +24,7 @@ class Profile(BaseModel):
     emails: list[str]
     phones: list[str] = []
     addresses: list[Address] = []
+    usernames: list[str] = []  # handles/aliases for account + archive scanners
 
 
 class SmtpConfig(BaseModel):

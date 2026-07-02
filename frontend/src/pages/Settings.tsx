@@ -79,6 +79,7 @@ export default function Settings() {
   const [editEmails, setEditEmails] = useState<string[]>([""]);
   const [editPhones, setEditPhones] = useState<string[]>([""]);
   const [editPreviousNames, setEditPreviousNames] = useState<string[]>([]);
+  const [editUsernames, setEditUsernames] = useState<string[]>([]);
   const [editDob, setEditDob] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState({ type: "", text: "" });
@@ -113,6 +114,7 @@ export default function Settings() {
       const phones = (prof.phones as string[]) || [];
       setEditPhones(phones.length > 0 ? phones : [""]);
       setEditPreviousNames((prof.previous_names as string[]) || []);
+      setEditUsernames((prof.usernames as string[]) || []);
       setEditDob((prof.date_of_birth as string) || "");
       if (smtpData.configured) {
         setSmtpForm({ host: smtpData.host || "", port: smtpData.port || 587, username: smtpData.username || "", password: "" });
@@ -207,6 +209,7 @@ export default function Settings() {
         previous_names: editPreviousNames.map((n) => n.trim()).filter(Boolean),
         emails: editEmails.map((e) => e.trim()).filter(Boolean),
         phones: editPhones.map((p) => p.trim()).filter(Boolean),
+        usernames: editUsernames.map((u) => u.trim()).filter(Boolean),
         date_of_birth: editDob || undefined,
       });
       setProfileMessage({ type: "success", text: "Profile saved." });
@@ -714,6 +717,40 @@ export default function Settings() {
                 </div>
 
                 <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Usernames <span className="text-gray-400">(handles/aliases — used by account &amp; archive scanners)</span></label>
+                    <button
+                      type="button"
+                      onClick={() => setEditUsernames([...editUsernames, ""])}
+                      className="text-xs text-indigo-600 hover:text-indigo-700"
+                    >
+                      + Add username
+                    </button>
+                  </div>
+                  {editUsernames.length === 0 && (
+                    <p className="text-xs text-gray-400 italic">None — scanners fall back to your email handle</p>
+                  )}
+                  {editUsernames.map((username, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setEditUsernames(editUsernames.map((v, j) => j === i ? e.target.value : v))}
+                        placeholder="Username / handle"
+                        className={inputClass}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditUsernames(editUsernames.filter((_, j) => j !== i))}
+                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Date of birth</label>
                   <input
                     type="date"
@@ -751,6 +788,9 @@ export default function Settings() {
                   {profile.date_of_birth != null && <p><span className="font-medium">DOB:</span> {String(profile.date_of_birth)}</p>}
                   {(profile.phones as string[])?.length > 0 && (profile.phones as string[])[0] && (
                     <p><span className="font-medium">Phones:</span> {(profile.phones as string[]).join(", ")}</p>
+                  )}
+                  {(profile.usernames as string[])?.length > 0 && (
+                    <p><span className="font-medium">Usernames:</span> {(profile.usernames as string[]).join(", ")}</p>
                   )}
                 </div>
                 <button

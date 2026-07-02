@@ -62,6 +62,11 @@ export const api = {
     request<{ status: string; email: string }>(`/scan/accounts/start${email ? `?email=${encodeURIComponent(email)}` : ""}`, { method: "POST" }),
   getAccountResults: () => request<{ has_results: boolean; email: string; checked: number; hits: Array<{ service: string; url: string }>; errors: string[] }>("/scan/accounts/results"),
   getAccountStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/accounts/status"),
+  startWaybackScan: (usernames?: string) =>
+    request<{ status: string; usernames: string[] }>(`/scan/wayback/start${usernames ? `?usernames=${encodeURIComponent(usernames)}` : ""}`, { method: "POST" }),
+  getWaybackResults: () =>
+    request<{ has_results: boolean; usernames: string[]; checked: number; hits: Array<{ platform: string; username: string; url: string; snapshots: number; first_snapshot: string; last_snapshot: string; archive_url: string }>; errors: string[] }>("/scan/wayback/results"),
+  getWaybackStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/wayback/status"),
   getHibpStatus: () => request<{ configured: boolean; key_preview?: string }>("/settings/hibp"),
   saveHibpKey: (apiKey: string) => request("/settings/hibp", { method: "POST", body: JSON.stringify({ api_key: apiKey }) }),
   deleteHibpKey: () => request("/settings/hibp", { method: "DELETE" }),
@@ -110,7 +115,7 @@ export const api = {
   saveSmtp: (smtp: { host: string; port: number; username: string; password: string }) =>
     request("/settings/smtp", { method: "POST", body: JSON.stringify({ smtp }) }),
   getAppInfo: () => request<{ broker_count: number; dpa_count?: number; locale_count?: number; data_dir: string; version: string; notifications?: boolean }>("/settings/info"),
-  saveProfile: (profile: { full_name: string; previous_names?: string[]; emails: string[]; phones: string[]; date_of_birth?: string }) =>
+  saveProfile: (profile: { full_name: string; previous_names?: string[]; emails: string[]; phones: string[]; usernames?: string[]; date_of_birth?: string }) =>
     request("/settings/profile", { method: "POST", body: JSON.stringify({ profile }) }),
   testSmtp: () => request<{ status: string; message: string }>("/settings/test-smtp", { method: "POST" }),
   getAuditTrail: () =>

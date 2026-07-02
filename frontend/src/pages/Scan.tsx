@@ -38,6 +38,24 @@ interface AccountResults {
   errors: string[];
 }
 
+interface WaybackHit {
+  platform: string;
+  username: string;
+  url: string;
+  snapshots: number;
+  first_snapshot: string;
+  last_snapshot: string;
+  archive_url: string;
+}
+
+interface WaybackResults {
+  has_results: boolean;
+  usernames: string[];
+  checked: number;
+  hits: WaybackHit[];
+  errors: string[];
+}
+
 interface BreachResults {
   has_results: boolean;
   email: string;
@@ -60,6 +78,13 @@ export default function Scan() {
     startFn: (email?: unknown) => api.startAccountScan(email as string | undefined),
     statusFn: api.getAccountStatus,
     resultsFn: api.getAccountResults,
+  });
+
+  const [waybackInput, setWaybackInput] = useState("");
+  const wayback = useAsyncTask<WaybackResults>({
+    startFn: (usernames?: unknown) => api.startWaybackScan(usernames as string | undefined),
+    statusFn: api.getWaybackStatus,
+    resultsFn: api.getWaybackResults,
   });
 
   const [breachEmailInput, setBreachEmailInput] = useState("");
@@ -625,6 +650,143 @@ export default function Scan() {
                 <p className="text-green-900 font-medium">No registered accounts found</p>
                 <p className="text-green-700 text-sm mt-1">
                   Your email was not detected as registered on any of the checked services.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Wayback Archive Scanner */}
+      <div className="mt-10">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold">Archive Scanner</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
+            Find archived copies of your profile pages in the Wayback Machine — deleted accounts can live on in the archive
+          </p>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Usernames, comma-separated (leave empty to use profile usernames / email handle)"
+              value={waybackInput}
+              onChange={(e) => setWaybackInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !wayback.running && wayback.start(waybackInput.trim() || undefined)}
+              className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-sm"
+            />
+            <button
+              onClick={() => wayback.start(waybackInput.trim() || undefined)}
+              disabled={wayback.running}
+              className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 transition disabled:opacity-50 shrink-0"
+            >
+              {wayback.running ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Searching...</>
+              ) : (
+                <><Search className="w-4 h-4" /> {wayback.hasResults ? "Search Again" : "Search Archive"}</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {wayback.error && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{wayback.error}</div>
+        )}
+
+        {wayback.running && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
+              <p className="text-amber-900 font-medium">
+                Checking {wayback.runningLabel}... {wayback.progress}/{wayback.total} profile URLs checked
+              </p>
+            </div>
+            <div className="w-full bg-amber-200 rounded-full h-2">
+              <div
+                className="bg-amber-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${wayback.total > 0 ? Math.round((wayback.progress / wayback.total) * 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-amber-600 text-xs mt-2">
+              Querying the Internet Archive CDX index for archived profile pages on 15 platforms.
+            </p>
+          </div>
+        )}
+
+        {!wayback.running && !wayback.hasResults && !wayback.error && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+            <Search className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No archive results yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
+              Even after you delete an account, snapshots of your profile can
+              remain in the Wayback Machine. This checks 15 platforms for
+              archived copies. Removal requests go to info@archive.org.
+            </p>
+          </div>
+        )}
+
+        {!wayback.running && wayback.hasResults && (
+          <>
+            {((wayback.results as WaybackResults | null)?.errors ?? []).map((err) => (
+              <div key={err} className="bg-yellow-50 text-yellow-800 px-4 py-3 rounded-lg mb-4 text-sm">{err}</div>
+            ))}
+            <div className="flex gap-4 mb-6">
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex-1">
+                <div className="flex items-center gap-3">
+                  {((wayback.results as WaybackResults | null)?.hits.length ?? 0) > 0 ? (
+                    <AlertTriangle className="w-8 h-8 text-orange-500" />
+                  ) : (
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                  )}
+                  <div>
+                    <p className="text-2xl font-bold">{(wayback.results as WaybackResults | null)?.hits.length ?? 0}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">archived profiles found</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex-1">
+                <p className="text-2xl font-bold">{(wayback.results as WaybackResults | null)?.checked ?? 0}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  profile URLs checked for <span className="font-medium">{((wayback.results as WaybackResults | null)?.usernames ?? []).join(", ")}</span>
+                </p>
+              </div>
+            </div>
+
+            {((wayback.results as WaybackResults | null)?.hits.length ?? 0) > 0 ? (
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold">Archived Profiles Found</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    These profile pages have snapshots in the Wayback Machine. If the live account is deleted,
+                    email info@archive.org to request removal of the snapshots.
+                  </p>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {((wayback.results as WaybackResults | null)?.hits ?? []).map((hit) => (
+                    <div key={`${hit.platform}-${hit.username}`} className="px-5 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-sm">{hit.platform}</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{hit.username}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {hit.snapshots} snapshot{hit.snapshots === 1 ? "" : "s"}, {hit.first_snapshot.slice(0, 4)}–{hit.last_snapshot.slice(0, 4)}
+                          </p>
+                        </div>
+                        <a href={hit.archive_url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0 ml-4">
+                          <ExternalLink className="w-3 h-3" /> View snapshot
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
+                <p className="text-green-900 font-medium">No archived profiles found</p>
+                <p className="text-green-700 text-sm mt-1">
+                  The Wayback Machine has no snapshots of profile pages for these usernames.
                 </p>
               </div>
             )}
