@@ -110,7 +110,7 @@ export const api = {
     }>("/scan/rescan"),
   getExposures: () =>
     request<{
-      exposures: Array<{ id: number; source: string; source_label: string; title: string; url: string; data: Record<string, unknown>; scanned_at: string | null; disposition: string | null; note: string; matched_broker: { broker_id: string; name: string } | null }>;
+      exposures: Array<{ id: number; source: string; source_label: string; title: string; url: string; data: Record<string, unknown>; scanned_at: string | null; disposition: string | null; note: string; matched_broker: { broker_id: string; name: string } | null; guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }> } | null }>;
       summary: { total: number; needs_triage: number; actioned: number; dismissed: number; legally_impossible: number };
     }>("/scan/exposures"),
   setExposureDisposition: (id: number, disposition: string | null, note?: string) =>

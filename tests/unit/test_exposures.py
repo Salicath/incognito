@@ -230,3 +230,16 @@ def test_create_request_no_broker_match_400(client, config):
     eid = _seed_github(config)
     resp = client.post(f"/api/scan/exposures/{eid}/create-request")
     assert resp.status_code == 400
+
+
+def test_guidance_present_for_unmatched_absent_for_matched(client, config):
+    _seed_broker0(config)   # maps to a registry broker
+    _seed_github(config)    # no registry broker
+
+    exposures = {e["title"]: e for e in client.get("/api/scan/exposures").json()["exposures"]}
+    # matched broker -> create-request path, no manual guidance
+    assert exposures["Test Broker"]["guidance"] is None
+    # unmatched -> source-specific guidance with steps + links
+    g = exposures["GitHub: acme/leak"]["guidance"]
+    assert g is not None
+    assert g["steps"] and g["links"]

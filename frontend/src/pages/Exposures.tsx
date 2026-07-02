@@ -13,6 +13,7 @@ interface Exposure {
   disposition: string | null;
   note: string;
   matched_broker: { broker_id: string; name: string } | null;
+  guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }> } | null;
 }
 
 interface Summary {
@@ -192,6 +193,31 @@ export default function Exposures() {
                         </a>
                       )}
                     </div>
+
+                    {/* Removal guidance for exposures with no registry broker */}
+                    {e.guidance && (
+                      <details className="mt-3 group">
+                        <summary className="text-xs font-medium text-indigo-600 dark:text-indigo-400 cursor-pointer hover:text-indigo-700 dark:hover:text-indigo-300 select-none">
+                          How to remove this →
+                        </summary>
+                        <div className="mt-2 pl-3 border-l-2 border-indigo-100 dark:border-indigo-900/50">
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{e.guidance.title}</p>
+                          <ol className="list-decimal list-inside space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
+                            {e.guidance.steps.map((step, si) => <li key={si}>{step}</li>)}
+                          </ol>
+                          {e.guidance.links.length > 0 && (
+                            <div className="flex flex-wrap gap-3 mt-2.5">
+                              {e.guidance.links.map((link) => (
+                                <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                                  <ExternalLink className="w-3 h-3" /> {link.label}
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </details>
+                    )}
 
                     {/* Action bar */}
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">

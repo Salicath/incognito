@@ -772,6 +772,12 @@ def create_scan_router(
                     summary["needs_triage"] += 1
                 url = data.get("url", "") if isinstance(data, dict) else ""
                 broker = _match_broker(r_.broker_id, data)
+                # Matched brokers get the one-click Art. 17 path; everything else
+                # gets source-specific manual removal guidance instead.
+                guidance = None
+                if broker is None:
+                    from backend.core.removal_guidance import guidance_for
+                    guidance = guidance_for(r_.source, data)
                 exposures.append(
                     {
                         "id": r_.id,
@@ -786,6 +792,7 @@ def create_scan_router(
                         "matched_broker": (
                             {"broker_id": broker.id, "name": broker.name} if broker else None
                         ),
+                        "guidance": guidance,
                     }
                 )
             return {"exposures": exposures, "summary": summary}
