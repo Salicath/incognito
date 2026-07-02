@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useNavigate } from "react-router-dom";
-import { Send, Clock, Zap, Shield, Loader2, Search, Mail, FileBarChart } from "lucide-react";
+import { Send, Clock, Zap, Shield, Loader2, Search, Mail, FileBarChart, Inbox } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import ProgressRing from "../components/ProgressRing";
 
@@ -374,6 +374,26 @@ export default function Dashboard() {
                 {stats.unread_replies} new {stats.unread_replies === 1 ? "reply" : "replies"} from brokers
               </p>
               <p className="text-green-700 text-sm">Click to review broker responses</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exposures needing triage */}
+      {stats.exposures_found - stats.exposures_actioned > 0 && (
+        <div
+          className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition"
+          onClick={() => navigate("/exposures")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <Inbox className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="font-medium text-amber-900">
+                {stats.exposures_found - stats.exposures_actioned} exposure{stats.exposures_found - stats.exposures_actioned === 1 ? "" : "s"} need triage
+              </p>
+              <p className="text-amber-700 text-sm">Click to route each scan hit to a resolution</p>
             </div>
           </div>
         </div>
