@@ -44,6 +44,26 @@ def test_setup_creates_profile(client, config):
     assert config.vault_path.exists()
 
 
+def test_setup_persists_usernames(client, config):
+    response = client.post(
+        "/api/setup",
+        json={
+            "password": "master_password",
+            "profile": {
+                "full_name": "Malte Example",
+                "emails": ["malte@example.com"],
+                "usernames": ["salicath", "malte_dk"],
+            },
+        },
+    )
+    assert response.status_code == 200
+
+    from backend.core.profile import ProfileVault
+
+    profile, _, _ = ProfileVault(config.vault_path).load("master_password")
+    assert profile.usernames == ["salicath", "malte_dk"]
+
+
 def test_setup_rejects_if_already_initialized(client, config):
     setup_data = {
         "password": "master_password",

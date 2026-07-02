@@ -12,6 +12,7 @@ export default function SetupWizard() {
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [usernamesInput, setUsernamesInput] = useState("");
   const [profile, setProfile] = useState({
     full_name: "",
     previous_names: [] as string[],
@@ -33,6 +34,7 @@ export default function SetupWizard() {
           ...profile,
           emails: profile.emails.filter((e) => e.trim()),
           phones: profile.phones.filter((p) => p.trim()),
+          usernames: usernamesInput.split(",").map((u) => u.trim()).filter(Boolean),
           date_of_birth: profile.date_of_birth || undefined,
         },
       });
@@ -81,6 +83,8 @@ export default function SetupWizard() {
             <input type="date" value={profile.date_of_birth} onChange={(e) => setProfile({ ...profile, date_of_birth: e.target.value })} className={inputClass} />
             <input type="email" placeholder="Primary email" value={profile.emails[0]} onChange={(e) => setProfile({ ...profile, emails: [e.target.value, ...profile.emails.slice(1)] })} className={inputClass} />
             <input type="tel" placeholder="Phone (optional)" value={profile.phones[0]} onChange={(e) => setProfile({ ...profile, phones: [e.target.value] })} className={inputClass} />
+            <input type="text" placeholder="Usernames / handles (optional, comma-separated)" value={usernamesInput} onChange={(e) => setUsernamesInput(e.target.value)} className={inputClass} />
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">Used by the account, archive, and code-leak scanners. You can add more later in Settings.</p>
             <div className="flex gap-3">
               <button onClick={() => setStep("password")} className="flex-1 border border-gray-300 dark:border-gray-600 py-2.5 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition">Back</button>
               <button onClick={() => { if (!profile.full_name.trim()) { setError("Name is required"); return; } if (!profile.emails[0]?.trim()) { setError("At least one email is required"); return; } setError(""); setStep("confirm"); }} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Continue</button>
