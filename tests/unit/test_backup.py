@@ -37,6 +37,29 @@ def test_export_backup(client):
     assert "database" in data
 
 
+def test_export_no_longer_leaks_plaintext_hibp_key(client):
+    resp = client.post("/api/settings/backup/export", json={"password": "password"})
+    # secrets travel encrypted inside `vault`, never as a plaintext field
+    assert "hibp_key" not in resp.json()
+
+
+def test_secret_survives_backup_roundtrip(client, config):
+    # store a token, then export
+    client.post("/api/settings/github", json={"api_key": "ghp_roundtrip_token"})
+    backup = client.post(
+        "/api/settings/backup/export", json={"password": "password"}
+    ).json()
+
+    # wipe the token, confirm it's gone
+    client.delete("/api/settings/github")
+    assert client.get("/api/settings/github").json()["configured"] is False
+
+    # importing the backup restores it (carried inside the encrypted vault)
+    backup["password"] = "password"
+    assert client.post("/api/settings/backup/import", json=backup).status_code == 200
+    assert client.get("/api/settings/github").json()["configured"] is True
+
+
 def test_export_backup_wrong_password(client):
     resp = client.post(
         "/api/settings/backup/export",

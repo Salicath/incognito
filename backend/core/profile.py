@@ -49,6 +49,8 @@ class _VaultData(BaseModel):
     profile: Profile
     smtp: SmtpConfig | None = None
     imap: ImapConfig | None = None
+    # API keys/tokens (HIBP, GitHub) — encrypted at rest alongside the profile
+    secrets: dict[str, str] = {}
 
 
 class ProfileVault:
@@ -102,15 +104,32 @@ class ProfileVault:
         key: bytes,
         salt: bytes,
     ) -> None:
+        # Preserve any stored secrets across an ordinary profile/smtp/imap save,
+        # since callers don't pass them in.
+        secrets: dict[str, str] = {}
+        if self._path.exists():
+            try:
+                secrets = self._load_all(key)[3]
+            except Exception:
+                secrets = {}
+        self._write(profile, smtp, imap, secrets, key, salt)
+
+    def _write(
+        self,
+        profile: Profile,
+        smtp: SmtpConfig | None,
+        imap: ImapConfig | None,
+        secrets: dict[str, str],
+        key: bytes,
+        salt: bytes,
+    ) -> None:
         import os
 
-        vault_data = _VaultData(profile=profile, smtp=smtp, imap=imap)
+        vault_data = _VaultData(profile=profile, smtp=smtp, imap=imap, secrets=secrets)
         plaintext = vault_data.model_dump_json().encode("utf-8")
-
         payload = encrypt(plaintext, key)
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
-
         # Atomic write: write to temp file then rename (prevents corruption on crash)
         tmp_path = self._path.with_suffix(".tmp")
         fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -131,10 +150,32 @@ class ProfileVault:
         key = derive_key(password, salt=salt)
         return key, salt
 
-    def load_with_key(self, key: bytes) -> tuple[Profile, SmtpConfig | None, ImapConfig | None]:
-        """Load vault using a pre-derived key (avoids re-deriving from password)."""
+    def _load_all(
+        self, key: bytes
+    ) -> tuple[Profile, SmtpConfig | None, ImapConfig | None, dict[str, str]]:
         raw = self._path.read_bytes()
         payload = EncryptedPayload.from_bytes(raw[16:])
         plaintext = decrypt(payload, key)
         vault_data = _VaultData.model_validate_json(plaintext)
-        return vault_data.profile, vault_data.smtp, vault_data.imap
+        return vault_data.profile, vault_data.smtp, vault_data.imap, dict(vault_data.secrets)
+
+    def load_with_key(self, key: bytes) -> tuple[Profile, SmtpConfig | None, ImapConfig | None]:
+        """Load vault using a pre-derived key (avoids re-deriving from password)."""
+        profile, smtp, imap, _ = self._load_all(key)
+        return profile, smtp, imap
+
+    def get_secret(self, name: str, key: bytes) -> str | None:
+        """Read an encrypted secret (API key/token) by name, or None."""
+        return self._load_all(key)[3].get(name) or None
+
+    def set_secret(self, name: str, value: str, key: bytes, salt: bytes) -> None:
+        profile, smtp, imap, secrets = self._load_all(key)
+        secrets[name] = value
+        self._write(profile, smtp, imap, secrets, key, salt)
+
+    def delete_secret(self, name: str, key: bytes, salt: bytes) -> bool:
+        profile, smtp, imap, secrets = self._load_all(key)
+        existed = secrets.pop(name, None) is not None
+        if existed:
+            self._write(profile, smtp, imap, secrets, key, salt)
+        return existed

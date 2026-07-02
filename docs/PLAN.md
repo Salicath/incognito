@@ -77,8 +77,11 @@ Add `da` locale to `templates/locales/` (5 template types).
 - ✅ One-click Art. 17 request for hits matching a registry broker; per-source removal guidance for the rest
 - ✅ Dashboard needs-triage banner; setup wizard captures usernames (scanner fuel)
 
+- ✅ Secrets in vault: HIBP key + GitHub token now live in `_VaultData.secrets` (encrypted); legacy plaintext files auto-migrate on first access. Backup carries them inside the vault (no plaintext field).
+
 **Deferred / next**
-- Secrets in vault: `hibp_key.txt` + `github_token.txt` are plaintext (0600) on disk — move into the encrypted vault (`_VaultData.secrets`), migrate on-disk keys on unlock. Touches every vault save + backup/export, so scope carefully.
+- Maigret / user-scanner to replace decaying Holehe (usernames field is wired end-to-end)
+- SearXNG Quadlet sidecar
 
 **Phase 3 — Controller track**
 - Per-platform Art. 17 templates + state machine for the 15-platform tech-giant set

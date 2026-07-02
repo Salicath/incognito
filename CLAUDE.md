@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (329 tests, 220 brokers, 23 DPAs)
+# Run tests (344 tests, 220 brokers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -89,7 +89,8 @@ Ntfy messages include priority levels and emoji tags. Notifications never crash 
 - Login rate limiting: 5 failures = 10min lockout
 - Sessions: max 3 concurrent, auto-expire after 30min idle
 - Security headers on all responses (X-Frame-Options, CSP-adjacent, etc.)
-- File permissions: 0600 on vault/db/keys, 0700 on data dir
+- File permissions: 0600 on vault/db, 0700 on data dir
+- API secrets (HIBP key, GitHub token) stored encrypted in the vault (`_VaultData.secrets` via `core/secrets.py`); legacy plaintext `*_key.txt`/`*_token.txt` files auto-migrate into the vault on first access, then are deleted
 - Backup export/import requires password re-entry
 - Setup uses atomic file creation (O_CREAT|O_EXCL)
 - Empty password protection on vault save/create

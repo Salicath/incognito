@@ -8,6 +8,7 @@ from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
 from backend.core.profile import ImapConfig, Profile, ProfileVault, SmtpConfig
+from backend.core.secrets import read_secret, remove_secret, write_secret
 
 log = logging.getLogger("incognito.settings")
 
@@ -74,78 +75,57 @@ def create_settings_router(
         vault.save_with_key(body.profile, smtp, imap, key, salt)
         return {"status": "updated"}
 
+    def _secret_preview(value: str) -> str:
+        return value[:4] + "..." + value[-4:] if len(value) > 8 else "***"
+
     @r.get("/hibp")
     def get_hibp_status(session: str | None = Cookie(default=None)):
-        session_store.validate(session)
-        key_path = config.data_dir / "hibp_key.txt"
-        if key_path.exists():
-            key = key_path.read_text().strip()
-            preview = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
-            return {"configured": True, "key_preview": preview}
+        key, salt = session_store.validate(session)
+        value = read_secret(vault, config.data_dir, key, salt, "hibp")
+        if value:
+            return {"configured": True, "key_preview": _secret_preview(value)}
         return {"configured": False}
 
     @r.post("/hibp")
     def update_hibp_key(body: dict, session: str | None = Cookie(default=None)):
-        session_store.validate(session)
-        key = body.get("api_key", "").strip()
-        if not key:
+        key, salt = session_store.validate(session)
+        value = body.get("api_key", "").strip()
+        if not value:
             raise HTTPException(status_code=400, detail="API key required")
-        if len(key) > 10_000:
+        if len(value) > 10_000:
             raise HTTPException(status_code=400, detail="API key too long")
-        import os
-        key_path = config.data_dir / "hibp_key.txt"
-        tmp_path = key_path.with_suffix(".tmp")
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        try:
-            os.write(fd, key.encode())
-        finally:
-            os.close(fd)
-        os.replace(tmp_path, key_path)
+        write_secret(vault, key, salt, "hibp", value)
         return {"status": "saved"}
 
     @r.delete("/hibp")
     def delete_hibp_key(session: str | None = Cookie(default=None)):
-        session_store.validate(session)
-        key_path = config.data_dir / "hibp_key.txt"
-        if key_path.exists():
-            key_path.unlink()
+        key, salt = session_store.validate(session)
+        remove_secret(vault, config.data_dir, key, salt, "hibp")
         return {"status": "deleted"}
 
     @r.get("/github")
     def get_github_token(session: str | None = Cookie(default=None)):
-        session_store.validate(session)
-        key_path = config.data_dir / "github_token.txt"
-        if key_path.exists():
-            key = key_path.read_text().strip()
-            preview = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
-            return {"configured": True, "key_preview": preview}
+        key, salt = session_store.validate(session)
+        value = read_secret(vault, config.data_dir, key, salt, "github")
+        if value:
+            return {"configured": True, "key_preview": _secret_preview(value)}
         return {"configured": False}
 
     @r.post("/github")
     def update_github_token(body: dict, session: str | None = Cookie(default=None)):
-        session_store.validate(session)
-        key = body.get("api_key", "").strip()
-        if not key:
+        key, salt = session_store.validate(session)
+        value = body.get("api_key", "").strip()
+        if not value:
             raise HTTPException(status_code=400, detail="Token required")
-        if len(key) > 10_000:
+        if len(value) > 10_000:
             raise HTTPException(status_code=400, detail="Token too long")
-        import os
-        key_path = config.data_dir / "github_token.txt"
-        tmp_path = key_path.with_suffix(".tmp")
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        try:
-            os.write(fd, key.encode())
-        finally:
-            os.close(fd)
-        os.replace(tmp_path, key_path)
+        write_secret(vault, key, salt, "github", value)
         return {"status": "saved"}
 
     @r.delete("/github")
     def delete_github_token(session: str | None = Cookie(default=None)):
-        session_store.validate(session)
-        key_path = config.data_dir / "github_token.txt"
-        if key_path.exists():
-            key_path.unlink()
+        key, salt = session_store.validate(session)
+        remove_secret(vault, config.data_dir, key, salt, "github")
         return {"status": "deleted"}
 
     @r.post("/test-smtp")
@@ -454,6 +434,12 @@ def create_settings_router(
                 status_code=401, detail="Password required to export backup",
             ) from None
 
+        # Fold any legacy plaintext secret files into the vault before snapshotting,
+        # so the encrypted vault carries them (no plaintext key in the backup JSON).
+        key, salt = vault.derive_key_from_file(body.password)
+        for name in ("hibp", "github"):
+            read_secret(vault, config.data_dir, key, salt, name)
+
         # Read the encrypted vault file
         vault_bytes = config.vault_path.read_bytes() if config.vault_path.exists() else b""
 
@@ -461,17 +447,10 @@ def create_settings_router(
         db_path = config.db_path
         db_bytes = db_path.read_bytes() if db_path.exists() else b""
 
-        # Read HIBP key if exists
-        hibp_key = ""
-        hibp_path = config.data_dir / "hibp_key.txt"
-        if hibp_path.exists():
-            hibp_key = hibp_path.read_text().strip()
-
         backup = {
             "version": "0.3.0",
             "vault": base64.b64encode(vault_bytes).decode("ascii"),
             "database": base64.b64encode(db_bytes).decode("ascii"),
-            "hibp_key": hibp_key,
         }
 
         log.info("Backup exported")
@@ -557,6 +536,8 @@ def create_settings_router(
         if db_bytes is not None:
             _atomic_write(config.db_path, db_bytes)
 
+        # Backward compat: older backups carried the HIBP key as a plaintext field.
+        # Land it in the legacy file so it migrates into the vault on next access.
         if hibp_key:
             _atomic_write(config.data_dir / "hibp_key.txt", hibp_key.encode())
 

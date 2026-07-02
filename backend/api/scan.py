@@ -453,13 +453,16 @@ def create_scan_router(
         background_tasks: BackgroundTasks,
         session: str | None = Cookie(default=None),
     ):
-        key, _salt = session_store.validate(session)
+        key, salt = session_store.validate(session)
         profile, _, _ = vault.load_with_key(key)
 
-        token_path = (config.data_dir / "github_token.txt") if config else None
-        if not token_path or not token_path.exists():
+        from backend.core.config import AppConfig
+        from backend.core.secrets import read_secret
+
+        effective_config = config if config is not None else AppConfig()
+        token = read_secret(vault, effective_config.data_dir, key, salt, "github")
+        if not token:
             raise HTTPException(status_code=400, detail="GitHub token not configured")
-        token = token_path.read_text().strip()
 
         from backend.scanner.github_scanner import identifiers_from_profile
 
@@ -546,19 +549,19 @@ def create_scan_router(
         session: str | None = Cookie(default=None),
         email: str | None = None,
     ):
-        key, _salt = session_store.validate(session)
+        key, salt = session_store.validate(session)
         profile, _, _ = vault.load_with_key(key)
 
-        # Read HIBP key from file
+        # Read HIBP key from the encrypted vault (migrating any legacy file)
         from backend.core.config import AppConfig
+        from backend.core.secrets import read_secret
         effective_config = config if config is not None else AppConfig()
-        key_path = effective_config.data_dir / "hibp_key.txt"
-        if not key_path.exists():
+        api_key = read_secret(vault, effective_config.data_dir, key, salt, "hibp")
+        if not api_key:
             raise HTTPException(
                 status_code=400,
                 detail="HIBP API key not configured. Add it in Settings.",
             )
-        api_key = key_path.read_text().strip()
 
         validated = _validate_email(email)
         target_email = validated or (profile.emails[0] if profile.emails else None)
