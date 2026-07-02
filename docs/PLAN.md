@@ -59,16 +59,16 @@ Add `da` locale to `templates/locales/` (5 template types).
 - Tag current state as `v0.3.0` for revert point
 - Capture exposure map → drives Phase 1+ scoping
 
-**Phase 1 — Danish foundation**
-- Add `da` locale (5 templates, Datatilsynet-style phrasing)
-- Build `cpr_lever` track end-to-end (deep-links + MitID handoff + 11-month renewal reminder)
-- DK/Nordic registry expansion: +30 entries (Eniro cluster, D&B-DK cluster, RKI, Risika, Hitta, Mrkoll, Ratsit, Schufa, Creditreform)
-- DE registry: +10 entries
+**Phase 1 — Danish foundation** ✅ complete
+- ✅ Add `da` locale (5 templates, Datatilsynet-style phrasing)
+- ✅ Build `cpr_lever` track end-to-end (deep-links + MitID handoff + renewal reminders: T-30/T-7/expiry)
+- ✅ DK/Nordic registry expansion (Eniro cluster, D&B-DK cluster, RKI, Risika, etc.)
+- ✅ DE registry expansion (Schufa, Creditreform, etc.)
 
 **Phase 2 — Discovery rebuild**
-- Wayback CDX scanner
+- ✅ Wayback CDX scanner (backend/scanner/wayback.py — ghost-profile detection, 15 platforms)
 - Maigret + user-scanner integration (replace Holehe)
-- GitHub Code Search scanner
+- ✅ GitHub Code Search scanner (backend/scanner/github_scanner.py — PAT via Settings)
 - SearXNG Quadlet sidecar
 - HIBP paid-tier wiring + PimEyes manual-result-import flow
 
