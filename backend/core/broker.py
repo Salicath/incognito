@@ -46,6 +46,21 @@ class BrokerRegistry:
     def get(self, broker_id: str) -> Broker | None:
         return self._by_id.get(broker_id)
 
+    def get_by_domain(self, domain: str | None) -> Broker | None:
+        """Resolve a broker from a raw domain (as stored on scan hits).
+
+        Matches on exact domain first, then on the slugified id, so a hit
+        recorded as "spokeo.com" finds the broker whose id is "spokeo-com".
+        """
+        if not domain:
+            return None
+        d = domain.strip().lower()
+        for b in self.brokers:
+            if b.domain.lower() == d:
+                return b
+        slug = re.sub(r"[^a-z0-9]+", "-", d).strip("-")
+        return self._by_id.get(slug)
+
     @classmethod
     def load(cls, directory: Path) -> BrokerRegistry:
         brokers = []

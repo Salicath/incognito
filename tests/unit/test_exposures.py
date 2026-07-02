@@ -169,3 +169,64 @@ def test_note_too_long_rejected(client, config):
         json={"disposition": "actioned", "note": "z" * 2001},
     )
     assert resp.status_code == 400
+
+
+def _seed_broker0(config):
+    return _seed(config, "duckduckgo", {
+        "broker_name": "Test Broker", "broker_domain": "broker0.com",
+        "url": "https://broker0.com/x",
+    })
+
+
+def _seed_github(config):
+    return _seed(config, "github", {
+        "broker_name": "GitHub: acme/leak", "broker_domain": "github.com",
+        "url": "https://github.com/x",
+    })
+
+
+def test_matched_broker_surfaced_for_registry_domain(client, config):
+    # broker0.com is in the test registry (conftest-style fixture above)
+    _seed_broker0(config)
+    _seed_github(config)
+
+    exposures = {e["title"]: e for e in client.get("/api/scan/exposures").json()["exposures"]}
+    assert exposures["Test Broker"]["matched_broker"]["broker_id"] == "broker0-com"
+    # github.com is not a broker in the registry
+    assert exposures["GitHub: acme/leak"]["matched_broker"] is None
+
+
+def test_create_request_from_exposure(client, config):
+    eid = _seed_broker0(config)
+
+    resp = client.post(f"/api/scan/exposures/{eid}/create-request")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["created"] is True
+    assert body["broker_id"] == "broker0-com"
+    assert body["disposition"] == "actioned"
+
+    # exposure is now actioned with an explanatory note
+    e = client.get("/api/scan/exposures").json()["exposures"][0]
+    assert e["disposition"] == "actioned"
+    assert "Erasure request created" in e["note"]
+
+    # a real request now exists
+    reqs = client.get("/api/requests").json()
+    assert any(r["broker_id"] == "broker0-com" for r in reqs)
+
+
+def test_create_request_is_idempotent(client, config):
+    eid = _seed_broker0(config)
+
+    first = client.post(f"/api/scan/exposures/{eid}/create-request").json()
+    second = client.post(f"/api/scan/exposures/{eid}/create-request").json()
+    assert first["created"] is True
+    assert second["created"] is False
+    assert first["request_id"] == second["request_id"]
+
+
+def test_create_request_no_broker_match_400(client, config):
+    eid = _seed_github(config)
+    resp = client.post(f"/api/scan/exposures/{eid}/create-request")
+    assert resp.status_code == 400

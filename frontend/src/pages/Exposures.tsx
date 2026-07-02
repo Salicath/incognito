@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api/client";
-import { Inbox, ExternalLink, CheckCircle, XCircle, Ban, RotateCcw, Loader2, AlertTriangle } from "lucide-react";
+import { Inbox, ExternalLink, CheckCircle, XCircle, Ban, RotateCcw, Loader2, AlertTriangle, Send } from "lucide-react";
 
 interface Exposure {
   id: number;
@@ -12,6 +12,7 @@ interface Exposure {
   scanned_at: string | null;
   disposition: string | null;
   note: string;
+  matched_broker: { broker_id: string; name: string } | null;
 }
 
 interface Summary {
@@ -79,6 +80,18 @@ export default function Exposures() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createRequest(id: number) {
+    setBusy(id);
+    try {
+      await api.createRequestFromExposure(id);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create request");
     } finally {
       setBusy(null);
     }
@@ -191,10 +204,17 @@ export default function Exposures() {
                             onChange={(ev) => setNotes({ ...notes, [e.id]: ev.target.value })}
                             className="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                           />
-                          <div className="flex gap-2 shrink-0">
+                          <div className="flex gap-2 shrink-0 flex-wrap">
+                            {e.matched_broker && (
+                              <button onClick={() => createRequest(e.id)} disabled={busy === e.id}
+                                title={`Create an Art. 17 erasure request for ${e.matched_broker.name}`}
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50">
+                                {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} Create erasure request
+                              </button>
+                            )}
                             <button onClick={() => setDisposition(e.id, "actioned")} disabled={busy === e.id}
                               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition disabled:opacity-50">
-                              {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />} Actioned
+                              {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />} {e.matched_broker ? "Mark actioned" : "Actioned"}
                             </button>
                             <button onClick={() => setDisposition(e.id, "dismissed")} disabled={busy === e.id}
                               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50">

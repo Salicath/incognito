@@ -731,6 +731,15 @@ def create_scan_router(
             or source
         )
 
+    def _match_broker(row_broker_id, data):
+        """A registry broker this exposure could be actioned against, or None."""
+        if broker_registry is None:
+            return None
+        domain = None
+        if isinstance(data, dict):
+            domain = data.get("broker_domain")
+        return broker_registry.get_by_domain(domain or row_broker_id)
+
     @r.get("/exposures")
     def list_exposures(session: str | None = Cookie(default=None)):
         session_store.validate(session)
@@ -762,6 +771,7 @@ def create_scan_router(
                 if disposition is None:
                     summary["needs_triage"] += 1
                 url = data.get("url", "") if isinstance(data, dict) else ""
+                broker = _match_broker(r_.broker_id, data)
                 exposures.append(
                     {
                         "id": r_.id,
@@ -773,6 +783,9 @@ def create_scan_router(
                         "scanned_at": r_.scanned_at.isoformat() if r_.scanned_at else None,
                         "disposition": disposition,
                         "note": r_.note or "",
+                        "matched_broker": (
+                            {"broker_id": broker.id, "name": broker.name} if broker else None
+                        ),
                     }
                 )
             return {"exposures": exposures, "summary": summary}
@@ -810,6 +823,64 @@ def create_scan_router(
                 "disposition": row.disposition,
                 "note": row.note,
                 "actioned": row.actioned,
+            }
+        finally:
+            db.close()
+
+    @r.post("/exposures/{exposure_id}/create-request")
+    def create_request_from_exposure(
+        exposure_id: int,
+        session: str | None = Cookie(default=None),
+    ):
+        """Create an erasure request for the exposure's broker, then mark it actioned.
+
+        Reuses an existing request for the same broker instead of duplicating,
+        so re-actioning a re-scanned exposure is idempotent.
+        """
+        session_store.validate(session)
+        if db_session_factory is None:
+            raise HTTPException(status_code=503, detail="Database unavailable")
+
+        from backend.core.request import RequestManager
+        from backend.db.models import Request, RequestType
+
+        db = db_session_factory()
+        try:
+            row = db.get(ScanResult, exposure_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="Exposure not found")
+
+            data = _safe_json(row.found_data)
+            broker = _match_broker(row.broker_id, data)
+            if broker is None:
+                raise HTTPException(
+                    status_code=400, detail="No matching broker in the registry"
+                )
+
+            existing = (
+                db.query(Request).filter(Request.broker_id == broker.id).first()
+            )
+            if existing is not None:
+                request_id = existing.id
+                created = False
+            else:
+                deadline_days = config.gdpr_deadline_days if config else 30
+                mgr = RequestManager(db, deadline_days)
+                req = mgr.create(broker.id, RequestType.ERASURE)
+                request_id = req.id
+                created = True
+
+            row.disposition = "actioned"
+            row.actioned = True
+            verb = "Erasure request created" if created else "Linked to existing request"
+            row.note = f"{verb} for {broker.name}"
+            db.commit()
+
+            return {
+                "request_id": request_id,
+                "broker_id": broker.id,
+                "created": created,
+                "disposition": "actioned",
             }
         finally:
             db.close()
