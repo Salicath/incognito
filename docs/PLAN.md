@@ -72,6 +72,14 @@ Add `da` locale to `templates/locales/` (5 template types).
 - SearXNG Quadlet sidecar
 - HIBP paid-tier wiring + PimEyes manual-result-import flow
 
+**Exposure triage layer** (new, not in original 8-track plan) ✅
+- ✅ Every scanner persists to `scan_results`; unified Exposures inbox aggregates + dispositions each hit (actioned/dismissed/legally_impossible)
+- ✅ One-click Art. 17 request for hits matching a registry broker; per-source removal guidance for the rest
+- ✅ Dashboard needs-triage banner; setup wizard captures usernames (scanner fuel)
+
+**Deferred / next**
+- Secrets in vault: `hibp_key.txt` + `github_token.txt` are plaintext (0600) on disk — move into the encrypted vault (`_VaultData.secrets`), migrate on-disk keys on unlock. Touches every vault save + backup/export, so scope carefully.
+
 **Phase 3 — Controller track**
 - Per-platform Art. 17 templates + state machine for the 15-platform tech-giant set
 - Jurisdiction-aware DPA escalation routing (IE DPC, LU CNPD, NL AP, SE IMY, UK ICO, Norwegian Datatilsynet for special-category)

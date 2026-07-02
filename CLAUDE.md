@@ -60,7 +60,8 @@ incognito report             # Privacy score and exposure report
 - Each API router is a factory function receiving its dependencies (no global state)
 - Broker registry loaded from YAML files in `brokers/`
 - Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl, ccpa
-- CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`)
+- CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`). Renewal ladder (T-30/T-7/expiry) fires from the `follow-up` command via `check_lever_renewals`.
+- Exposure triage: every scanner (DDG, Holehe, Wayback, GitHub) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps.
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
