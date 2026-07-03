@@ -14,7 +14,13 @@ RUN groupadd -g 1000 incognito && \
     useradd -u 1000 -g incognito -m incognito
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
+# [scanner] pulls user-scanner (light, in-process email-axis account discovery).
+RUN pip install --no-cache-dir ".[scanner]"
+
+# Maigret runs isolated in its own venv (heavy deps) — invoked as a subprocess.
+RUN python -m venv /opt/maigret && \
+    /opt/maigret/bin/pip install --no-cache-dir "maigret>=0.6.2"
+ENV INCOGNITO_MAIGRET_BIN=/opt/maigret/bin/maigret
 
 COPY backend/ backend/
 COPY cli.py ./
@@ -23,7 +29,7 @@ COPY templates/ templates/
 COPY brokers/ brokers/
 COPY --from=frontend-builder /build/dist frontend/dist/
 
-RUN chown -R incognito:incognito /app
+RUN chown -R incognito:incognito /app /opt/maigret
 
 USER incognito
 EXPOSE 8080

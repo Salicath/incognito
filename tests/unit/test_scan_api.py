@@ -291,3 +291,40 @@ def test_rescan_returns_report(client):
     assert data["reappeared"] == []
     assert data["new_exposures"] == []
     assert data["total_checked"] == 0
+
+
+# --- Deep username scan (Maigret) ---
+
+
+def test_deep_scan_status_requires_auth(unauthenticated_client):
+    """GET /api/scan/deep-scan/status without auth returns 401."""
+    resp = unauthenticated_client.get("/api/scan/deep-scan/status")
+    assert resp.status_code == 401
+
+
+def test_deep_scan_start_and_status(client):
+    """POST /api/scan/deep-scan/start kicks off a scan and persists hits."""
+    import backend.scanner.maigret_scanner as ms
+
+    async def fake_check(username, **kwargs):
+        return ms.MaigretReport(
+            username=username,
+            hits=[ms.MaigretHit(service="Reddit", url="https://reddit.com/u/x", username=username)],
+            checked=10,
+        )
+
+    with patch.object(ms, "check_maigret", new=fake_check):
+        resp = client.post("/api/scan/deep-scan/start?usernames=soxoj")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "started"
+        assert body["usernames"] == ["soxoj"]
+
+    status = client.get("/api/scan/deep-scan/status")
+    assert status.status_code == 200
+    assert "running" in status.json()
+
+    results = client.get("/api/scan/deep-scan/results")
+    assert results.status_code == 200
+    assert results.json()["has_results"] is True
+    assert any(h["service"] == "Reddit" for h in results.json()["hits"])

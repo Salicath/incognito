@@ -58,7 +58,7 @@ def _wayback(data: dict) -> dict:
     }
 
 
-def _holehe(data: dict) -> dict:
+def _account(data: dict) -> dict:
     service = data.get("service") or data.get("broker_name") or "this service"
     return {
         "title": f"Close or erase your {service} account",
@@ -98,7 +98,9 @@ def _websearch(data: dict) -> dict:
 _HANDLERS = {
     "github": _github,
     "wayback": _wayback,
-    "holehe": _holehe,
+    "userscan": _account,
+    "maigret": _account,
+    "holehe": _account,  # legacy rows
     "duckduckgo": _websearch,
 }
 

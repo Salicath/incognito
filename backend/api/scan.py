@@ -174,7 +174,7 @@ def create_scan_router(
 
     async def _run_account_scan(email: str):
         try:
-            from backend.scanner.holehe_scanner import check_email_accounts
+            from backend.scanner.user_scanner import check_email_accounts
 
             def on_progress(checked, total):
                 _account_state["progress"] = checked
@@ -200,7 +200,7 @@ def create_scan_router(
                         }
                         for h in report.hits
                     ]
-                    save_scan_results(db, hits, source=f"holehe:{report.email}")
+                    save_scan_results(db, hits, source=f"userscan:{report.email}")
                 finally:
                     db.close()
         except Exception as e:
@@ -522,6 +522,114 @@ def create_scan_router(
             "email": ", ".join(_github_state.get("identifiers", [])),
         }
 
+    # Maigret deep username-enumeration scan state
+    _deep_state: dict = {
+        "report": None,
+        "running": False,
+        "started_at": 0,
+        "progress": 0,
+        "total": 0,
+        "error": None,
+        "usernames": [],
+    }
+    _deep_lock = asyncio.Lock()
+
+    async def _run_deep_scan(usernames: list[str]):
+        try:
+            from backend.scanner.maigret_scanner import check_maigret
+
+            for uname in usernames:
+                report = await check_maigret(uname)
+                _deep_state["report"] = report
+                if report.errors:
+                    _deep_state["error"] = report.errors[0]
+                if db_session_factory and report.hits:
+                    from backend.core.rescan import save_scan_results
+                    db = db_session_factory()
+                    try:
+                        hits = [
+                            {
+                                "broker_domain": h.url,
+                                "broker_name": h.service,
+                                "url": h.url,
+                                "username": h.username,
+                                "tags": h.tags,
+                            }
+                            for h in report.hits
+                        ]
+                        save_scan_results(db, hits, source=f"maigret:{uname}")
+                    finally:
+                        db.close()
+        except Exception as e:
+            log.error("Deep scan failed: %s", e)
+            _deep_state["error"] = "Deep scan failed. Check logs for details."
+        finally:
+            _deep_state["running"] = False
+
+    @r.post("/deep-scan/start")
+    async def start_deep_scan(
+        background_tasks: BackgroundTasks,
+        session: str | None = Cookie(default=None),
+        usernames: str | None = None,
+    ):
+        key, _salt = session_store.validate(session)
+        profile, _, _ = vault.load_with_key(key)
+
+        from backend.scanner.wayback import usernames_from_profile
+
+        if usernames:
+            requested = [u for u in usernames.split(",") if u.strip()]
+            targets = usernames_from_profile(requested, [])
+        else:
+            targets = usernames_from_profile(profile.usernames, profile.emails)
+        if not targets:
+            raise HTTPException(status_code=400, detail="No usernames to check")
+        if len(targets) > 3:
+            raise HTTPException(status_code=400, detail="Too many usernames (max 3 for deep scan)")
+
+        async with _deep_lock:
+            elapsed = time.time() - _deep_state["started_at"]
+            if _deep_state["running"] and not (elapsed > stuck_timeout):
+                raise HTTPException(status_code=409, detail="Deep scan already running")
+            _deep_state["running"] = True
+            _deep_state["started_at"] = time.time()
+            _deep_state["progress"] = 0
+            _deep_state["error"] = None
+            _deep_state["usernames"] = targets
+
+        background_tasks.add_task(_run_deep_scan, targets)
+        return {"status": "started", "usernames": targets}
+
+    @r.get("/deep-scan/results")
+    def get_deep_scan_results(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        report = _deep_state.get("report")
+        if report is None:
+            return {"hits": [], "checked": 0, "has_results": False, "usernames": []}
+        return {
+            "has_results": True,
+            "usernames": _deep_state.get("usernames", []),
+            "checked": report.checked,
+            "hits": [
+                {"service": h.service, "url": h.url, "username": h.username, "tags": h.tags}
+                for h in report.hits
+            ],
+            "errors": report.errors,
+        }
+
+    @r.get("/deep-scan/status")
+    def deep_scan_status(session: str | None = Cookie(default=None)):
+        session_store.validate(session)
+        elapsed = time.time() - _deep_state["started_at"]
+        running = _deep_state["running"] and not (elapsed > stuck_timeout)
+        return {
+            "running": running,
+            "progress": _deep_state["progress"],
+            "total": _deep_state["total"],
+            "error": _deep_state.get("error"),
+            "email": ", ".join(_deep_state.get("usernames", [])),
+        }
+
     # HIBP breach check state
     _breach_state: dict = {
         "report": None,
@@ -717,9 +825,9 @@ def create_scan_router(
     }
 
     def _source_label(source: str) -> str:
-        # holehe:<email> and similar carry a suffix
+        # userscan:<email> / maigret:<user> / holehe:<email> carry a suffix
         base = source.split(":", 1)[0]
-        if base == "holehe":
+        if base in {"userscan", "maigret", "holehe"}:
             return "Account"
         return source_labels.get(base, base)
 

@@ -32,6 +32,18 @@ def test_holehe_guidance_uses_service_name():
     assert "Spotify" in g["title"]
 
 
+def test_userscan_guidance():
+    g = guidance_for("userscan:me@example.com", {"service": "Spotify"})
+    _shape_ok(g)
+    assert "Spotify" in g["title"]
+
+
+def test_maigret_guidance():
+    g = guidance_for("maigret:johndoe", {"service": "Reddit"})
+    _shape_ok(g)
+    assert "Reddit" in g["title"]
+
+
 def test_websearch_guidance_covers_delisting():
     g = guidance_for("duckduckgo", {"url": "https://x"})
     _shape_ok(g)

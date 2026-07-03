@@ -67,7 +67,12 @@ Add `da` locale to `templates/locales/` (5 template types).
 
 **Phase 2 — Discovery rebuild**
 - ✅ Wayback CDX scanner (backend/scanner/wayback.py — ghost-profile detection, 15 platforms)
-- Maigret + user-scanner integration (replace Holehe)
+- ✅ Maigret + user-scanner integration (replace Holehe): user-scanner is the
+  in-process email-axis holehe successor (light deps, asyncio-native); Maigret runs
+  as an isolated subprocess against its own `/opt/maigret` venv for deep 3000-site
+  username enumeration (`/api/scan/deep-scan/*`). WMN dataset dropped (Maigret
+  supersets it and verifies profiles). Phone-axis account enumeration remains a gap
+  (no maintained tool). Design/plan: `docs/superpowers/{specs,plans}/2026-07-03-account-discovery-scanners*`.
 - ✅ GitHub Code Search scanner (backend/scanner/github_scanner.py — PAT via Settings)
 - SearXNG Quadlet sidecar
 - HIBP paid-tier wiring + PimEyes manual-result-import flow
@@ -80,8 +85,9 @@ Add `da` locale to `templates/locales/` (5 template types).
 - ✅ Secrets in vault: HIBP key + GitHub token now live in `_VaultData.secrets` (encrypted); legacy plaintext files auto-migrate on first access. Backup carries them inside the vault (no plaintext field).
 
 **Deferred / next**
-- Maigret / user-scanner to replace decaying Holehe (usernames field is wired end-to-end)
 - SearXNG Quadlet sidecar
+- HIBP paid-tier wiring + PimEyes manual-result-import flow
+- Phone-axis account enumeration (no maintained tool exists; ignorant is dead — port the technique if needed)
 
 **Phase 3 — Controller track**
 - Per-platform Art. 17 templates + state machine for the 15-platform tech-giant set
