@@ -44,6 +44,29 @@ def test_maigret_guidance():
     assert "Reddit" in g["title"]
 
 
+def test_account_guidance_uses_justdeleteme_deletion_url():
+    # A maigret hit on GitHub resolves to the JustDelete.me GitHub entry.
+    g = guidance_for("maigret:soxoj", {"broker_name": "GitHub", "url": "https://github.com/soxoj"})
+    _shape_ok(g)
+    assert "GitHub" in g["title"]
+    assert g.get("difficulty")  # difficulty surfaced from the dataset
+    assert any("github.com" in link["url"] for link in g["links"])
+
+
+def test_account_guidance_flags_impossible_service():
+    # 4PDA is flagged "impossible" in the dataset.
+    g = guidance_for("userscan:x", {"broker_name": "4PDA", "url": "https://4pda.to/forum/"})
+    _shape_ok(g)
+    assert g["difficulty"] == "impossible"
+    assert "cannot" in g["title"].lower() or "can't" in g["title"].lower()
+
+
+def test_account_guidance_falls_back_when_unmatched():
+    g = guidance_for("userscan:x", {"service": "TotallyUnknownService99999"})
+    _shape_ok(g)
+    assert "TotallyUnknownService99999" in g["title"]
+
+
 def test_websearch_guidance_covers_delisting():
     g = guidance_for("duckduckgo", {"url": "https://x"})
     _shape_ok(g)
