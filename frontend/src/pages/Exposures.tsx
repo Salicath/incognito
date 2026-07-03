@@ -109,6 +109,19 @@ export default function Exposures() {
     }
   }
 
+  async function unsubscribe(id: number) {
+    setBusy(id);
+    try {
+      const res = await api.unsubscribeExposure(id);
+      if (!res.ok) setError(res.detail);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to unsubscribe");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const visible = exposures.filter((e) =>
     filter === "all" ? true : filter === "needs_triage" ? e.disposition === null : e.disposition === filter
   );
@@ -254,6 +267,13 @@ export default function Exposures() {
                                 title={`Create an Art. 17 erasure request for ${e.matched_broker.name}`}
                                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50">
                                 {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} Create erasure request
+                              </button>
+                            )}
+                            {e.source.startsWith("newsletter:") && Boolean(e.data.one_click || e.data.unsub_mailto) && (
+                              <button onClick={() => unsubscribe(e.id)} disabled={busy === e.id}
+                                title="Unsubscribe from this mailing list"
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition disabled:opacity-50">
+                                {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Ban className="w-3 h-3" />} Unsubscribe
                               </button>
                             )}
                             <button onClick={() => setDisposition(e.id, "actioned")} disabled={busy === e.id}

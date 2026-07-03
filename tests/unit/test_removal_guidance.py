@@ -67,6 +67,16 @@ def test_account_guidance_falls_back_when_unmatched():
     assert "TotallyUnknownService99999" in g["title"]
 
 
+def test_newsletter_guidance():
+    g = guidance_for(
+        "newsletter:acme.example",
+        {"broker_name": "Acme News", "one_click": True, "unsub_https": "https://acme.example/u/1"},
+    )
+    _shape_ok(g)
+    assert "Acme News" in g["title"]
+    assert any("acme.example" in link["url"] for link in g["links"])
+
+
 def test_websearch_guidance_covers_delisting():
     g = guidance_for("duckduckgo", {"url": "https://x"})
     _shape_ok(g)
