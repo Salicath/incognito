@@ -67,6 +67,11 @@ export const api = {
   getWaybackResults: () =>
     request<{ has_results: boolean; usernames: string[]; checked: number; hits: Array<{ platform: string; username: string; url: string; snapshots: number; first_snapshot: string; last_snapshot: string; archive_url: string }>; errors: string[] }>("/scan/wayback/results"),
   getWaybackStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/wayback/status"),
+  startDeepScan: (usernames?: string) =>
+    request<{ status: string; usernames: string[] }>(`/scan/deep-scan/start${usernames ? `?usernames=${encodeURIComponent(usernames)}` : ""}`, { method: "POST" }),
+  getDeepScanResults: () =>
+    request<{ has_results: boolean; usernames: string[]; checked: number; hits: Array<{ service: string; url: string; username: string; tags: string[] }>; errors: string[] }>("/scan/deep-scan/results"),
+  getDeepScanStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/deep-scan/status"),
   startGithubScan: () =>
     request<{ status: string; identifiers: string[] }>("/scan/github/start", { method: "POST" }),
   getGithubResults: () =>
