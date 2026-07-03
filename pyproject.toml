@@ -35,9 +35,15 @@ dev = [
     "pre-commit>=4.0.0",
 ]
 
-# Account discovery scanner (holehe probes 120+ services)
+# Account discovery scanner (email axis; user-scanner is the holehe successor)
 scanner = [
-    "holehe>=1.61",
+    "user-scanner>=1.4",
+]
+
+# Deep username enumeration (isolated subprocess — installed into its own venv,
+# never into the app environment; see deploy/Containerfile)
+scanner-deep = [
+    "maigret>=0.6.2",
 ]
 
 # Web form automation (adds ~400MB — install only when needed)
