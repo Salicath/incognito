@@ -75,21 +75,24 @@ def _parse_report(data: dict, username: str) -> list[MaigretHit]:
 
 async def _run_maigret(username, top_sites, timeout, binary, folder):
     """Run the maigret CLI; return (returncode, stdout, stderr)."""
+    # `--` ends option parsing so a username that looks like a flag
+    # (e.g. "--proxy=...") can't be smuggled into maigret's argv.
     proc = await asyncio.create_subprocess_exec(
         binary,
-        username,
         "--json", "simple",
         "--top-sites", str(top_sites),
         "--timeout", str(timeout),
         "--no-recursion",
         "--no-color",
         "--folder", folder,
+        "--",
+        username,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     try:
         out, err = await asyncio.wait_for(proc.communicate(), timeout=_SUBPROCESS_TIMEOUT)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
         raise
     return proc.returncode, out.decode(errors="replace"), err.decode(errors="replace")
@@ -111,7 +114,7 @@ async def check_maigret(
     with tempfile.TemporaryDirectory() as folder:
         try:
             rc, _out, err = await _run_maigret(username, top_sites, timeout, resolved, folder)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             report.errors.append("maigret scan timed out")
             return report
         except Exception as e:
