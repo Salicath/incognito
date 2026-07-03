@@ -92,7 +92,13 @@ Add `da` locale to `templates/locales/` (5 template types).
 **Phase 3 — Controller track**
 - Per-platform Art. 17 templates + state machine for the 15-platform tech-giant set
 - Jurisdiction-aware DPA escalation routing (IE DPC, LU CNPD, NL AP, SE IMY, UK ICO, Norwegian Datatilsynet for special-category)
-- `delisting` track: Google + Bing RTBF flow (URL list + ID upload guidance)
+- 🟡 `delisting` track: Google + Bing RTBF. Shipped — the delisting-kit generator
+  (`core/delisting.py`, `GET /api/scan/exposures/{id}/delisting-kit`): per-engine
+  deep-links (Google/Bing forms + Brave email, with reseller coverage notes) and a
+  drafted locale-aware Art. 17 justification, surfaced on any URL exposure. Assist-only
+  (every engine is a manual ID-gated form; no API/DRP). TODO: request-lifecycle tracking
+  (Art. 12(3) one-month clock → OVERDUE → ESCALATED = Datatilsynet complaint), IMAP
+  decision-email matching, and quarterly name-search re-verification via the rescan timer.
 
 **Phase 4 — Long tail**
 - `account` track: ✅ JustDelete.me sites.json vendored (`data/justdeleteme_sites.json`, 2556 entries) + `core/account_registry.py` maps every discovered account (user-scanner/Maigret hit) to its exact deletion URL + difficulty in the Exposures inbox; `impossible` → `legally_impossible`. Still TODO: an automated `account_delete` sender (most services have no deletion API — guided self-service is the realistic ceiling).

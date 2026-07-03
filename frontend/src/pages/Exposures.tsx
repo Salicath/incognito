@@ -62,6 +62,83 @@ function detailLine(e: Exposure): string {
   return parts.join(" · ");
 }
 
+const REASON_LABELS: Record<string, string> = {
+  inaccurate: "Inaccurate / false",
+  inadequate: "Inadequate / incomplete",
+  outdated: "Out of date / no longer relevant",
+  excessive: "Excessive / inappropriate",
+};
+
+type Kit = Awaited<ReturnType<typeof api.getDelistingKit>>;
+
+function DelistingKit({ exposureId }: { exposureId: number }) {
+  const [reason, setReason] = useState("outdated");
+  const [kit, setKit] = useState<Kit | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const fetchKit = useCallback(async (r: string) => {
+    setLoading(true);
+    try {
+      setKit(await api.getDelistingKit(exposureId, r));
+    } finally {
+      setLoading(false);
+    }
+  }, [exposureId]);
+
+  return (
+    <details className="mt-2 group" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open && !kit) fetchKit(reason); }}>
+      <summary className="text-xs font-medium text-teal-600 dark:text-teal-400 cursor-pointer hover:text-teal-700 dark:hover:text-teal-300 select-none">
+        Delisting kit (Google / Bing RTBF) →
+      </summary>
+      <div className="mt-2 pl-3 border-l-2 border-teal-100 dark:border-teal-900/50 space-y-2">
+        {loading && <p className="text-xs text-gray-500"><Loader2 className="w-3 h-3 animate-spin inline" /> Building kit…</p>}
+        {kit && (
+          <>
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-xs text-gray-500 dark:text-gray-400">Reason:</label>
+              <select
+                value={reason}
+                onChange={(e) => { setReason(e.target.value); fetchKit(e.target.value); }}
+                className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 dark:text-gray-100"
+              >
+                {kit.reasons_available.map((r) => (
+                  <option key={r} value={r}>{REASON_LABELS[r] ?? r}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <p className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded p-2 whitespace-pre-wrap">{kit.justification}</p>
+              <button
+                onClick={() => { navigator.clipboard?.writeText(kit.justification); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+                className="mt-1 text-[11px] text-teal-600 dark:text-teal-400 hover:underline"
+              >
+                {copied ? "Copied ✓" : "Copy justification"}
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {kit.engines.map((eng) => (
+                <div key={eng.key} className="text-xs">
+                  <a
+                    href={eng.action === "email" ? `mailto:${eng.target}?subject=RTBF%20request` : eng.target}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline font-medium"
+                  >
+                    <ExternalLink className="w-3 h-3" /> {eng.name} {eng.action === "form" ? "form" : "email"}
+                  </a>
+                  {eng.id_required && <span className="ml-2 text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1 py-0.5 rounded">ID upload</span>}
+                  <span className="text-gray-500 dark:text-gray-400 ml-1">— {eng.note}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">{kit.coverage_note}</p>
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
 export default function Exposures() {
   const [exposures, setExposures] = useState<Exposure[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -249,6 +326,7 @@ export default function Exposures() {
                         </div>
                       </details>
                     )}
+                    {e.url && <DelistingKit exposureId={e.id} />}
 
                     {/* Action bar */}
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
