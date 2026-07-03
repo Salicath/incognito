@@ -536,7 +536,7 @@ export default function Scan() {
         )}
       </div>
 
-      {/* Account Scanner (Holehe) */}
+      {/* Account Scanner (user-scanner) */}
       <div className="mt-10">
         <div className="mb-6">
           <h2 className="text-xl font-bold">Account Scanner</h2>

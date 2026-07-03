@@ -26,9 +26,12 @@ interface Summary {
 
 type Filter = "needs_triage" | "actioned" | "dismissed" | "legally_impossible" | "all";
 
+const accountBadge = "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300";
 const sourceColors: Record<string, string> = {
   duckduckgo: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
-  holehe: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  userscan: accountBadge,
+  maigret: accountBadge,
+  holehe: accountBadge,
   wayback: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   github: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
 };
@@ -175,7 +178,7 @@ export default function Exposures() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${sourceColors[e.source] ?? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${sourceColors[e.source.split(":")[0]] ?? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
                             {e.source_label}
                           </span>
                           <span className="font-medium text-sm truncate">{e.title}</span>
