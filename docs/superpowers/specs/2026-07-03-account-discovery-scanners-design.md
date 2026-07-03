@@ -41,11 +41,14 @@ unstable) API churns, the fix is one file.
 
 - Keeps the `AccountHit` / `AccountReport` dataclass shapes so downstream mapping is
   unchanged.
-- Exposes `check_email_accounts(email, on_progress)` (email axis) and a new
-  `check_username_accounts(username, on_progress)` (username axis).
+- Exposes `check_email_accounts(email, on_progress)` — a **1:1 email-axis replacement**
+  for holehe. The username axis is intentionally *not* exposed here: Maigret's 3000-site
+  sweep supersets user-scanner's 185 username vectors, so a second username scanner in
+  the UI would be pure redundancy. One tool per axis: user-scanner owns email, Maigret
+  owns username.
 - Per-site exceptions suppressed (as holehe did); `ImportError` recorded in
   `report.errors`, never raised.
-- Source labels: `userscan:<email>` and `userscan:<username>`.
+- Source label: `userscan:<email>`.
 
 ### 2. `backend/scanner/maigret_scanner.py` (new)
 
