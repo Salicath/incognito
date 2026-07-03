@@ -13,8 +13,16 @@ interface Exposure {
   disposition: string | null;
   note: string;
   matched_broker: { broker_id: string; name: string } | null;
-  guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }> } | null;
+  guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }>; difficulty?: string } | null;
 }
+
+const difficultyBadge: Record<string, string> = {
+  easy: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  limited: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  hard: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  impossible: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+};
 
 interface Summary {
   total: number;
@@ -204,7 +212,14 @@ export default function Exposures() {
                           How to remove this →
                         </summary>
                         <div className="mt-2 pl-3 border-l-2 border-indigo-100 dark:border-indigo-900/50">
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{e.guidance.title}</p>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
+                            {e.guidance.title}
+                            {e.guidance.difficulty && (
+                              <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${difficultyBadge[e.guidance.difficulty] ?? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                                {e.guidance.difficulty}
+                              </span>
+                            )}
+                          </p>
                           <ol className="list-decimal list-inside space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
                             {e.guidance.steps.map((step, si) => <li key={si}>{step}</li>)}
                           </ol>
