@@ -131,6 +131,16 @@ export const api = {
     request<{ ok: boolean; detail: string; disposition: string | null }>(`/scan/exposures/${id}/unsubscribe`, {
       method: "POST",
     }),
+  getDelistingKit: (id: number, reason: string) =>
+    request<{
+      url: string;
+      name_queries: string[];
+      reason: string;
+      reasons_available: string[];
+      justification: string;
+      engines: Array<{ key: string; name: string; action: string; target: string; id_required: boolean; note: string }>;
+      coverage_note: string;
+    }>(`/scan/exposures/${id}/delisting-kit?reason=${encodeURIComponent(reason)}`),
   startNewsletterScan: () =>
     request<{ status: string }>("/scan/newsletters/start", { method: "POST" }),
   getNewsletterResults: () =>

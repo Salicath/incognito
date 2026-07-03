@@ -113,6 +113,22 @@ def test_unsubscribe_rejects_non_newsletter(client, config):
     assert resp.status_code == 400
 
 
+def test_delisting_kit_for_web_search_exposure(client, config):
+    eid = _seed(config, "duckduckgo", {"broker_name": "Blog", "url": "https://blog.example/jane"})
+    resp = client.get(f"/api/scan/exposures/{eid}/delisting-kit?reason=outdated")
+    assert resp.status_code == 200
+    kit = resp.json()
+    assert kit["url"] == "https://blog.example/jane"
+    assert {e["key"] for e in kit["engines"]} >= {"google", "bing", "brave"}
+    assert "Test User" in kit["justification"]  # profile full_name
+
+
+def test_delisting_kit_400_when_no_url(client, config):
+    eid = _seed(config, "duckduckgo", {"broker_name": "NoUrl"})
+    resp = client.get(f"/api/scan/exposures/{eid}/delisting-kit")
+    assert resp.status_code == 400
+
+
 def test_unsubscribe_bare_link_is_manual(client, config):
     eid = _seed(config, "newsletter:x.example", {
         "broker_name": "X", "sender_domain": "x.example",

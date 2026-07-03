@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (381 tests, 220 brokers, 23 DPAs)
+# Run tests (390 tests, 220 brokers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -61,7 +61,7 @@ incognito report             # Privacy score and exposure report
 - Broker registry loaded from YAML files in `brokers/`
 - Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl, ccpa
 - CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`). Renewal ladder (T-30/T-7/expiry) fires from the `follow-up` command via `check_lever_renewals`.
-- Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps. Account hits (user-scanner/Maigret) are resolved against the vendored JustDelete.me dataset (`core/account_registry.py`, `data/justdeleteme_sites.json`) to surface the exact deletion URL + difficulty; `difficulty: impossible` routes toward the `legally_impossible` disposition. Newsletter hits carry an unsubscribe action (`POST /api/scan/exposures/{id}/unsubscribe`): RFC 8058 one-click POST via `core/unsubscribe.py` (SSRF-guarded, HTTPS-only, no redirects), or a mailto send via the SMTP sender.
+- Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps. Account hits (user-scanner/Maigret) are resolved against the vendored JustDelete.me dataset (`core/account_registry.py`, `data/justdeleteme_sites.json`) to surface the exact deletion URL + difficulty; `difficulty: impossible` routes toward the `legally_impossible` disposition. Newsletter hits carry an unsubscribe action (`POST /api/scan/exposures/{id}/unsubscribe`): RFC 8058 one-click POST via `core/unsubscribe.py` (SSRF-guarded, HTTPS-only, no redirects), or a mailto send via the SMTP sender. Any URL exposure carries a delisting kit (`GET /api/scan/exposures/{id}/delisting-kit`, `core/delisting.py`): per-engine RTBF deep-links (Google/Bing forms + Brave email) plus a drafted, locale-aware Art. 17 justification — assist-only, since every engine is a manual ID-gated form.
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
@@ -126,6 +126,7 @@ pytest tests/unit/test_exposures.py -v        # Exposure triage inbox (dispositi
 pytest tests/unit/test_account_registry.py -v # JustDelete.me account-deletion lookup
 pytest tests/unit/test_newsletter.py -v       # Newsletter List-Unsubscribe parsing/scan
 pytest tests/unit/test_unsubscribe.py -v      # RFC 8058 one-click unsubscribe + SSRF guard
+pytest tests/unit/test_delisting.py -v        # Search-engine delisting (RTBF) assist kit
 ```
 
 ## Dependencies

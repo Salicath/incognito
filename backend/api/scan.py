@@ -1113,6 +1113,38 @@ def create_scan_router(
         finally:
             db.close()
 
+    @r.get("/exposures/{exposure_id}/delisting-kit")
+    def get_delisting_kit(
+        exposure_id: int,
+        reason: str = "outdated",
+        locale: str = "en",
+        session: str | None = Cookie(default=None),
+    ):
+        """Build a search-engine delisting (RTBF) assist kit for a URL exposure."""
+        key, _salt = session_store.validate(session)
+        profile, _, _ = vault.load_with_key(key)
+        if db_session_factory is None:
+            raise HTTPException(status_code=503, detail="Database unavailable")
+
+        db = db_session_factory()
+        try:
+            row = db.get(ScanResult, exposure_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="Exposure not found")
+            data = _safe_json(row.found_data)
+            url = (data.get("url") if isinstance(data, dict) else None) or ""
+            if not url:
+                raise HTTPException(status_code=400, detail="Exposure has no URL to delist")
+        finally:
+            db.close()
+
+        from backend.core.delisting import build_delisting_kit
+
+        name_queries = [profile.full_name, *profile.previous_names] if profile.full_name else list(
+            profile.previous_names
+        )
+        return build_delisting_kit(url, name_queries, reason=reason, locale=locale)
+
     @r.post("/exposures/{exposure_id}/unsubscribe")
     async def unsubscribe_exposure(
         exposure_id: int,
