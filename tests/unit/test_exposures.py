@@ -90,7 +90,7 @@ def test_empty_inbox(client):
 
 def test_aggregates_across_sources_with_labels(client, config):
     _seed(config, "duckduckgo", {"broker_name": "Spokeo", "url": "https://spokeo.com/x"})
-    _seed(config, "holehe:test@example.com", {"service": "Spotify", "url": "spotify.com"})
+    _seed(config, "userscan:test@example.com", {"service": "Spotify", "url": "spotify.com"})
     _seed(config, "wayback", {
         "broker_name": "Wayback: GitHub", "url": "https://web.archive.org/x",
         "username": "me", "snapshots": 3,
@@ -106,11 +106,11 @@ def test_aggregates_across_sources_with_labels(client, config):
 
     by_source = {e["source"]: e for e in data["exposures"]}
     assert by_source["duckduckgo"]["source_label"] == "Web search"
-    assert by_source["holehe"]["source_label"] == "Account"
+    assert by_source["userscan"]["source_label"] == "Account"
     assert by_source["wayback"]["source_label"] == "Web archive"
     assert by_source["github"]["source_label"] == "Code leak"
     # title resolves from source-specific fields
-    assert by_source["holehe"]["title"] == "Spotify"
+    assert by_source["userscan"]["title"] == "Spotify"
     assert all(e["disposition"] is None for e in data["exposures"])
 
 

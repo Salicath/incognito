@@ -174,7 +174,7 @@ def create_scan_router(
 
     async def _run_account_scan(email: str):
         try:
-            from backend.scanner.holehe_scanner import check_email_accounts
+            from backend.scanner.user_scanner import check_email_accounts
 
             def on_progress(checked, total):
                 _account_state["progress"] = checked
@@ -200,7 +200,7 @@ def create_scan_router(
                         }
                         for h in report.hits
                     ]
-                    save_scan_results(db, hits, source=f"holehe:{report.email}")
+                    save_scan_results(db, hits, source=f"userscan:{report.email}")
                 finally:
                     db.close()
         except Exception as e:
@@ -717,9 +717,9 @@ def create_scan_router(
     }
 
     def _source_label(source: str) -> str:
-        # holehe:<email> and similar carry a suffix
+        # userscan:<email> / maigret:<user> / holehe:<email> carry a suffix
         base = source.split(":", 1)[0]
-        if base == "holehe":
+        if base in {"userscan", "maigret", "holehe"}:
             return "Account"
         return source_labels.get(base, base)
 
