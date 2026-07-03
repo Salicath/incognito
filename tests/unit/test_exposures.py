@@ -88,6 +88,40 @@ def test_empty_inbox(client):
     assert data["summary"]["needs_triage"] == 0
 
 
+def test_unsubscribe_one_click_actions_exposure(client, config, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    import backend.core.unsubscribe as unsub
+
+    monkeypatch.setattr(
+        unsub, "one_click_unsubscribe", AsyncMock(return_value=(True, "Unsubscribed (HTTP 200)"))
+    )
+    eid = _seed(config, "newsletter:acme.example", {
+        "broker_name": "Acme News", "sender_domain": "acme.example",
+        "one_click": True, "unsub_https": "https://acme.example/u/1",
+    })
+    resp = client.post(f"/api/scan/exposures/{eid}/unsubscribe")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["disposition"] == "actioned"
+
+
+def test_unsubscribe_rejects_non_newsletter(client, config):
+    eid = _seed(config, "duckduckgo", {"broker_name": "Spokeo", "url": "https://spokeo.com/x"})
+    resp = client.post(f"/api/scan/exposures/{eid}/unsubscribe")
+    assert resp.status_code == 400
+
+
+def test_unsubscribe_bare_link_is_manual(client, config):
+    eid = _seed(config, "newsletter:x.example", {
+        "broker_name": "X", "sender_domain": "x.example",
+        "one_click": False, "unsub_https": "https://x.example/u", "unsub_mailto": None,
+    })
+    resp = client.post(f"/api/scan/exposures/{eid}/unsubscribe")
+    assert resp.status_code == 400
+
+
 def test_aggregates_across_sources_with_labels(client, config):
     _seed(config, "duckduckgo", {"broker_name": "Spokeo", "url": "https://spokeo.com/x"})
     _seed(config, "userscan:test@example.com", {"service": "Spotify", "url": "spotify.com"})

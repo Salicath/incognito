@@ -138,9 +138,35 @@ def _websearch(data: dict) -> dict:
     }
 
 
+def _newsletter(data: dict) -> dict:
+    sender = data.get("broker_name") or data.get("sender_domain") or "this sender"
+    steps = []
+    if data.get("one_click"):
+        steps.append(
+            "Click 'Unsubscribe' — it sends a one-click (RFC 8058) unsubscribe "
+            "request straight to the sender, no browser needed."
+        )
+    elif data.get("unsub_mailto"):
+        steps.append(
+            "Click 'Unsubscribe' — it emails the list's unsubscribe address on your behalf."
+        )
+    https = data.get("unsub_https") or ""
+    if https:
+        steps.append(f"Or open the unsubscribe page yourself: {https}")
+    steps.append(
+        "Unsubscribing withdraws consent / objects to direct marketing (GDPR Art. 21). "
+        "If mail keeps arriving, send an Art. 17 erasure request to the sender."
+    )
+    links = []
+    if https.startswith("http"):
+        links.append({"label": "Unsubscribe page", "url": https})
+    return {"title": f"Unsubscribe from {sender}", "steps": steps, "links": links}
+
+
 _HANDLERS = {
     "github": _github,
     "wayback": _wayback,
+    "newsletter": _newsletter,
     "userscan": _account,
     "maigret": _account,
     "holehe": _account,  # legacy rows

@@ -127,6 +127,15 @@ export const api = {
     request<{ request_id: string; broker_id: string; created: boolean; disposition: string }>(`/scan/exposures/${id}/create-request`, {
       method: "POST",
     }),
+  unsubscribeExposure: (id: number) =>
+    request<{ ok: boolean; detail: string; disposition: string | null }>(`/scan/exposures/${id}/unsubscribe`, {
+      method: "POST",
+    }),
+  startNewsletterScan: () =>
+    request<{ status: string }>("/scan/newsletters/start", { method: "POST" }),
+  getNewsletterResults: () =>
+    request<{ has_results: boolean; checked: number; hits: Array<{ sender: string; sender_name: string; sender_domain: string; one_click: boolean; subject: string }>; errors: string[] }>("/scan/newsletters/results"),
+  getNewsletterStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/newsletters/status"),
   getScanHistory: () =>
     request<{
       results: Array<{ id: number; source: string; broker_id: string; found_data: unknown; scanned_at: string | null; actioned: boolean }>;

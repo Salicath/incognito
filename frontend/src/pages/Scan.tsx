@@ -71,6 +71,21 @@ interface DeepResults {
   errors: string[];
 }
 
+interface NewsletterHit {
+  sender: string;
+  sender_name: string;
+  sender_domain: string;
+  one_click: boolean;
+  subject: string;
+}
+
+interface NewsletterResults {
+  has_results: boolean;
+  checked: number;
+  hits: NewsletterHit[];
+  errors: string[];
+}
+
 interface GithubHit {
   identifier: string;
   repository: string;
@@ -122,6 +137,12 @@ export default function Scan() {
     startFn: (usernames?: unknown) => api.startDeepScan(usernames as string | undefined),
     statusFn: api.getDeepScanStatus,
     resultsFn: api.getDeepScanResults,
+  });
+
+  const newsletter = useAsyncTask<NewsletterResults>({
+    startFn: () => api.startNewsletterScan(),
+    statusFn: api.getNewsletterStatus,
+    resultsFn: api.getNewsletterResults,
   });
 
   const [githubConfigured, setGithubConfigured] = useState<boolean | null>(null);
@@ -949,6 +970,71 @@ export default function Scan() {
                 </div>
               </div>
             )}
+          </>
+        )}
+      </div>
+
+      {/* Newsletter Scanner (List-Unsubscribe) */}
+      <div className="mt-10">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold">Newsletter Scan</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Scan your inbox for mailing lists and surface each sender in the Exposures inbox, where you can one-click unsubscribe. Uses your configured IMAP account.
+            </p>
+          </div>
+          <button
+            onClick={() => newsletter.start()}
+            disabled={newsletter.running}
+            className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition disabled:opacity-50 shrink-0"
+          >
+            {newsletter.running ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Scanning...</>
+            ) : (
+              <><Mail className="w-4 h-4" /> {newsletter.hasResults ? "Scan Again" : "Scan Inbox"}</>
+            )}
+          </button>
+        </div>
+
+        {newsletter.error && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{newsletter.error}</div>
+        )}
+
+        {newsletter.running && (
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-6 mb-6 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-teal-600 animate-spin" />
+            <p className="text-teal-900 font-medium">Reading inbox headers for List-Unsubscribe...</p>
+          </div>
+        )}
+
+        {!newsletter.running && newsletter.hasResults && (
+          <>
+            {((newsletter.results as NewsletterResults | null)?.errors ?? []).map((err) => (
+              <div key={err} className="bg-yellow-50 text-yellow-800 px-4 py-3 rounded-lg mb-4 text-sm">{err}</div>
+            ))}
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold">
+                  {((newsletter.results as NewsletterResults | null)?.hits.length ?? 0)} mailing lists found
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Manage and unsubscribe from these in the Exposures inbox.
+                </p>
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {((newsletter.results as NewsletterResults | null)?.hits ?? []).map((hit) => (
+                  <div key={hit.sender_domain} className="px-5 py-3 flex items-center justify-between">
+                    <div className="min-w-0">
+                      <span className="font-medium text-sm">{hit.sender_name}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">{hit.sender}</span>
+                    </div>
+                    {hit.one_click && (
+                      <span className="text-[10px] uppercase tracking-wide bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 px-1.5 py-0.5 rounded shrink-0">one-click</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </div>
