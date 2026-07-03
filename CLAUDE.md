@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (344 tests, 220 brokers, 23 DPAs)
+# Run tests (352 tests, 220 brokers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -45,7 +45,7 @@ incognito report             # Privacy score and exposure report
 - `api/` — FastAPI routes (auth, blast, brokers, cpr_levers, requests, scan, settings, setup)
 - `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry, IMAP poller)
 - `db/` — SQLAlchemy models + Alembic migrations. SQLite with WAL mode.
-- `scanner/` — DuckDuckGo search, Holehe account discovery, HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan
+- `scanner/` — DuckDuckGo search, user-scanner account discovery (email axis), HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan, Maigret deep username enumeration (isolated subprocess, ~3000 sites)
 - `senders/` — Email sender (SMTP), web form sender (Playwright), base result types
 
 **Frontend** (`frontend/src/`):
@@ -61,7 +61,7 @@ incognito report             # Privacy score and exposure report
 - Broker registry loaded from YAML files in `brokers/`
 - Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl, ccpa
 - CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`). Renewal ladder (T-30/T-7/expiry) fires from the `follow-up` command via `check_lever_renewals`.
-- Exposure triage: every scanner (DDG, Holehe, Wayback, GitHub) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps.
+- Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps.
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
@@ -120,13 +120,16 @@ pytest tests/unit/test_brokers_update.py -v   # Broker update command
 pytest tests/unit/test_cpr_lever.py -v        # CPR lever track (DK upstream protections)
 pytest tests/unit/test_wayback.py -v          # Wayback CDX archived-profile scanner
 pytest tests/unit/test_github_scanner.py -v   # GitHub code-leak scanner
+pytest tests/unit/test_user_scanner.py -v     # Account scanner (email axis, user-scanner)
+pytest tests/unit/test_maigret_scanner.py -v  # Maigret deep username scanner
 pytest tests/unit/test_exposures.py -v        # Exposure triage inbox (disposition routing)
 ```
 
 ## Dependencies
 
 Core deps in `pyproject.toml`. Optional extras:
-- `pip install -e ".[scanner]"` — holehe for account discovery
+- `pip install -e ".[scanner]"` — user-scanner for email-axis account discovery
+- `pip install -e ".[scanner-deep]"` — maigret for deep username enumeration (heavy deps; container installs it into an isolated `/opt/maigret` venv)
 - `pip install -e ".[automation]"` — Playwright for future web form automation
 - `pip install -e ".[dev]"` — pytest, ruff, mypy
 
