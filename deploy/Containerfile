@@ -27,6 +27,7 @@ COPY cli.py ./
 COPY alembic.ini ./
 COPY templates/ templates/
 COPY brokers/ brokers/
+COPY data/ data/
 COPY --from=frontend-builder /build/dist frontend/dist/
 
 RUN chown -R incognito:incognito /app /opt/maigret

@@ -95,7 +95,7 @@ Add `da` locale to `templates/locales/` (5 template types).
 - `delisting` track: Google + Bing RTBF flow (URL list + ID upload guidance)
 
 **Phase 4 — Long tail**
-- `account` track: import JustDelete.me sites.json, build `account_delete` sender
+- `account` track: ✅ JustDelete.me sites.json vendored (`data/justdeleteme_sites.json`, 2556 entries) + `core/account_registry.py` maps every discovered account (user-scanner/Maigret hit) to its exact deletion URL + difficulty in the Exposures inbox; `impossible` → `legally_impossible`. Still TODO: an automated `account_delete` sender (most services have no deletion API — guided self-service is the realistic ceiling).
 - `newsletter` track: IMAP scan + RFC 8058 POST + mailto fallback
 - `time_locked` track: scheduled-fire requests for bank/Skat retention windows
 - `restriction_only` track: info pages for legally-undeletable sources
