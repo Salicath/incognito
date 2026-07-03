@@ -29,11 +29,16 @@ class AccountReport:
 
 
 def _is_found(result) -> bool:
-    if getattr(result, "found", None) is True:
-        return True
+    # user-scanner Result exposes is_found(); Status.TAKEN -> "Found".
+    is_found = getattr(result, "is_found", None)
+    if callable(is_found):
+        try:
+            return bool(is_found())
+        except Exception:
+            pass
     status = getattr(result, "status", None)
     value = getattr(status, "value", status)
-    return str(value).lower() in {"found", "claimed", "exists", "true"}
+    return str(value).lower() in {"found", "taken", "claimed", "exists", "true"}
 
 
 async def check_email_accounts(email: str, on_progress=None) -> AccountReport:

@@ -13,12 +13,14 @@ from backend.scanner.user_scanner import (
 
 
 def _result(site_name, url, found):
-    """Mimic user_scanner.core.result.Result enough for the adapter."""
+    """Mimic user_scanner.core.result.Result enough for the adapter.
+
+    The real Result exposes is_found() and Status.TAKEN/AVAILABLE.
+    """
     return SimpleNamespace(
         site_name=site_name,
         url=url,
-        status=SimpleNamespace(value="found" if found else "not_found"),
-        found=found,
+        is_found=lambda: found,
     )
 
 
