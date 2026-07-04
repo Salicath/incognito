@@ -8,6 +8,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from backend.api.auth import create_auth_router
 from backend.api.blast import create_blast_router
 from backend.api.brokers import create_brokers_router
+from backend.api.controllers import create_controllers_router
 from backend.api.cpr_levers import create_cpr_levers_router
 from backend.api.deps import LoginRateLimiter, SessionStore
 from backend.api.requests import create_requests_router
@@ -16,6 +17,7 @@ from backend.api.settings import create_settings_router
 from backend.api.setup import create_setup_router
 from backend.core.broker import BrokerRegistry
 from backend.core.config import AppConfig
+from backend.core.controller import ControllerRegistry, RegistryUnion
 from backend.core.cpr_lever import CprLeverRegistry
 from backend.core.notifier import init_notifier
 from backend.core.profile import ProfileVault
@@ -103,8 +105,13 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     lever_registry = CprLeverRegistry.load(brokers_dir / "cpr_levers.yaml")
     app.state.lever_registry = lever_registry
 
+    controller_registry = ControllerRegistry.load(brokers_dir / "controllers.yaml")
+    app.state.controller_registry = controller_registry
+    registry_union = RegistryUnion(broker_registry, controller_registry)
+
     app.state.imap_poller = None
     broker_domain_set = {b.domain.lower() for b in broker_registry.brokers}
+    broker_domain_set.update(c.domain.lower() for c in controller_registry.controllers)
     app.state.broker_domains = broker_domain_set
 
     app.include_router(create_auth_router(
@@ -121,7 +128,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         lever_registry, broker_registry, session_store, db_session_factory,
     ))
     app.include_router(create_requests_router(
-        db_session_factory, session_store, config.gdpr_deadline_days, broker_registry,
+        db_session_factory, session_store, config.gdpr_deadline_days, registry_union,
+    ))
+    app.include_router(create_controllers_router(
+        vault, session_store, controller_registry, db_session_factory, config,
     ))
     app.include_router(create_scan_router(
         vault, session_store, broker_registry, config, db_session_factory,
@@ -129,6 +139,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.include_router(create_blast_router(
         vault, session_store, broker_registry, db_session_factory, config,
         lever_registry=lever_registry,
+        controller_registry=controller_registry,
     ))
     app.include_router(create_settings_router(
         vault, session_store, broker_registry, config, db_session_factory,

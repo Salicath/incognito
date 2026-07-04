@@ -11,6 +11,10 @@ Exposición de los hechos:
 - El plazo legal de respuesta de un mes previsto en el artículo 12, apartado 3, del RGPD ha transcurrido.
 - He enviado un recordatorio y un último aviso sin haber recibido respuesta sustantiva.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 Datos identificativos:
 - Nombre: {{ profile.full_name }}
 - Correo electrónico: {{ profile.emails | join(', ') }}

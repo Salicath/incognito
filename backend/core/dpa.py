@@ -182,3 +182,21 @@ def get_dpa_for_country(country_code: str) -> dict | None:
 def get_dpa_for_broker_country(broker_country: str) -> dict | None:
     """Get DPA info. Falls back to the EU DPA where the user resides (not implemented yet)."""
     return get_dpa_for_country(broker_country)
+
+
+def get_dpa_for_request(entry, user_country: str = "DK") -> dict | None:
+    """Pick the complaint DPA for a request's target.
+
+    Broker track: the broker's own country (a DK directory answers to
+    Datatilsynet). Controller track: Art. 77 lets the complainant file with
+    their residence SA, which forwards to the lead SA under Art. 56/60 —
+    filing directly with the lead SA confers no procedural speedup. Sole
+    exception: GB-established controllers, where there is no one-stop-shop
+    bridge and the ICO accepts non-residents. No-EU-establishment controllers
+    (Snap) also land at the residence SA, which has full Art. 55 competence.
+    """
+    if getattr(entry, "category", "") == "controller":
+        if entry.entity_country == "GB":
+            return get_dpa_for_country("GB")
+        return get_dpa_for_country(user_country)
+    return get_dpa_for_country(entry.country)

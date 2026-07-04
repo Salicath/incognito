@@ -19,6 +19,7 @@ class AppConfig(BaseSettings):
     secure_cookies: bool = False  # Set True behind HTTPS reverse proxy
     notify_url: str = ""  # Ntfy/Gotify/webhook URL for push notifications
     trusted_proxy_header: str = ""  # e.g. "Remote-User" for Authentik/Authelia
+    user_country: str = "DK"  # Residence SA for controller-track Art. 77 complaints
 
     def setup_logging(self) -> logging.Logger:
         level = getattr(logging, self.log_level.upper(), None)

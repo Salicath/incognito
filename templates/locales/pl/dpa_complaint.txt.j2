@@ -11,6 +11,10 @@ Opis stanu faktycznego:
 - Ustawowy termin odpowiedzi wynoszący jeden miesiąc, o którym mowa w art. 12 ust. 3 RODO, upłynął.
 - Wysłałem/am przypomnienie oraz ostateczne wezwanie, lecz nie otrzymałem/am merytorycznej odpowiedzi.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 Dane identyfikacyjne:
 - Imię i nazwisko: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

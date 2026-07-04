@@ -11,6 +11,10 @@ Beschrijving van de feiten:
 - De wettelijke antwoordtermijn van één maand op grond van artikel 12, lid 3, AVG is verstreken.
 - Ik heb een herinnering en een laatste waarschuwing verzonden, maar geen inhoudelijke reactie ontvangen.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 Identificatiegegevens:
 - Naam: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

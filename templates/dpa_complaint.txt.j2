@@ -9,6 +9,10 @@ Details of the complaint:
 - The statutory 30-day response period under Article 12(3) GDPR has passed.
 - I sent a follow-up and a final warning, but have not received a substantive response.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 My identifying details:
 - Name: {{ profile.full_name }}
 - Email: {{ profile.emails | join(', ') }}

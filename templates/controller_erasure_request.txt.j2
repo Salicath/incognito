@@ -1,0 +1,31 @@
+Subject: Data Erasure Request pursuant to Article 17 GDPR — {{ profile.full_name }} [{{ reference_id }}]
+
+Dear Data Protection Officer,
+
+I am writing to {{ controller.eu_entity }} to request the erasure of all personal data you hold relating to me, pursuant to Article 17 of the General Data Protection Regulation (EU) 2016/679.
+
+This request covers my account and all associated personal data, expressly including the categories that survive standard account deletion. {{ controller.art17_value }}
+
+{% if controller.demand_content_erasure %}
+For the avoidance of doubt, this request extends to the content I have created — posts, comments and messages — not merely my account record. Disassociating or anonymising that content does not satisfy Article 17; I request erasure of the content itself.
+
+{% endif %}
+{% if controller.special_category %}
+I note that the data concerned includes health and fitness data within the meaning of Article 9 GDPR (special categories of personal data), which is subject to a heightened standard of protection.
+
+{% endif %}
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+{% if profile.phones %}- Phone: {{ profile.phones | join(', ') }}
+{% endif %}{% if profile.date_of_birth %}- Date of birth: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Address: {{ profile.addresses[0].formatted }}
+{% endif %}
+Please confirm the erasure within one month as required by Article 12(3) GDPR. If you rely on an exemption under Article 17(3) for any category of data, please identify the category, the specific legal basis, and the applicable retention period.
+
+Failure to respond within the statutory period may result in a complaint to the competent supervisory authority.
+
+Yours faithfully,
+{{ profile.full_name }}
+
+Ref: {{ reference_id }}

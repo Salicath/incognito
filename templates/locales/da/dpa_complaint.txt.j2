@@ -9,6 +9,10 @@ Klagens nærmere omstændigheder:
 - Den lovbestemte svarfrist på én måned, jf. artikel 12, stk. 3, er overskredet.
 - Jeg har afsendt en rykker og en sidste varsling, men har ikke modtaget et materielt svar.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 Mine identifikationsoplysninger:
 - Navn: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

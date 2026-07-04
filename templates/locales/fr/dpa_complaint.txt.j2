@@ -11,6 +11,10 @@ Exposé des faits :
 - Le délai légal de réponse d'un mois prévu par l'article 12, paragraphe 3, du RGPD est expiré.
 - J'ai envoyé une relance ainsi qu'une mise en demeure, sans obtenir de réponse substantielle.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 Mes coordonnées :
 - Nom : {{ profile.full_name }}
 - E-mail : {{ profile.emails | join(', ') }}

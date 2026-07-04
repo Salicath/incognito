@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry, RemovalMethod
 from backend.core.config import AppConfig
+from backend.core.controller import RegistryUnion
 from backend.core.cpr_lever import CprLeverRegistry, covered_broker_ids
 from backend.core.profile import ProfileVault
 from backend.core.request import RequestManager
@@ -22,6 +23,7 @@ def create_blast_router(
     db_session_factory,
     config: AppConfig,
     lever_registry: CprLeverRegistry | None = None,
+    controller_registry=None,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/blast", tags=["blast"])
 
@@ -307,13 +309,18 @@ def create_blast_router(
         templates_dir = Path(__file__).parent.parent.parent / "templates"
         renderer = TemplateRenderer(templates_dir)
 
+        # Controller requests need follow-ups too — resolve via the union
+        lookup_registry: BrokerRegistry | RegistryUnion = broker_registry
+        if controller_registry is not None:
+            lookup_registry = RegistryUnion(broker_registry, controller_registry)
+
         db = db_session_factory()
         try:
             result = await run_follow_ups(
                 session=db,
                 profile=profile,
                 smtp=smtp,
-                broker_registry=broker_registry,
+                broker_registry=lookup_registry,
                 renderer=renderer,
                 gdpr_deadline_days=config.gdpr_deadline_days,
             )
@@ -352,7 +359,7 @@ def create_blast_router(
 
         from pathlib import Path
 
-        from backend.core.dpa import get_dpa_for_country
+        from backend.core.dpa import get_dpa_for_request
 
         db = db_session_factory()
         try:
@@ -361,10 +368,39 @@ def create_blast_router(
                 raise HTTPException(status_code=404, detail="Request not found")
 
             broker = broker_registry.get(req.broker_id)
+            if broker is None and controller_registry is not None:
+                broker = controller_registry.get(req.broker_id)
             if broker is None:
                 raise HTTPException(status_code=404, detail="Broker not found")
 
-            dpa = get_dpa_for_country(broker.country)
+            dpa = get_dpa_for_request(broker, config.user_country)
+
+            # Controllers: the complaint goes to the residence SA — name the
+            # lead SA in the text so it gets forwarded under Art. 56/60.
+            lead_sa_note = ""
+            if broker.category == "controller":
+                from typing import cast
+
+                from backend.core.controller import Controller
+
+                ctrl = cast(Controller, broker)
+                if ctrl.no_eu_establishment:
+                    lead_sa_note = (
+                        f"The controller ({ctrl.eu_entity}) has no establishment "
+                        f"in the EU, so no one-stop-shop applies and you have full "
+                        f"competence under Article 55 GDPR."
+                    )
+                    if ctrl.art27_rep:
+                        lead_sa_note += (
+                            f" Its Article 27 representative is {ctrl.art27_rep}."
+                        )
+                else:
+                    lead_sa_note = (
+                        f"The controller's main establishment is {ctrl.eu_entity} "
+                        f"({ctrl.entity_country}); the lead supervisory authority "
+                        f"is {ctrl.lead_dpa}. I request that this complaint be "
+                        f"forwarded under Article 56 GDPR as appropriate."
+                    )
 
             # Render the complaint template
             templates_dir = Path(__file__).parent.parent.parent / "templates"
@@ -379,9 +415,10 @@ def create_blast_router(
                 profile=profile,
                 reference_id=req.id[:8].upper(),
                 broker_name=broker.name,
-                broker_email=broker.dpo_email,
+                broker_email=broker.dpo_email or getattr(broker, "erasure_form_url", ""),
                 original_date=req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown",
                 dpa_name=dpa_name,
+                lead_sa_note=lead_sa_note,
             )
 
             return {

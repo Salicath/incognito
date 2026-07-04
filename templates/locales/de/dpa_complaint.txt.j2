@@ -11,6 +11,10 @@ Sachverhalt:
 - Die gesetzliche Antwortfrist von einem Monat gemäß Art. 12 Abs. 3 DSGVO ist verstrichen.
 - Ich habe eine Erinnerung sowie eine letzte Mahnung versendet, jedoch keine inhaltliche Antwort erhalten.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 Meine Angaben:
 - Name: {{ profile.full_name }}
 - E-Mail: {{ profile.emails | join(', ') }}

@@ -11,6 +11,10 @@ Esposizione dei fatti:
 - Il termine legale di risposta di un mese previsto dall'art. 12, par. 3, del RGPD è decorso.
 - Ho inviato un sollecito e un ultimo avviso senza ricevere alcuna risposta sostanziale.
 
+{% if lead_sa_note %}
+{{ lead_sa_note }}
+
+{% endif %}
 Dati identificativi:
 - Nome: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

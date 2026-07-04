@@ -3,10 +3,14 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
 from backend.core.broker import BrokerRegistry
+
+if TYPE_CHECKING:
+    from backend.core.controller import RegistryUnion
 from backend.core.profile import Profile, SmtpConfig
 from backend.core.request import RequestManager
 from backend.core.template import TemplateRenderer
@@ -33,7 +37,7 @@ async def run_follow_ups(
     session: Session,
     profile: Profile,
     smtp: SmtpConfig | None,
-    broker_registry: BrokerRegistry,
+    broker_registry: BrokerRegistry | RegistryUnion,
     renderer: TemplateRenderer,
     gdpr_deadline_days: int = 30,
     escalation_days: int = 7,
@@ -81,7 +85,9 @@ async def run_follow_ups(
 
         for req in all_overdue:
             broker = broker_registry.get(req.broker_id)
-            if broker is None:
+            # Form-only controllers have no email address to chase — the user
+            # escalates via the DPA complaint instead.
+            if broker is None or not broker.dpo_email:
                 continue
 
             events = events_by_request.get(req.id, [])

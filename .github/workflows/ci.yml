@@ -88,7 +88,7 @@ jobs:
           count = 0
 
           for path in sorted(Path('brokers').glob('*.yaml')):
-              if path.stem in ('schema', 'cpr_levers'):
+              if path.stem in ('schema', 'cpr_levers', 'controllers'):
                   continue
               count += 1
               try:
@@ -109,6 +109,39 @@ jobs:
                   print(f'ERROR: {e}')
               sys.exit(1)
           print('All broker files valid')
+          "
+
+      - name: Validate controller registry
+        run: |
+          python -c "
+          from pathlib import Path
+          import yaml
+          import sys
+
+          required = ['name', 'domain', 'eu_entity', 'entity_country', 'contact_kind', 'email_viable', 'selfservice_url', 'retention_note', 'art17_value', 'language', 'last_verified']
+          valid_kinds = ['privacy_email', 'dpo_email', 'form_only']
+          errors = []
+
+          data = yaml.safe_load(Path('brokers/controllers.yaml').read_text())
+          controllers = data.get('controllers', [])
+          for c in controllers:
+              label = c.get('name', '<unnamed>')
+              for field in required:
+                  if field not in c:
+                      errors.append(f'{label}: missing field \"{field}\"')
+              if c.get('contact_kind') not in valid_kinds:
+                  errors.append(f'{label}: invalid contact_kind \"{c.get(\"contact_kind\")}\"')
+              if c.get('email_viable') and not c.get('privacy_email'):
+                  errors.append(f'{label}: email_viable without privacy_email')
+              if not c.get('email_viable') and not c.get('erasure_form_url'):
+                  errors.append(f'{label}: form-only without erasure_form_url')
+
+          print(f'Validated {len(controllers)} controller records')
+          if errors:
+              for e in errors:
+                  print(f'ERROR: {e}')
+              sys.exit(1)
+          print('All controller records valid')
           "
 
   container:
