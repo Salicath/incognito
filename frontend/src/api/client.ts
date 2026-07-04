@@ -32,6 +32,12 @@ export const api = {
   getProfile: () => request<Record<string, unknown>>("/profile"),
   getBrokers: () => request<Array<Record<string, unknown>>>("/brokers"),
   getBroker: (id: string) => request<Record<string, unknown>>(`/brokers/${id}`),
+  getControllers: () => request<Array<Record<string, unknown>>>("/controllers"),
+  createControllerRequest: (id: string) =>
+    request<{ request_id: string; status: string; kit: Record<string, unknown> }>(
+      `/controllers/${id}/request`, { method: "POST" }),
+  getControllerKit: (id: string) =>
+    request<{ request_id: string; kit: Record<string, unknown> }>(`/controllers/${id}/kit`),
   getCprLevers: () => request<Array<Record<string, unknown>>>("/cpr-levers"),
   confirmCprLever: (id: string) =>
     request<{ status: string; activated_at: string; expires_at: string | null }>(`/cpr-levers/${id}/confirm`, { method: "POST" }),

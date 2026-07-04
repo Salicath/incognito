@@ -90,8 +90,18 @@ Add `da` locale to `templates/locales/` (5 template types).
 - Phone-axis account enumeration (no maintained tool exists; ignorant is dead — port the technique if needed)
 
 **Phase 3 — Controller track**
-- Per-platform Art. 17 templates + state machine for the 15-platform tech-giant set
-- Jurisdiction-aware DPA escalation routing (IE DPC, LU CNPD, NL AP, SE IMY, UK ICO, Norwegian Datatilsynet for special-category)
+- ✅ Controller track (`docs/tracks/controller.md`): `brokers/controllers.yaml` — 16
+  hand-verified platform records (research + adversarial verification, July 2026;
+  datenanfragen.de was stale for 5 of 16, so records are hand-curated with
+  `datenanfragen_slug` join keys). 8 of 16 are form-only (no verifiable Art. 17
+  email) and ride MANUAL_ACTION_NEEDED -> SENT with a generated filing kit; the
+  other 8 send immediately through the existing SMTP/IMAP/deadline pipeline.
+  Opt-in per platform (never blasted). Escalation routes to the residence SA
+  (`INCOGNITO_USER_COUNTRY`, default DK — Art. 77 one-stop-shop; direct lead-SA
+  filing has no procedural advantage), GB entities to ICO, no-EU-establishment
+  (Snap) to the residence SA under Art. 55; lead SA named in the complaint text.
+- Deferred: vendoring the full datenanfragen.de company DB (CC0, ~3k records) as
+  general registry enrichment.
 - 🟡 `delisting` track: Google + Bing RTBF. Shipped — the delisting-kit generator
   (`core/delisting.py`, `GET /api/scan/exposures/{id}/delisting-kit`): per-engine
   deep-links (Google/Bing forms + Brave email, with reseller coverage notes) and a
