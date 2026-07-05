@@ -9,8 +9,20 @@ Hierbij dien ik op grond van artikel 77 van de Algemene Verordening Gegevensbesc
 Beschrijving van de feiten:
 - Op {{ original_date }} heb ik een verzoek inzake gegevensbescherming aan {{ broker_name }} gericht (Ref: {{ reference_id }}).
 - De wettelijke antwoordtermijn van één maand op grond van artikel 12, lid 3, AVG is verstreken.
+{% if followed_up %}
 - Ik heb een herinnering en een laatste waarschuwing verzonden, maar geen inhoudelijke reactie ontvangen.
+{% else %}
+- Ik heb geen inhoudelijke reactie op mijn verzoek ontvangen.
+{% endif %}
 
+{% if controller_entity %}
+{% if controller_no_eu %}
+De verwerkingsverantwoordelijke ({{ controller_entity }}) heeft geen vestiging in de EU; het één-loketmechanisme is niet van toepassing en u bent volledig bevoegd op grond van artikel 55 AVG.{% if controller_art27_rep %} Zijn vertegenwoordiger krachtens artikel 27 is {{ controller_art27_rep }}.{% endif %}
+{% else %}
+De hoofdvestiging van de verwerkingsverantwoordelijke is {{ controller_entity }} ({{ controller_country }}); de leidende toezichthoudende autoriteit is {{ controller_lead_sa }}. Ik verzoek u deze klacht waar passend door te sturen op grond van artikel 56 AVG.
+{% endif %}
+
+{% endif %}
 Identificatiegegevens:
 - Naam: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

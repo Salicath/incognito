@@ -67,7 +67,12 @@ Add `da` locale to `templates/locales/` (5 template types).
 
 **Phase 2 — Discovery rebuild**
 - ✅ Wayback CDX scanner (backend/scanner/wayback.py — ghost-profile detection, 15 platforms)
-- Maigret + user-scanner integration (replace Holehe)
+- ✅ Maigret + user-scanner integration (replace Holehe): user-scanner is the
+  in-process email-axis holehe successor (light deps, asyncio-native); Maigret runs
+  as an isolated subprocess against its own `/opt/maigret` venv for deep 3000-site
+  username enumeration (`/api/scan/deep-scan/*`). WMN dataset dropped (Maigret
+  supersets it and verifies profiles). Phone-axis account enumeration remains a gap
+  (no maintained tool). Design/plan: `docs/superpowers/{specs,plans}/2026-07-03-account-discovery-scanners*`.
 - ✅ GitHub Code Search scanner (backend/scanner/github_scanner.py — PAT via Settings)
 - SearXNG Quadlet sidecar
 - HIBP paid-tier wiring + PimEyes manual-result-import flow
@@ -80,17 +85,34 @@ Add `da` locale to `templates/locales/` (5 template types).
 - ✅ Secrets in vault: HIBP key + GitHub token now live in `_VaultData.secrets` (encrypted); legacy plaintext files auto-migrate on first access. Backup carries them inside the vault (no plaintext field).
 
 **Deferred / next**
-- Maigret / user-scanner to replace decaying Holehe (usernames field is wired end-to-end)
 - SearXNG Quadlet sidecar
+- HIBP paid-tier wiring + PimEyes manual-result-import flow
+- Phone-axis account enumeration (no maintained tool exists; ignorant is dead — port the technique if needed)
 
 **Phase 3 — Controller track**
-- Per-platform Art. 17 templates + state machine for the 15-platform tech-giant set
-- Jurisdiction-aware DPA escalation routing (IE DPC, LU CNPD, NL AP, SE IMY, UK ICO, Norwegian Datatilsynet for special-category)
-- `delisting` track: Google + Bing RTBF flow (URL list + ID upload guidance)
+- ✅ Controller track (`docs/tracks/controller.md`): `brokers/controllers.yaml` — 16
+  hand-verified platform records (research + adversarial verification, July 2026;
+  datenanfragen.de was stale for 5 of 16, so records are hand-curated with
+  `datenanfragen_slug` join keys). 8 of 16 are form-only (no verifiable Art. 17
+  email) and ride MANUAL_ACTION_NEEDED -> SENT with a generated filing kit; the
+  other 8 send immediately through the existing SMTP/IMAP/deadline pipeline.
+  Opt-in per platform (never blasted). Escalation routes to the residence SA
+  (`INCOGNITO_USER_COUNTRY`, default DK — Art. 77 one-stop-shop; direct lead-SA
+  filing has no procedural advantage), GB entities to ICO, no-EU-establishment
+  (Snap) to the residence SA under Art. 55; lead SA named in the complaint text.
+- Deferred: vendoring the full datenanfragen.de company DB (CC0, ~3k records) as
+  general registry enrichment.
+- 🟡 `delisting` track: Google + Bing RTBF. Shipped — the delisting-kit generator
+  (`core/delisting.py`, `GET /api/scan/exposures/{id}/delisting-kit`): per-engine
+  deep-links (Google/Bing forms + Brave email, with reseller coverage notes) and a
+  drafted locale-aware Art. 17 justification, surfaced on any URL exposure. Assist-only
+  (every engine is a manual ID-gated form; no API/DRP). TODO: request-lifecycle tracking
+  (Art. 12(3) one-month clock → OVERDUE → ESCALATED = Datatilsynet complaint), IMAP
+  decision-email matching, and quarterly name-search re-verification via the rescan timer.
 
 **Phase 4 — Long tail**
-- `account` track: import JustDelete.me sites.json, build `account_delete` sender
-- `newsletter` track: IMAP scan + RFC 8058 POST + mailto fallback
+- `account` track: ✅ JustDelete.me sites.json vendored (`data/justdeleteme_sites.json`, 2556 entries) + `core/account_registry.py` maps every discovered account (user-scanner/Maigret hit) to its exact deletion URL + difficulty in the Exposures inbox; `impossible` → `legally_impossible`. Still TODO: an automated `account_delete` sender (most services have no deletion API — guided self-service is the realistic ceiling).
+- ✅ `newsletter` track: IMAP `List-Unsubscribe` scan (`scanner/newsletter.py`) surfaces every mailing-list sender in the Exposures inbox; unsubscribe action (`core/unsubscribe.py`) does the RFC 8058 one-click POST (SSRF-guarded, HTTPS-only, no redirects) or a mailto send via the SMTP sender.
 - `time_locked` track: scheduled-fire requests for bank/Skat retention windows
 - `restriction_only` track: info pages for legally-undeletable sources
 

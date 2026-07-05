@@ -58,8 +58,51 @@ def _wayback(data: dict) -> dict:
     }
 
 
-def _holehe(data: dict) -> dict:
+def _account(data: dict) -> dict:
+    from backend.core.account_registry import lookup_deletion
+
     service = data.get("service") or data.get("broker_name") or "this service"
+    url = data.get("url") or ""
+    entry = lookup_deletion(
+        url=url or None,
+        name=service if service != "this service" else None,
+    )
+
+    if entry and entry.url.startswith("http"):
+        links = [{"label": f"{entry.name} deletion page", "url": entry.url}]
+        if entry.impossible:
+            return {
+                "title": f"You cannot delete your {entry.name} account",
+                "steps": [
+                    entry.notes or f"{entry.name} does not permit account deletion.",
+                    "There is no erasure route at source — mark this exposure as "
+                    "'Can't delete'. You can still ask their DPO to restrict processing "
+                    "(Art. 18) even where deletion is refused.",
+                ],
+                "links": links,
+                "difficulty": entry.difficulty,
+            }
+        steps = []
+        if entry.notes:
+            steps.append(entry.notes)
+        steps.append(f"Open the deletion page and follow it through: {entry.url}")
+        if entry.email:
+            steps.append(
+                f"If self-service fails, send an Art. 17 erasure request to {entry.email}."
+            )
+        else:
+            steps.append(
+                f"If you can't self-delete, send an Art. 17 erasure request to "
+                f"{entry.name}'s privacy/DPO contact (mandatory for EU residents)."
+            )
+        return {
+            "title": f"Delete your {entry.name} account (difficulty: {entry.difficulty})",
+            "steps": steps,
+            "links": links,
+            "difficulty": entry.difficulty,
+        }
+
+    # No JustDelete.me match — generic account-closure guidance.
     return {
         "title": f"Close or erase your {service} account",
         "steps": [
@@ -95,10 +138,38 @@ def _websearch(data: dict) -> dict:
     }
 
 
+def _newsletter(data: dict) -> dict:
+    sender = data.get("broker_name") or data.get("sender_domain") or "this sender"
+    steps = []
+    if data.get("one_click"):
+        steps.append(
+            "Click 'Unsubscribe' — it sends a one-click (RFC 8058) unsubscribe "
+            "request straight to the sender, no browser needed."
+        )
+    elif data.get("unsub_mailto"):
+        steps.append(
+            "Click 'Unsubscribe' — it emails the list's unsubscribe address on your behalf."
+        )
+    https = data.get("unsub_https") or ""
+    if https:
+        steps.append(f"Or open the unsubscribe page yourself: {https}")
+    steps.append(
+        "Unsubscribing withdraws consent / objects to direct marketing (GDPR Art. 21). "
+        "If mail keeps arriving, send an Art. 17 erasure request to the sender."
+    )
+    links = []
+    if https.startswith("http"):
+        links.append({"label": "Unsubscribe page", "url": https})
+    return {"title": f"Unsubscribe from {sender}", "steps": steps, "links": links}
+
+
 _HANDLERS = {
     "github": _github,
     "wayback": _wayback,
-    "holehe": _holehe,
+    "newsletter": _newsletter,
+    "userscan": _account,
+    "maigret": _account,
+    "holehe": _account,  # legacy rows
     "duckduckgo": _websearch,
 }
 

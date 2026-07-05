@@ -7,8 +7,20 @@ I am filing a complaint under Article 77 of the General Data Protection Regulati
 Details of the complaint:
 - On {{ original_date }}, I submitted a data protection request to {{ broker_name }} (Ref: {{ reference_id }}).
 - The statutory 30-day response period under Article 12(3) GDPR has passed.
+{% if followed_up %}
 - I sent a follow-up and a final warning, but have not received a substantive response.
+{% else %}
+- I have received no substantive response to my request.
+{% endif %}
 
+{% if controller_entity %}
+{% if controller_no_eu %}
+The controller ({{ controller_entity }}) has no establishment in the EU, so the one-stop-shop mechanism does not apply and you have full competence under Article 55 GDPR.{% if controller_art27_rep %} Its Article 27 representative is {{ controller_art27_rep }}.{% endif %}
+{% else %}
+The controller's main establishment is {{ controller_entity }} ({{ controller_country }}); the lead supervisory authority is {{ controller_lead_sa }}. I request that this complaint be forwarded under Article 56 GDPR as appropriate.
+{% endif %}
+
+{% endif %}
 My identifying details:
 - Name: {{ profile.full_name }}
 - Email: {{ profile.emails | join(', ') }}

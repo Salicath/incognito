@@ -13,8 +13,16 @@ interface Exposure {
   disposition: string | null;
   note: string;
   matched_broker: { broker_id: string; name: string } | null;
-  guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }> } | null;
+  guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }>; difficulty?: string } | null;
 }
+
+const difficultyBadge: Record<string, string> = {
+  easy: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  limited: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  hard: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  impossible: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+};
 
 interface Summary {
   total: number;
@@ -26,9 +34,12 @@ interface Summary {
 
 type Filter = "needs_triage" | "actioned" | "dismissed" | "legally_impossible" | "all";
 
+const accountBadge = "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300";
 const sourceColors: Record<string, string> = {
   duckduckgo: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
-  holehe: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  userscan: accountBadge,
+  maigret: accountBadge,
+  holehe: accountBadge,
   wayback: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   github: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
 };
@@ -49,6 +60,83 @@ function detailLine(e: Exposure): string {
   if (typeof d.snapshots === "number") parts.push(`${d.snapshots} snapshot${d.snapshots === 1 ? "" : "s"}`);
   if (typeof d.snippet === "string" && d.snippet) parts.push(d.snippet);
   return parts.join(" · ");
+}
+
+const REASON_LABELS: Record<string, string> = {
+  inaccurate: "Inaccurate / false",
+  inadequate: "Inadequate / incomplete",
+  outdated: "Out of date / no longer relevant",
+  excessive: "Excessive / inappropriate",
+};
+
+type Kit = Awaited<ReturnType<typeof api.getDelistingKit>>;
+
+function DelistingKit({ exposureId }: { exposureId: number }) {
+  const [reason, setReason] = useState("outdated");
+  const [kit, setKit] = useState<Kit | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const fetchKit = useCallback(async (r: string) => {
+    setLoading(true);
+    try {
+      setKit(await api.getDelistingKit(exposureId, r));
+    } finally {
+      setLoading(false);
+    }
+  }, [exposureId]);
+
+  return (
+    <details className="mt-2 group" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open && !kit) fetchKit(reason); }}>
+      <summary className="text-xs font-medium text-teal-600 dark:text-teal-400 cursor-pointer hover:text-teal-700 dark:hover:text-teal-300 select-none">
+        Delisting kit (Google / Bing RTBF) →
+      </summary>
+      <div className="mt-2 pl-3 border-l-2 border-teal-100 dark:border-teal-900/50 space-y-2">
+        {loading && <p className="text-xs text-gray-500"><Loader2 className="w-3 h-3 animate-spin inline" /> Building kit…</p>}
+        {kit && (
+          <>
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-xs text-gray-500 dark:text-gray-400">Reason:</label>
+              <select
+                value={reason}
+                onChange={(e) => { setReason(e.target.value); fetchKit(e.target.value); }}
+                className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 dark:text-gray-100"
+              >
+                {kit.reasons_available.map((r) => (
+                  <option key={r} value={r}>{REASON_LABELS[r] ?? r}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <p className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded p-2 whitespace-pre-wrap">{kit.justification}</p>
+              <button
+                onClick={() => { navigator.clipboard?.writeText(kit.justification); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+                className="mt-1 text-[11px] text-teal-600 dark:text-teal-400 hover:underline"
+              >
+                {copied ? "Copied ✓" : "Copy justification"}
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {kit.engines.map((eng) => (
+                <div key={eng.key} className="text-xs">
+                  <a
+                    href={eng.action === "email" ? `mailto:${eng.target}?subject=RTBF%20request` : eng.target}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline font-medium"
+                  >
+                    <ExternalLink className="w-3 h-3" /> {eng.name} {eng.action === "form" ? "form" : "email"}
+                  </a>
+                  {eng.id_required && <span className="ml-2 text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1 py-0.5 rounded">ID upload</span>}
+                  <span className="text-gray-500 dark:text-gray-400 ml-1">— {eng.note}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">{kit.coverage_note}</p>
+          </>
+        )}
+      </div>
+    </details>
+  );
 }
 
 export default function Exposures() {
@@ -93,6 +181,19 @@ export default function Exposures() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create request");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function unsubscribe(id: number) {
+    setBusy(id);
+    try {
+      const res = await api.unsubscribeExposure(id);
+      if (!res.ok) setError(res.detail);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to unsubscribe");
     } finally {
       setBusy(null);
     }
@@ -175,7 +276,7 @@ export default function Exposures() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${sourceColors[e.source] ?? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${sourceColors[e.source.split(":")[0]] ?? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
                             {e.source_label}
                           </span>
                           <span className="font-medium text-sm truncate">{e.title}</span>
@@ -201,7 +302,14 @@ export default function Exposures() {
                           How to remove this →
                         </summary>
                         <div className="mt-2 pl-3 border-l-2 border-indigo-100 dark:border-indigo-900/50">
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{e.guidance.title}</p>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
+                            {e.guidance.title}
+                            {e.guidance.difficulty && (
+                              <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${difficultyBadge[e.guidance.difficulty] ?? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                                {e.guidance.difficulty}
+                              </span>
+                            )}
+                          </p>
                           <ol className="list-decimal list-inside space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
                             {e.guidance.steps.map((step, si) => <li key={si}>{step}</li>)}
                           </ol>
@@ -218,6 +326,7 @@ export default function Exposures() {
                         </div>
                       </details>
                     )}
+                    {e.url && <DelistingKit exposureId={e.id} />}
 
                     {/* Action bar */}
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
@@ -236,6 +345,13 @@ export default function Exposures() {
                                 title={`Create an Art. 17 erasure request for ${e.matched_broker.name}`}
                                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50">
                                 {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} Create erasure request
+                              </button>
+                            )}
+                            {e.source.startsWith("newsletter:") && Boolean(e.data.one_click || e.data.unsub_mailto) && (
+                              <button onClick={() => unsubscribe(e.id)} disabled={busy === e.id}
+                                title="Unsubscribe from this mailing list"
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition disabled:opacity-50">
+                                {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Ban className="w-3 h-3" />} Unsubscribe
                               </button>
                             )}
                             <button onClick={() => setDisposition(e.id, "actioned")} disabled={busy === e.id}

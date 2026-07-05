@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (344 tests, 220 brokers, 23 DPAs)
+# Run tests (420 tests, 220 brokers, 16 controllers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -42,14 +42,14 @@ incognito report             # Privacy score and exposure report
 ## Architecture
 
 **Backend** (`backend/`):
-- `api/` — FastAPI routes (auth, blast, brokers, cpr_levers, requests, scan, settings, setup)
+- `api/` — FastAPI routes (auth, blast, brokers, controllers, cpr_levers, requests, scan, settings, setup)
 - `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry, IMAP poller)
 - `db/` — SQLAlchemy models + Alembic migrations. SQLite with WAL mode.
-- `scanner/` — DuckDuckGo search, Holehe account discovery, HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan
+- `scanner/` — DuckDuckGo search, user-scanner account discovery (email axis), HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan, Maigret deep username enumeration (isolated subprocess, ~3000 sites), newsletter scan (IMAP List-Unsubscribe discovery)
 - `senders/` — Email sender (SMTP), web form sender (Playwright), base result types
 
 **Frontend** (`frontend/src/`):
-- `pages/` — Dashboard, Requests, RequestDetail, Brokers, CprLevers, Scan, Exposures, Settings, SetupWizard, Report
+- `pages/` — Dashboard, Requests, RequestDetail, Brokers, Controllers, CprLevers, Scan, Exposures, Settings, SetupWizard, Report
 - `components/` — Layout, StatusBadge, ProgressRing, EmailThread
 - `hooks/` — useAsyncTask (polling for scanners), useSettingsSection (settings state)
 - `api/client.ts` — Typed API client
@@ -61,7 +61,8 @@ incognito report             # Privacy score and exposure report
 - Broker registry loaded from YAML files in `brokers/`
 - Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl, ccpa
 - CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`). Renewal ladder (T-30/T-7/expiry) fires from the `follow-up` command via `check_lever_renewals`.
-- Exposure triage: every scanner (DDG, Holehe, Wayback, GitHub) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps.
+- Controller track (`core/controller.py`, `brokers/controllers.yaml`, `docs/tracks/controller.md`): opt-in tech-giant erasure — 16 hand-verified platforms, never blasted (separate `ControllerRegistry`; `RegistryUnion` feeds shared machinery). Email-viable platforms send a controller-specific Art. 17 immediately; form-only ones enter MANUAL_ACTION_NEEDED with a filing kit and the user attests "I filed it" (→ SENT starts the Art. 12(3) clock). Complaints route to the residence SA via `dpa.get_dpa_for_request` (`INCOGNITO_USER_COUNTRY`, default DK; GB→ICO), with the lead SA named in the complaint text.
+- Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps. Account hits (user-scanner/Maigret) are resolved against the vendored JustDelete.me dataset (`core/account_registry.py`, `data/justdeleteme_sites.json`) to surface the exact deletion URL + difficulty; `difficulty: impossible` routes toward the `legally_impossible` disposition. Newsletter hits carry an unsubscribe action (`POST /api/scan/exposures/{id}/unsubscribe`): RFC 8058 one-click POST via `core/unsubscribe.py` (SSRF-guarded, HTTPS-only, no redirects), or a mailto send via the SMTP sender. Any URL exposure carries a delisting kit (`GET /api/scan/exposures/{id}/delisting-kit`, `core/delisting.py`): per-engine RTBF deep-links (Google/Bing forms + Brave email) plus a drafted, locale-aware Art. 17 justification — assist-only, since every engine is a manual ID-gated form.
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
@@ -118,15 +119,24 @@ pytest tests/unit/test_notifier.py -v         # Push notification system
 pytest tests/unit/test_exposure_report.py -v  # Exposure report API
 pytest tests/unit/test_brokers_update.py -v   # Broker update command
 pytest tests/unit/test_cpr_lever.py -v        # CPR lever track (DK upstream protections)
+pytest tests/unit/test_controller.py -v       # Controller track (registry, kit, DPA routing)
+pytest tests/unit/test_controller_api.py -v   # Controller track API (opt-in flow, complaint)
 pytest tests/unit/test_wayback.py -v          # Wayback CDX archived-profile scanner
 pytest tests/unit/test_github_scanner.py -v   # GitHub code-leak scanner
-pytest tests/unit/test_exposures.py -v        # Exposure triage inbox (disposition routing)
+pytest tests/unit/test_user_scanner.py -v     # Account scanner (email axis, user-scanner)
+pytest tests/unit/test_maigret_scanner.py -v  # Maigret deep username scanner
+pytest tests/unit/test_exposures.py -v        # Exposure triage inbox (disposition routing) + unsubscribe
+pytest tests/unit/test_account_registry.py -v # JustDelete.me account-deletion lookup
+pytest tests/unit/test_newsletter.py -v       # Newsletter List-Unsubscribe parsing/scan
+pytest tests/unit/test_unsubscribe.py -v      # RFC 8058 one-click unsubscribe + SSRF guard
+pytest tests/unit/test_delisting.py -v        # Search-engine delisting (RTBF) assist kit
 ```
 
 ## Dependencies
 
 Core deps in `pyproject.toml`. Optional extras:
-- `pip install -e ".[scanner]"` — holehe for account discovery
+- `pip install -e ".[scanner]"` — user-scanner for email-axis account discovery
+- `pip install -e ".[scanner-deep]"` — maigret for deep username enumeration (heavy deps; container installs it into an isolated `/opt/maigret` venv)
 - `pip install -e ".[automation]"` — Playwright for future web form automation
 - `pip install -e ".[dev]"` — pytest, ruff, mypy
 

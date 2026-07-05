@@ -88,9 +88,59 @@ def test_empty_inbox(client):
     assert data["summary"]["needs_triage"] == 0
 
 
+def test_unsubscribe_one_click_actions_exposure(client, config, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    import backend.core.unsubscribe as unsub
+
+    monkeypatch.setattr(
+        unsub, "one_click_unsubscribe", AsyncMock(return_value=(True, "Unsubscribed (HTTP 200)"))
+    )
+    eid = _seed(config, "newsletter:acme.example", {
+        "broker_name": "Acme News", "sender_domain": "acme.example",
+        "one_click": True, "unsub_https": "https://acme.example/u/1",
+    })
+    resp = client.post(f"/api/scan/exposures/{eid}/unsubscribe")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["disposition"] == "actioned"
+
+
+def test_unsubscribe_rejects_non_newsletter(client, config):
+    eid = _seed(config, "duckduckgo", {"broker_name": "Spokeo", "url": "https://spokeo.com/x"})
+    resp = client.post(f"/api/scan/exposures/{eid}/unsubscribe")
+    assert resp.status_code == 400
+
+
+def test_delisting_kit_for_web_search_exposure(client, config):
+    eid = _seed(config, "duckduckgo", {"broker_name": "Blog", "url": "https://blog.example/jane"})
+    resp = client.get(f"/api/scan/exposures/{eid}/delisting-kit?reason=outdated")
+    assert resp.status_code == 200
+    kit = resp.json()
+    assert kit["url"] == "https://blog.example/jane"
+    assert {e["key"] for e in kit["engines"]} >= {"google", "bing", "brave"}
+    assert "Test User" in kit["justification"]  # profile full_name
+
+
+def test_delisting_kit_400_when_no_url(client, config):
+    eid = _seed(config, "duckduckgo", {"broker_name": "NoUrl"})
+    resp = client.get(f"/api/scan/exposures/{eid}/delisting-kit")
+    assert resp.status_code == 400
+
+
+def test_unsubscribe_bare_link_is_manual(client, config):
+    eid = _seed(config, "newsletter:x.example", {
+        "broker_name": "X", "sender_domain": "x.example",
+        "one_click": False, "unsub_https": "https://x.example/u", "unsub_mailto": None,
+    })
+    resp = client.post(f"/api/scan/exposures/{eid}/unsubscribe")
+    assert resp.status_code == 400
+
+
 def test_aggregates_across_sources_with_labels(client, config):
     _seed(config, "duckduckgo", {"broker_name": "Spokeo", "url": "https://spokeo.com/x"})
-    _seed(config, "holehe:test@example.com", {"service": "Spotify", "url": "spotify.com"})
+    _seed(config, "userscan:test@example.com", {"service": "Spotify", "url": "spotify.com"})
     _seed(config, "wayback", {
         "broker_name": "Wayback: GitHub", "url": "https://web.archive.org/x",
         "username": "me", "snapshots": 3,
@@ -106,11 +156,11 @@ def test_aggregates_across_sources_with_labels(client, config):
 
     by_source = {e["source"]: e for e in data["exposures"]}
     assert by_source["duckduckgo"]["source_label"] == "Web search"
-    assert by_source["holehe"]["source_label"] == "Account"
+    assert by_source["userscan"]["source_label"] == "Account"
     assert by_source["wayback"]["source_label"] == "Web archive"
     assert by_source["github"]["source_label"] == "Code leak"
     # title resolves from source-specific fields
-    assert by_source["holehe"]["title"] == "Spotify"
+    assert by_source["userscan"]["title"] == "Spotify"
     assert all(e["disposition"] is None for e in data["exposures"])
 
 

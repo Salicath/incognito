@@ -26,6 +26,7 @@ class EmailSender:
 
     def build_message(
         self, to_email: str, rendered_text: str, request_id: str | None = None,
+        cc: list[str] | None = None,
     ) -> EmailMessage:
         subject, body = self._parse_rendered(rendered_text)
 
@@ -36,6 +37,8 @@ class EmailSender:
         msg = EmailMessage()
         msg["From"] = self._config.username
         msg["To"] = to_email
+        if cc:
+            msg["Cc"] = ", ".join(cc)
         msg["Subject"] = subject
         msg.set_content(body)
 
@@ -46,8 +49,9 @@ class EmailSender:
 
     async def send(
         self, to_email: str, rendered_text: str, request_id: str | None = None,
+        cc: list[str] | None = None,
     ) -> SenderResult:
-        msg = self.build_message(to_email, rendered_text, request_id)
+        msg = self.build_message(to_email, rendered_text, request_id, cc=cc)
 
         try:
             async with SMTP(

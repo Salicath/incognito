@@ -97,10 +97,15 @@ class ImapPoller:
         imap_config: ImapConfig,
         db_session_factory: sessionmaker,
         broker_domains: set[str],
+        tier3_exclude: set[str] | None = None,
     ):
         self._config = imap_config
         self._db_factory = db_session_factory
         self._broker_domains = broker_domains
+        # Request targets whose domains also send routine mail (controllers:
+        # Netflix receipts, Amazon orders, ...) — domain-only matching would
+        # file that noise onto the legal thread, so they get tiers 1-2 only.
+        self._tier3_exclude = tier3_exclude or set()
         self._running = False
         self._task: asyncio.Task | None = None
         self.last_check: datetime | None = None
@@ -121,7 +126,8 @@ class ImapPoller:
                 outbound_ids[req.message_id] = req.id
             ref_code = req.id.split("-")[0].upper()[:8]
             ref_code_map[ref_code] = req.id
-            domain_request_map[req.broker_id.replace("-", ".")] = req.id
+            if req.broker_id not in self._tier3_exclude:
+                domain_request_map[req.broker_id.replace("-", ".")] = req.id
 
         return outbound_ids, ref_code_map, domain_request_map
 

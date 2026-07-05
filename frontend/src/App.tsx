@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Requests from "./pages/Requests";
 import RequestDetailPage from "./pages/RequestDetail";
 import Brokers from "./pages/Brokers";
+import Controllers from "./pages/Controllers";
 import CprLevers from "./pages/CprLevers";
 import Scan from "./pages/Scan";
 import Exposures from "./pages/Exposures";
@@ -56,6 +57,7 @@ function App() {
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestDetailPage />} />
           <Route path="/brokers" element={<Brokers />} />
+          <Route path="/controllers" element={<Controllers />} />
           <Route path="/levers" element={<CprLevers />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/exposures" element={<Exposures />} />

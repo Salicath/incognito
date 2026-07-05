@@ -32,6 +32,12 @@ export const api = {
   getProfile: () => request<Record<string, unknown>>("/profile"),
   getBrokers: () => request<Array<Record<string, unknown>>>("/brokers"),
   getBroker: (id: string) => request<Record<string, unknown>>(`/brokers/${id}`),
+  getControllers: () => request<Array<Record<string, unknown>>>("/controllers"),
+  createControllerRequest: (id: string) =>
+    request<{ request_id: string; status: string; kit: Record<string, unknown> }>(
+      `/controllers/${id}/request`, { method: "POST" }),
+  getControllerKit: (id: string) =>
+    request<{ request_id: string; kit: Record<string, unknown> }>(`/controllers/${id}/kit`),
   getCprLevers: () => request<Array<Record<string, unknown>>>("/cpr-levers"),
   confirmCprLever: (id: string) =>
     request<{ status: string; activated_at: string; expires_at: string | null }>(`/cpr-levers/${id}/confirm`, { method: "POST" }),
@@ -67,6 +73,11 @@ export const api = {
   getWaybackResults: () =>
     request<{ has_results: boolean; usernames: string[]; checked: number; hits: Array<{ platform: string; username: string; url: string; snapshots: number; first_snapshot: string; last_snapshot: string; archive_url: string }>; errors: string[] }>("/scan/wayback/results"),
   getWaybackStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/wayback/status"),
+  startDeepScan: (usernames?: string) =>
+    request<{ status: string; usernames: string[] }>(`/scan/deep-scan/start${usernames ? `?usernames=${encodeURIComponent(usernames)}` : ""}`, { method: "POST" }),
+  getDeepScanResults: () =>
+    request<{ has_results: boolean; usernames: string[]; checked: number; hits: Array<{ service: string; url: string; username: string; tags: string[] }>; errors: string[] }>("/scan/deep-scan/results"),
+  getDeepScanStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/deep-scan/status"),
   startGithubScan: () =>
     request<{ status: string; identifiers: string[] }>("/scan/github/start", { method: "POST" }),
   getGithubResults: () =>
@@ -110,7 +121,7 @@ export const api = {
     }>("/scan/rescan"),
   getExposures: () =>
     request<{
-      exposures: Array<{ id: number; source: string; source_label: string; title: string; url: string; data: Record<string, unknown>; scanned_at: string | null; disposition: string | null; note: string; matched_broker: { broker_id: string; name: string } | null; guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }> } | null }>;
+      exposures: Array<{ id: number; source: string; source_label: string; title: string; url: string; data: Record<string, unknown>; scanned_at: string | null; disposition: string | null; note: string; matched_broker: { broker_id: string; name: string } | null; guidance: { title: string; steps: string[]; links: Array<{ label: string; url: string }>; difficulty?: string } | null }>;
       summary: { total: number; needs_triage: number; actioned: number; dismissed: number; legally_impossible: number };
     }>("/scan/exposures"),
   setExposureDisposition: (id: number, disposition: string | null, note?: string) =>
@@ -122,6 +133,25 @@ export const api = {
     request<{ request_id: string; broker_id: string; created: boolean; disposition: string }>(`/scan/exposures/${id}/create-request`, {
       method: "POST",
     }),
+  unsubscribeExposure: (id: number) =>
+    request<{ ok: boolean; detail: string; disposition: string | null }>(`/scan/exposures/${id}/unsubscribe`, {
+      method: "POST",
+    }),
+  getDelistingKit: (id: number, reason: string) =>
+    request<{
+      url: string;
+      name_queries: string[];
+      reason: string;
+      reasons_available: string[];
+      justification: string;
+      engines: Array<{ key: string; name: string; action: string; target: string; id_required: boolean; note: string }>;
+      coverage_note: string;
+    }>(`/scan/exposures/${id}/delisting-kit?reason=${encodeURIComponent(reason)}`),
+  startNewsletterScan: () =>
+    request<{ status: string }>("/scan/newsletters/start", { method: "POST" }),
+  getNewsletterResults: () =>
+    request<{ has_results: boolean; checked: number; hits: Array<{ sender: string; sender_name: string; sender_domain: string; one_click: boolean; subject: string }>; errors: string[] }>("/scan/newsletters/results"),
+  getNewsletterStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/newsletters/status"),
   getScanHistory: () =>
     request<{
       results: Array<{ id: number; source: string; broker_id: string; found_data: unknown; scanned_at: string | null; actioned: boolean }>;

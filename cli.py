@@ -27,6 +27,17 @@ def _load_broker_registry(config: AppConfig):
     return BrokerRegistry.load(brokers_dir)
 
 
+def _load_controller_registry(config: AppConfig):
+    from pathlib import Path
+
+    from backend.core.controller import ControllerRegistry
+
+    brokers_dir = config.brokers_dir
+    if not brokers_dir.exists():
+        brokers_dir = Path(__file__).parent / "brokers"
+    return ControllerRegistry.load(brokers_dir / "controllers.yaml")
+
+
 @app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", help="Host to bind to"),
@@ -245,7 +256,11 @@ def follow_up(
                 templates_dir = config.data_dir / "templates"
             renderer = TemplateRenderer(templates_dir)
 
-            broker_registry = _load_broker_registry(config)
+            from backend.core.controller import RegistryUnion
+
+            broker_registry = RegistryUnion(
+                _load_broker_registry(config), _load_controller_registry(config),
+            )
 
             result = asyncio.run(run_follow_ups(
                 session=session,
@@ -655,12 +670,17 @@ def check_replies():
 
     session_factory = init_db(config.db_path)
     registry = _load_broker_registry(config)
+    controllers = _load_controller_registry(config).controllers
     broker_domains = {b.domain.lower() for b in registry.brokers}
+    for c in controllers:
+        broker_domains.add(c.domain.lower())
+        broker_domains.update(d.lower() for d in c.extra_domains)
 
     poller = ImapPoller(
         imap_config=imap,
         db_session_factory=session_factory,
         broker_domains=broker_domains,
+        tier3_exclude={c.id for c in controllers},
     )
 
     console.print(

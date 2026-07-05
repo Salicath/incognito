@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry, RemovalMethod
 from backend.core.config import AppConfig
+from backend.core.controller import RegistryUnion
 from backend.core.cpr_lever import CprLeverRegistry, covered_broker_ids
 from backend.core.profile import ProfileVault
 from backend.core.request import RequestManager
@@ -22,6 +23,7 @@ def create_blast_router(
     db_session_factory,
     config: AppConfig,
     lever_registry: CprLeverRegistry | None = None,
+    controller_registry=None,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/blast", tags=["blast"])
 
@@ -307,13 +309,18 @@ def create_blast_router(
         templates_dir = Path(__file__).parent.parent.parent / "templates"
         renderer = TemplateRenderer(templates_dir)
 
+        # Controller requests need follow-ups too — resolve via the union
+        lookup_registry: BrokerRegistry | RegistryUnion = broker_registry
+        if controller_registry is not None:
+            lookup_registry = RegistryUnion(broker_registry, controller_registry)
+
         db = db_session_factory()
         try:
             result = await run_follow_ups(
                 session=db,
                 profile=profile,
                 smtp=smtp,
-                broker_registry=broker_registry,
+                broker_registry=lookup_registry,
                 renderer=renderer,
                 gdpr_deadline_days=config.gdpr_deadline_days,
             )
@@ -352,7 +359,7 @@ def create_blast_router(
 
         from pathlib import Path
 
-        from backend.core.dpa import get_dpa_for_country
+        from backend.core.dpa import get_dpa_for_request
 
         db = db_session_factory()
         try:
@@ -361,10 +368,42 @@ def create_blast_router(
                 raise HTTPException(status_code=404, detail="Request not found")
 
             broker = broker_registry.get(req.broker_id)
+            if broker is None and controller_registry is not None:
+                broker = controller_registry.get(req.broker_id)
             if broker is None:
                 raise HTTPException(status_code=404, detail="Broker not found")
 
-            dpa = get_dpa_for_country(broker.country)
+            dpa = get_dpa_for_request(broker, config.user_country)
+
+            # Controllers: the complaint goes to the residence SA — pass the
+            # lead-SA facts as variables so each locale template renders its
+            # own translated one-stop-shop paragraph (Art. 56/60 or Art. 55).
+            controller_vars: dict = {}
+            if broker.category == "controller":
+                from typing import cast
+
+                from backend.core.controller import Controller
+
+                ctrl = cast(Controller, broker)
+                controller_vars = {
+                    "controller_entity": ctrl.eu_entity,
+                    "controller_country": ctrl.entity_country,
+                    "controller_lead_sa": ctrl.lead_dpa,
+                    "controller_no_eu": ctrl.no_eu_establishment,
+                    "controller_art27_rep": ctrl.art27_rep or "",
+                }
+
+            # Only claim a follow-up/final warning was sent if one actually was
+            # (form-only controllers are never chased by email).
+            from backend.db.models import RequestEvent
+            followed_up = (
+                db.query(RequestEvent)
+                .filter(
+                    RequestEvent.request_id == req.id,
+                    RequestEvent.event_type == "follow_up_sent",
+                )
+                .count()
+            ) > 0
 
             # Render the complaint template
             templates_dir = Path(__file__).parent.parent.parent / "templates"
@@ -379,9 +418,11 @@ def create_blast_router(
                 profile=profile,
                 reference_id=req.id[:8].upper(),
                 broker_name=broker.name,
-                broker_email=broker.dpo_email,
+                broker_email=broker.dpo_email or getattr(broker, "erasure_form_url", ""),
                 original_date=req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown",
                 dpa_name=dpa_name,
+                followed_up=followed_up,
+                **controller_vars,
             )
 
             return {

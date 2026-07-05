@@ -1,0 +1,462 @@
+# Controller track registry — tech-giant erasure targets.
+# Hand-verified 2026-07-05 (research + adversarial verification pass; every email
+# confirmed in a current official source or dropped). NOT loaded into the broker
+# registry — see backend/core/controller.py and docs/tracks/controller.md.
+# datenanfragen.de slugs kept as join keys; the base dataset was stale for 5 of
+# these 16 records, so values here win.
+
+controllers:
+  - name: Meta (Facebook / Instagram / WhatsApp)
+    domain: meta.com
+    eu_entity: Meta Platforms Ireland Limited
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://accountscenter.facebook.com/personal_info/account_ownership_and_control
+    erasure_form_url: https://help.meta.com/support/privacy/
+    postal_address: "Meta Platforms Ireland Ltd, ATTN: Privacy Operations, Merrion Road, Dublin 4, D04 X2K5, Ireland"
+    retention_note: >-
+      30-day grace period, then up to 90 days to delete from active systems plus up
+      to 90 more in backups. Off-Facebook activity, disassociated logs and content
+      others posted about you survive account deletion.
+    art17_value: >-
+      Targets off-Facebook activity data, disassociated logs and residual copies
+      that account deletion never touches.
+    prerequisites:
+      - Download your information first (Accounts Centre > Your information)
+      - WhatsApp must be deleted separately, in-app (Settings > Account > Delete my account)
+    form_instructions: >-
+      Use the Meta privacy support hub and choose the option for exercising your
+      GDPR rights / erasure. WhatsApp has its own DPO form at
+      whatsapp.com/contact/forms/382532939919295.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: facebook
+    notes: >-
+      Do NOT use privacy@meta.com — third-party claim, never verified in an official
+      source. WhatsApp EEA controller is WhatsApp Ireland Limited.
+
+  - name: Google
+    domain: google.com
+    eu_entity: Google Ireland Limited
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://myaccount.google.com/deleteaccount
+    erasure_form_url: https://support.google.com/policies/troubleshooter/7575787
+    postal_address: "Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Ireland"
+    retention_note: >-
+      Full purge from active systems takes about 2 months (includes a 1-month
+      recovery window); encrypted backups up to 6 months. Payment and other
+      legal/business records are retained beyond that.
+    art17_value: >-
+      Forces a documented decision on residual categories (payments, logs) beyond
+      the standard purge cycle.
+    prerequisites:
+      - Take out your data via takeout.google.com first
+      - Per-service deletion is available at myaccount.google.com/delete-services-or-account
+    form_instructions: >-
+      Follow the privacy troubleshooter to the erasure/DPO web form path.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: google
+    notes: >-
+      data-access-requests@google.com failed verification (datenanfragen-only, stale
+      US-entity record) — do not use. dpo-google@google.com equally unverified.
+
+  - name: Microsoft
+    domain: microsoft.com
+    eu_entity: Microsoft Ireland Operations Limited
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://account.live.com/closeaccount.aspx
+    erasure_form_url: https://aka.ms/privacyresponse
+    postal_address: "Microsoft Ireland Operations Ltd, ATTN: Data Protection Officer, One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, D18 P521, Ireland"
+    retention_note: >-
+      Account closure has a mandatory 30- or 60-day reopen window before permanent
+      deletion of mail, OneDrive, Xbox and Skype data. Support records and telemetry
+      live outside the account.
+    art17_value: >-
+      Reaches support records and telemetry outside the closed Microsoft account.
+    prerequisites:
+      - Pick the 30- or 60-day wait window during closure; do not sign in afterwards
+    form_instructions: >-
+      Use the Microsoft privacy response form; the MSA-specific form is
+      microsoft.com/en-us/concern/privacyrequest-msa.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: microsoft
+    notes: LinkedIn is a separate controller — never route LinkedIn requests here.
+
+  - name: LinkedIn
+    domain: linkedin.com
+    eu_entity: LinkedIn Ireland Unlimited Company
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://www.linkedin.com/mypreferences/d/manage-account
+    erasure_form_url: https://www.linkedin.com/help/linkedin/ask/ppq
+    postal_address: "LinkedIn Ireland Unlimited Company, ATTN: Data Protection, Wilton Plaza, Wilton Place, Dublin 2, Ireland"
+    retention_note: >-
+      Closure de-identifies within about 30 days, with legal/security log
+      exceptions retained longer.
+    art17_value: >-
+      Forces justification of the legal/security log exceptions to the 30-day
+      de-identification.
+    prerequisites: []
+    form_instructions: >-
+      Use the LinkedIn help privacy form (ask/ppq) and state it is a GDPR Art. 17
+      erasure request for the DPO.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: linkedin
+    notes: Separate controller from Microsoft.
+
+  - name: Apple
+    domain: apple.com
+    eu_entity: Apple Distribution International Limited
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://privacy.apple.com
+    erasure_form_url: https://www.apple.com/legal/privacy/contact/
+    postal_address: "Apple Distribution International Ltd, ATTN: Data Protection, Hollyhill Industrial Estate, Cork, Ireland"
+    retention_note: >-
+      Portal deletion is identity-verified and takes about 7 days. Purchase and
+      financial records are kept for ~10 years, backups up to 180 days, plus a
+      record of the deleted account itself.
+    art17_value: >-
+      Forces an itemized retention justification for the financial-record and
+      backup residuals.
+    prerequisites:
+      - Use privacy.apple.com first — it is the identity-verified deletion channel
+    form_instructions: >-
+      The legal/privacy contact form is also the DPO channel and the appeal route.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: apple
+    notes: >-
+      dpo@apple.com is scoped to the Apple Developer Program only — do not use for
+      Art. 17. contactus.de@euro.apple.com is German customer support — never use.
+
+  - name: Amazon
+    domain: amazon.de
+    eu_entity: Amazon Europe Core S.à r.l. (joint controllers Amazon EU S.à r.l., Amazon Media EU S.à r.l., Amazon Digital Germany GmbH)
+    entity_country: LU
+    lead_dpa: LU CNPD
+    contact_kind: dpo_email
+    privacy_email: eu-privacy@amazon.de
+    email_viable: true
+    selfservice_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GDK92DNLSGWTV6MP
+    erasure_form_url: https://www.amazon.de/hz/privacy-central/data-requests/preview.html
+    postal_address: "Amazon Europe Core S.à r.l., 38 avenue John F. Kennedy, L-1855 Luxembourg"
+    retention_note: >-
+      Statutory retention survives closure: order/transaction history and tax
+      records up to 10 years. Fraud-prevention and marketing profiles are
+      non-statutory.
+    art17_value: >-
+      Gets the non-statutory categories (fraud profiles, marketing data) reviewed
+      and erased; the strongest email channel of the giants.
+    prerequisites:
+      - Settle open orders and subscriptions before closure
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: amazon-de
+    notes: >-
+      eu-privacy@amazon.de serves all EU controllers; no amazon-dk record exists —
+      amazon.de covers DK customers.
+
+  - name: X (Twitter)
+    domain: x.com
+    eu_entity: X Internet Unlimited Company
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://x.com/settings/deactivate
+    erasure_form_url: https://help.x.com/forms/privacy
+    postal_address: "X Internet Unlimited Company, One Cumberland Place, Fenian Street, Dublin 2, D02 AX07, Ireland"
+    retention_note: >-
+      Deactivation opens a 30-day window — any login reactivates. After 30 days the
+      account is deleted; log/usage data historically persists up to 18 months
+      before de-identification.
+    art17_value: >-
+      Targets log/usage data beyond the 30-day deletion. Search-engine caches need
+      the delisting track separately.
+    prerequisites:
+      - Do not log in during the 30-day deactivation window
+    form_instructions: >-
+      The privacy form runs on NAVEX EthicsPoint — replies may come from a
+      navex/ethicspoint domain rather than x.com.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: twitter
+    notes: >-
+      Entity renamed from Twitter International Unlimited Company ~April 2025;
+      datenanfragen record is stale.
+
+  - name: TikTok
+    domain: tiktok.com
+    eu_entity: TikTok Technology Limited
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://www.tiktok.com/setting
+    erasure_form_url: https://www.tiktok.com/legal/report/privacy
+    postal_address: "TikTok Technology Ltd, ATTN: Data Protection, 10 Earlsfort Terrace, Dublin, D02 T380, Ireland"
+    retention_note: >-
+      Deletion means 30 days deactivated (recoverable by logging in), then videos,
+      followers, likes and messages purge. DMs already delivered to others survive
+      on their side.
+    art17_value: >-
+      Forces a scope decision on delivered DMs and legal-obligation data beyond the
+      30-day purge.
+    prerequisites:
+      - "In-app path: Settings > Manage account > Account control > Delete"
+      - Do not log in during the 30-day deactivation window
+    form_instructions: >-
+      Dedicated DPO form at tiktok.com/legal/report/DPO if the privacy report form
+      does not fit.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: tiktok
+    notes: >-
+      EEA policy lists TikTok Technology Ltd (IE) and a UK entity as joint
+      controllers; the Irish entity is the main establishment.
+
+  - name: Reddit
+    domain: reddit.com
+    eu_entity: Reddit Netherlands B.V.
+    entity_country: NL
+    lead_dpa: NL AP
+    contact_kind: privacy_email
+    privacy_email: redditdatarequests@reddit.com
+    cc_emails:
+      - dpo@reddit.com
+    email_viable: true
+    selfservice_url: https://www.reddit.com/settings/account
+    erasure_form_url: https://www.reddit.com/settings/data-request
+    postal_address: "Reddit Netherlands B.V., Looiersgracht 43, 1016 VR Amsterdam, Netherlands"
+    retention_note: >-
+      Account deletion does NOT delete posts and comments — they stay live as
+      [deleted], disassociated from your username.
+    art17_value: >-
+      The only lever that erases post/comment content itself: the request must
+      explicitly demand content erasure, not just account deletion.
+    demand_content_erasure: true
+    send_from_account_email: true
+    prerequisites:
+      - Send the email from the address verified on your Reddit account — Reddit rejects others
+      - Also file the in-account data-request form; the email is the dated record
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: reddit
+    notes: Postal address updated 2026-06 (Looiersgracht); older Keizersgracht address is stale.
+
+  - name: GitHub
+    domain: github.com
+    eu_entity: GitHub B.V.
+    entity_country: NL
+    lead_dpa: NL AP (presumed — not formally designated)
+    contact_kind: privacy_email
+    privacy_email: privacy@github.com
+    cc_emails:
+      - dpo@github.com
+    email_viable: true
+    selfservice_url: https://github.com/settings/admin
+    erasure_form_url: https://support.github.com/contact/privacy
+    postal_address: "GitHub B.V., Vijzelstraat 68-72, 1017 HL Amsterdam, Netherlands"
+    retention_note: >-
+      Account deletion removes owned repos, issues, PRs and gists; username is
+      released after 90 days. Commit name/email in third-party repos survives —
+      git history is immutable and erasure there will be refused.
+    art17_value: >-
+      Reaches support records and backup data beyond account deletion. Do not
+      expect commit-history erasure in others' repositories.
+    prerequisites:
+      - Transfer or delete organizations you solely own first
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: github
+    notes: Cleanest email path of all 16 — address is verbatim in the privacy statement.
+
+  - name: Discord
+    domain: discord.com
+    eu_entity: Discord Netherlands B.V.
+    entity_country: NL
+    lead_dpa: NL AP
+    contact_kind: privacy_email
+    privacy_email: privacy@discord.com
+    cc_emails:
+      - dpo@discord.com
+    email_viable: true
+    selfservice_url: https://support.discord.com/hc/en-us/articles/212500837
+    erasure_form_url: ""
+    postal_address: "Discord Netherlands B.V., Schiphol Boulevard 195, 1118 BG Schiphol, Netherlands"
+    retention_note: >-
+      Deletion has a 14-30 day hold, then identifying info is deleted and the rest
+      anonymized. All messages ever sent remain visible attributed to "Deleted
+      User" unless their erasure is demanded.
+    art17_value: >-
+      Documented cases of bulk message erasure happened only on formal Art. 17 —
+      the request must explicitly demand message-content erasure.
+    demand_content_erasure: true
+    prerequisites:
+      - Transfer ownership of servers you own first
+      - "Deletion is in-app: User Settings > My Account > Delete Account"
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: discord
+    notes: No rights web form exists — only a VeraSafe form for the UK Art. 27 rep.
+
+  - name: Snap (Snapchat)
+    domain: snapchat.com
+    eu_entity: Snap Inc. (US) — no EU establishment
+    entity_country: US
+    lead_dpa: none — no one-stop-shop
+    no_eu_establishment: true
+    art27_rep: Snap B.V., Amsterdam
+    contact_kind: dpo_email
+    privacy_email: dpo@snap.com
+    extra_domains:
+      - snap.com
+    email_viable: true
+    selfservice_url: https://accounts.snapchat.com/accounts/delete_account
+    erasure_form_url: "https://help.snapchat.com/hc/requests/new?ticket_form_id=360000016663"
+    postal_address: "Snap Inc., 3000 31st Street, Santa Monica, CA 90405, USA"
+    retention_note: >-
+      Deletion means 30 days deactivated (do NOT log in), then up to 30 more days
+      to purge. Purchase records, ToS-acceptance and legal-hold data survive.
+    art17_value: >-
+      Reaches the purchase/legal residuals after portal deletion. No EU
+      establishment: your residence DPA has direct Art. 55 competence.
+    prerequisites:
+      - Download My Data within 30 days before deletion
+      - Do not log in during the 30-day deactivation window
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: snapchat
+    notes: >-
+      Re-check the EEA notice at refresh time — if Snap incorporates an EU entity,
+      the Art. 55 branch no longer applies.
+
+  - name: Spotify
+    domain: spotify.com
+    eu_entity: Spotify AB
+    entity_country: SE
+    lead_dpa: SE IMY
+    contact_kind: privacy_email
+    privacy_email: privacy@spotify.com
+    email_viable: true
+    selfservice_url: https://www.spotify.com/account/close/
+    erasure_form_url: ""
+    postal_address: "Spotify AB, Attn: Data Protection Officer, Regeringsgatan 19, 111 53 Stockholm, Sweden"
+    retention_note: >-
+      Close-account has a 7-day reactivation window, then deletion/anonymization
+      starts. Legal, security and anti-abuse data persists past that.
+    art17_value: >-
+      Targets the residual legal/security/anti-abuse categories past the 7-day
+      window.
+    prerequisites:
+      - Cancel Premium first — closure does not cancel the subscription
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: spotify
+    notes: Policy address (Regeringsgatan 19) is current; datarequests.org address is stale.
+
+  - name: Netflix
+    domain: netflix.com
+    eu_entity: Netflix International B.V.
+    entity_country: NL
+    lead_dpa: NL AP
+    contact_kind: dpo_email
+    privacy_email: privacy@netflix.com
+    email_viable: true
+    selfservice_url: https://www.netflix.com/account/security
+    erasure_form_url: ""
+    access_url: https://www.netflix.com/account/getmyinfo
+    postal_address: "Netflix International B.V., Karperstraat 8-10, 1075 KZ Amsterdam, Netherlands"
+    retention_note: >-
+      Cancelling the plan alone leaves your data sitting ~10 months for "easy
+      rejoin". Real deletion is Account > Security > Delete account.
+    art17_value: >-
+      The email is the documented accelerator past the 10-month post-cancel
+      retention.
+    prerequisites:
+      - Cancel the plan first, then use Account > Security > Delete account
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: netflix
+    notes: >-
+      /cancelplan only cancels the subscription; /account/getmyinfo is access-only
+      (Art. 15/20), not an erasure form.
+
+  - name: Match Group (Tinder / Hinge)
+    domain: gotinder.com
+    eu_entity: MTCH Technology Services Limited
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: form_only
+    privacy_email: ""
+    email_viable: false
+    selfservice_url: https://account.gotinder.com
+    erasure_form_url: https://help.tinder.com/hc/en-us/requests/new
+    postal_address: "Data Protection Officer, MTCH Technology Services Limited, 1 Hatch Street Upper, Dublin 2, D02 PY28, Ireland"
+    retention_note: >-
+      Deletion is delayed 90 days and does NOT cancel subscriptions. Retention
+      ladder: transactions 10 years, customer-care records 5-6 years, 3-month
+      safety window, profile data up to 1 year.
+    art17_value: >-
+      Forces per-category justification of the long retention ladder.
+    prerequisites:
+      - Cancel Tinder/Hinge subscriptions separately first — deletion does not
+      - Hinge has its own in-app deletion and privacy-request article on help.hinge.co
+    form_instructions: >-
+      In the Tinder help form pick "another question about my data" and write
+      "DPO" in the description so it routes to the privacy team.
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: tinder
+    notes: >-
+      Do NOT use privacy@gotinder.com or privacyinquiries@gotinder.com (2017-18
+      archive only). rep_tinder@prighter.com is the UK/CH rep, not an erasure
+      endpoint.
+
+  - name: Strava
+    domain: strava.com
+    eu_entity: Strava Ireland Limited
+    entity_country: IE
+    lead_dpa: IE DPC
+    contact_kind: dpo_email
+    privacy_email: dpo@strava.com
+    email_viable: true
+    selfservice_url: https://www.strava.com/account
+    erasure_form_url: ""
+    postal_address: "Strava Ireland Limited, ATTN: Data Protection Officer, Dublin, Ireland"
+    retention_note: >-
+      Up to 45 days of residual logs after deletion. Public segments and routes
+      you created remain on the platform under a perpetual license.
+    art17_value: >-
+      Targets the surviving segments/routes and residual logs. Fitness data is
+      Art. 9 special-category — flagging it raises DPA priority.
+    special_category: true
+    prerequisites:
+      - Export activities first (Settings > My Account > Download or Delete Your Account)
+    language: en
+    last_verified: "2026-07-05"
+    datenanfragen_slug: strava
+    notes: Entity is Strava Ireland Ltd per policy effective 2026-01-01; datenanfragen (US Inc.) is stale.

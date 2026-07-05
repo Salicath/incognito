@@ -56,6 +56,36 @@ interface WaybackResults {
   errors: string[];
 }
 
+interface DeepHit {
+  service: string;
+  url: string;
+  username: string;
+  tags: string[];
+}
+
+interface DeepResults {
+  has_results: boolean;
+  usernames: string[];
+  checked: number;
+  hits: DeepHit[];
+  errors: string[];
+}
+
+interface NewsletterHit {
+  sender: string;
+  sender_name: string;
+  sender_domain: string;
+  one_click: boolean;
+  subject: string;
+}
+
+interface NewsletterResults {
+  has_results: boolean;
+  checked: number;
+  hits: NewsletterHit[];
+  errors: string[];
+}
+
 interface GithubHit {
   identifier: string;
   repository: string;
@@ -100,6 +130,19 @@ export default function Scan() {
     startFn: (usernames?: unknown) => api.startWaybackScan(usernames as string | undefined),
     statusFn: api.getWaybackStatus,
     resultsFn: api.getWaybackResults,
+  });
+
+  const [deepInput, setDeepInput] = useState("");
+  const deep = useAsyncTask<DeepResults>({
+    startFn: (usernames?: unknown) => api.startDeepScan(usernames as string | undefined),
+    statusFn: api.getDeepScanStatus,
+    resultsFn: api.getDeepScanResults,
+  });
+
+  const newsletter = useAsyncTask<NewsletterResults>({
+    startFn: () => api.startNewsletterScan(),
+    statusFn: api.getNewsletterStatus,
+    resultsFn: api.getNewsletterResults,
   });
 
   const [githubConfigured, setGithubConfigured] = useState<boolean | null>(null);
@@ -536,7 +579,7 @@ export default function Scan() {
         )}
       </div>
 
-      {/* Account Scanner (Holehe) */}
+      {/* Account Scanner (user-scanner) */}
       <div className="mt-10">
         <div className="mb-6">
           <h2 className="text-xl font-bold">Account Scanner</h2>
@@ -813,6 +856,185 @@ export default function Scan() {
                 </p>
               </div>
             )}
+          </>
+        )}
+      </div>
+
+      {/* Deep Username Scanner (Maigret) */}
+      <div className="mt-10">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold">Deep Username Scan</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
+            Enumerate ~3000 sites for accounts tied to a username (slower; up to 3 usernames). Requires Maigret installed.
+          </p>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Usernames, comma-separated (leave empty to use profile usernames / email handle)"
+              value={deepInput}
+              onChange={(e) => setDeepInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !deep.running && deep.start(deepInput.trim() || undefined)}
+              className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none text-sm"
+            />
+            <button
+              onClick={() => deep.start(deepInput.trim() || undefined)}
+              disabled={deep.running}
+              className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition disabled:opacity-50 shrink-0"
+            >
+              {deep.running ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Scanning...</>
+              ) : (
+                <><Search className="w-4 h-4" /> {deep.hasResults ? "Scan Again" : "Deep Scan"}</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {deep.error && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{deep.error}</div>
+        )}
+
+        {deep.running && (
+          <div className="bg-violet-50 border border-violet-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-violet-600 animate-spin" />
+              <p className="text-violet-900 font-medium">
+                Scanning {deep.runningLabel}... this can take a few minutes across ~3000 sites.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!deep.running && !deep.hasResults && !deep.error && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+            <Search className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No deep-scan results yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
+              Maigret checks a username against ~3000 sites and verifies each profile,
+              extracting linked accounts and profile data. Slower than the account scan,
+              but far broader. Found accounts appear in the Exposures inbox.
+            </p>
+          </div>
+        )}
+
+        {!deep.running && deep.hasResults && (
+          <>
+            {((deep.results as DeepResults | null)?.errors ?? []).map((err) => (
+              <div key={err} className="bg-yellow-50 text-yellow-800 px-4 py-3 rounded-lg mb-4 text-sm">{err}</div>
+            ))}
+            <div className="flex gap-4 mb-6">
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex-1">
+                <div className="flex items-center gap-3">
+                  {((deep.results as DeepResults | null)?.hits.length ?? 0) > 0 ? (
+                    <AlertTriangle className="w-8 h-8 text-orange-500" />
+                  ) : (
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                  )}
+                  <div>
+                    <p className="text-2xl font-bold">{(deep.results as DeepResults | null)?.hits.length ?? 0}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">accounts found</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex-1">
+                <p className="text-2xl font-bold">{(deep.results as DeepResults | null)?.checked ?? 0}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  sites checked for <span className="font-medium">{((deep.results as DeepResults | null)?.usernames ?? []).join(", ")}</span>
+                </p>
+              </div>
+            </div>
+
+            {((deep.results as DeepResults | null)?.hits.length ?? 0) > 0 && (
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold">Accounts Found</h3>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {((deep.results as DeepResults | null)?.hits ?? []).map((hit) => (
+                    <div key={`${hit.service}-${hit.username}`} className="px-5 py-4 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">{hit.service}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">{hit.username}</span>
+                          {hit.tags.map((t) => (
+                            <span key={t} className="text-[10px] uppercase tracking-wide bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 px-1.5 py-0.5 rounded">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <a href={hit.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0 ml-4">
+                        <ExternalLink className="w-3 h-3" /> View profile
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Newsletter Scanner (List-Unsubscribe) */}
+      <div className="mt-10">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold">Newsletter Scan</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Scan your inbox for mailing lists and surface each sender in the Exposures inbox, where you can one-click unsubscribe. Uses your configured IMAP account.
+            </p>
+          </div>
+          <button
+            onClick={() => newsletter.start()}
+            disabled={newsletter.running}
+            className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition disabled:opacity-50 shrink-0"
+          >
+            {newsletter.running ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Scanning...</>
+            ) : (
+              <><Mail className="w-4 h-4" /> {newsletter.hasResults ? "Scan Again" : "Scan Inbox"}</>
+            )}
+          </button>
+        </div>
+
+        {newsletter.error && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{newsletter.error}</div>
+        )}
+
+        {newsletter.running && (
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-6 mb-6 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-teal-600 animate-spin" />
+            <p className="text-teal-900 font-medium">Reading inbox headers for List-Unsubscribe...</p>
+          </div>
+        )}
+
+        {!newsletter.running && newsletter.hasResults && (
+          <>
+            {((newsletter.results as NewsletterResults | null)?.errors ?? []).map((err) => (
+              <div key={err} className="bg-yellow-50 text-yellow-800 px-4 py-3 rounded-lg mb-4 text-sm">{err}</div>
+            ))}
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold">
+                  {((newsletter.results as NewsletterResults | null)?.hits.length ?? 0)} mailing lists found
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Manage and unsubscribe from these in the Exposures inbox.
+                </p>
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {((newsletter.results as NewsletterResults | null)?.hits ?? []).map((hit) => (
+                  <div key={hit.sender_domain} className="px-5 py-3 flex items-center justify-between">
+                    <div className="min-w-0">
+                      <span className="font-medium text-sm">{hit.sender_name}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">{hit.sender}</span>
+                    </div>
+                    {hit.one_click && (
+                      <span className="text-[10px] uppercase tracking-wide bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 px-1.5 py-0.5 rounded shrink-0">one-click</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </div>
