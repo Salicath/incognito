@@ -23,6 +23,10 @@ De hoofdvestiging van de verwerkingsverantwoordelijke is {{ controller_entity }}
 {% endif %}
 
 {% endif %}
+{% if delisting_url %}
+Deze klacht betreft een verzoek tot verwijdering uit zoekresultaten (recht op vergetelheid) op grond van artikel 17 AVG zoals toegepast op zoekmachines (HvJ-EU C-131/12, Google Spain). De URL {{ delisting_url }} verschijnt in de resultaten bij zoekopdrachten op mijn naam{% if delisting_query %} ("{{ delisting_query }}"){% endif %}; verwijdering is aangevraagd via het daarvoor bestemde formulier van de zoekmachine en de antwoordtermijn is verstreken.
+
+{% endif %}
 Identificatiegegevens:
 - Naam: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

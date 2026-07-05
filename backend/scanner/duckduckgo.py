@@ -32,7 +32,9 @@ async def _search_ddg(query: str, client: httpx.AsyncClient) -> list[dict]:
     try:
         resp = await client.post(
             url,
-            data={"q": query},
+            # kl=dk-da: DDG resells Bing, but only region-scoped queries reliably
+            # carry the EU-market RTBF filter — needed to verify delistings
+            data={"q": query, "kl": "dk-da"},
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) "

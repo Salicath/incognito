@@ -21,6 +21,10 @@ Den dataansvarliges hovedvirksomhed er {{ controller_entity }} ({{ controller_co
 {% endif %}
 
 {% endif %}
+{% if delisting_url %}
+Klagen vedrører en anmodning om fjernelse fra søgeresultater (retten til at blive glemt) efter GDPR artikel 17 som anvendt på søgemaskiner (EU-Domstolen C-131/12, Google Spain). URL'en {{ delisting_url }} fremkommer i søgeresultater ved søgning på mit navn{% if delisting_query %} ("{{ delisting_query }}"){% endif %}; fjernelse blev anmodet via søgemaskinens egen formular, og svarfristen er udløbet.
+
+{% endif %}
 Mine identifikationsoplysninger:
 - Navn: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

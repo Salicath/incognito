@@ -188,14 +188,16 @@ def get_dpa_for_request(entry, user_country: str = "DK") -> dict | None:
     """Pick the complaint DPA for a request's target.
 
     Broker track: the broker's own country (a DK directory answers to
-    Datatilsynet). Controller track: Art. 77 lets the complainant file with
-    their residence SA, which forwards to the lead SA under Art. 56/60 —
-    filing directly with the lead SA confers no procedural speedup. Sole
-    exception: GB-established controllers, where there is no one-stop-shop
-    bridge and the ICO accepts non-residents. No-EU-establishment controllers
-    (Snap) also land at the residence SA, which has full Art. 55 competence.
+    Datatilsynet). Controller/delisting tracks: Art. 77 lets the complainant
+    file with their residence SA, which forwards to the lead SA under
+    Art. 56/60 — filing directly with the lead SA confers no procedural
+    speedup. Sole exception: GB-established controllers, where there is no
+    one-stop-shop bridge and the ICO accepts non-residents.
+    No-EU-establishment targets (Snap; Google LLC for Search RTBF) also land
+    at the residence SA, which then has full Art. 55 competence and decides
+    itself.
     """
-    if getattr(entry, "category", "") == "controller":
+    if getattr(entry, "category", "") in ("controller", "delisting"):
         if entry.entity_country == "GB":
             return get_dpa_for_country("GB")
         return get_dpa_for_country(user_country)

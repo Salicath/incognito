@@ -24,6 +24,7 @@ def create_blast_router(
     config: AppConfig,
     lever_registry: CprLeverRegistry | None = None,
     controller_registry=None,
+    delisting_registry=None,
 ) -> APIRouter:
     r = APIRouter(prefix="/api/blast", tags=["blast"])
 
@@ -309,10 +310,12 @@ def create_blast_router(
         templates_dir = Path(__file__).parent.parent.parent / "templates"
         renderer = TemplateRenderer(templates_dir)
 
-        # Controller requests need follow-ups too — resolve via the union
+        # Controller/delisting requests need follow-ups too — resolve via the union
         lookup_registry: BrokerRegistry | RegistryUnion = broker_registry
         if controller_registry is not None:
-            lookup_registry = RegistryUnion(broker_registry, controller_registry)
+            lookup_registry = RegistryUnion(
+                broker_registry, controller_registry, delisting=delisting_registry,
+            )
 
         db = db_session_factory()
         try:
@@ -370,28 +373,32 @@ def create_blast_router(
             broker = broker_registry.get(req.broker_id)
             if broker is None and controller_registry is not None:
                 broker = controller_registry.get(req.broker_id)
+            if broker is None and delisting_registry is not None:
+                broker = delisting_registry.get(req.broker_id)
             if broker is None:
                 raise HTTPException(status_code=404, detail="Broker not found")
 
             dpa = get_dpa_for_request(broker, config.user_country)
 
-            # Controllers: the complaint goes to the residence SA — pass the
-            # lead-SA facts as variables so each locale template renders its
-            # own translated one-stop-shop paragraph (Art. 56/60 or Art. 55).
+            # Controllers/delisting: the complaint goes to the residence SA —
+            # pass the lead-SA facts as variables so each locale template
+            # renders its own translated one-stop-shop paragraph (Art. 56/60
+            # or Art. 55). Delisting complaints additionally carry the URL and
+            # the name-query scope (CJEU C-131/12).
             controller_vars: dict = {}
-            if broker.category == "controller":
-                from typing import cast
-
-                from backend.core.controller import Controller
-
-                ctrl = cast(Controller, broker)
+            if broker.category in ("controller", "delisting"):
+                # Controller and DelistingTarget both carry these fields;
+                # plain Brokers never reach this branch.
                 controller_vars = {
-                    "controller_entity": ctrl.eu_entity,
-                    "controller_country": ctrl.entity_country,
-                    "controller_lead_sa": ctrl.lead_dpa,
-                    "controller_no_eu": ctrl.no_eu_establishment,
-                    "controller_art27_rep": ctrl.art27_rep or "",
+                    "controller_entity": getattr(broker, "eu_entity", ""),
+                    "controller_country": getattr(broker, "entity_country", ""),
+                    "controller_lead_sa": getattr(broker, "lead_dpa", ""),
+                    "controller_no_eu": getattr(broker, "no_eu_establishment", False),
+                    "controller_art27_rep": getattr(broker, "art27_rep", None) or "",
                 }
+            if broker.category == "delisting":
+                controller_vars["delisting_url"] = req.target_url or ""
+                controller_vars["delisting_query"] = profile.full_name
 
             # Only claim a follow-up/final warning was sent if one actually was
             # (form-only controllers are never chased by email).

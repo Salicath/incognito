@@ -54,6 +54,11 @@ class DelistingTarget:
     name: str
     domain: str
     dpo_email: str
+    eu_entity: str = ""
+    entity_country: str = "US"
+    lead_dpa: str = ""
+    no_eu_establishment: bool = False
+    art27_rep: str | None = None
     country: str = "US"
     language: str = "en"
     category: str = "delisting"
@@ -66,6 +71,42 @@ class DelistingTarget:
         return RemovalMethod.EMAIL if self.dpo_email else RemovalMethod.WEB_FORM
 
 
+# Controller facts per engine, verified July 2026. Google Search RTBF is
+# processed by Google LLC (US) — no EU main establishment for that processing,
+# so no one-stop-shop: the residence SA decides itself under Art. 55 (IMY
+# DI-2018-9274 fined Google LLC; Brussels Market Court 2021 annulled an APD
+# fine precisely because Google Belgium wasn't the controller). Bing is
+# Microsoft Ireland Operations Ltd -> lead SA IE DPC via Arts. 56/60.
+_TARGET_FACTS: dict[str, dict] = {
+    "google": {
+        "eu_entity": "Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA",
+        "entity_country": "US",
+        "no_eu_establishment": True,
+    },
+    "bing": {
+        "eu_entity": "Microsoft Ireland Operations Limited, One Microsoft Place, Dublin 18",
+        "entity_country": "IE",
+        "lead_dpa": "IE DPC",
+    },
+    "brave": {
+        "eu_entity": "Brave Software Inc. (US)",
+        "entity_country": "US",
+        "no_eu_establishment": True,
+        "art27_rep": "gdprnomrep@brave.com",
+    },
+}
+
+# Decision emails are form-triggered, not replies: Message-ID/REF matching can
+# never fire for Google/Bing. Senders verified July 2026 — Google decisions
+# come from @google.com (removals@) and enumerate the requested URLs; Bing
+# replies come from @microsoft.com with no case number and no URLs.
+DECISION_SENDER_DOMAINS: dict[str, set[str]] = {
+    "delisting-google": {"google.com"},
+    "delisting-bing": {"microsoft.com"},
+    "delisting-brave": {"brave.com"},
+}
+
+
 class DelistingRegistry:
     def __init__(self) -> None:
         self.targets = [
@@ -74,6 +115,7 @@ class DelistingRegistry:
                 name=f"{e.name} delisting (RTBF)",
                 domain=e.domain or e.key + ".com",
                 dpo_email=e.target if e.action == "email" else "",
+                **_TARGET_FACTS.get(e.key, {}),
             )
             for e in ENGINES
         ]
@@ -159,7 +201,11 @@ def build_delisting_kit(
     locale: str = "en",
 ) -> dict:
     """Build the per-engine delisting assist kit for one exposed URL."""
+    from urllib.parse import quote
+
     reason_key = reason if reason in REASONS else _DEFAULT_REASON
+    name = name_queries[0] if name_queries else ""
+    q = quote(f'"{name}"') if name else ""
     return {
         "url": url,
         "name_queries": list(name_queries),
@@ -173,4 +219,19 @@ def build_delisting_kit(
             "covers them. Delisting hides the page for searches of your name across EU "
             "domains — it does not delete the source page or apply worldwide."
         ),
+        # Manual re-verification: no ToS-safe programmatic check exists for the
+        # Google surface. Signed-out name queries from a DK connection are what
+        # matters (delisting is EU/geo-scoped, C-507/17); the vantage IP decides.
+        "verify": {
+            "google": f"https://www.google.com/search?q={q}&pws=0&num=50" if q else "",
+            "bing": f"https://www.bing.com/search?q={q}&mkt=da-DK" if q else "",
+            "results_about_you": "https://myactivity.google.com/results-about-you",
+            "note": (
+                "Open signed-out from your normal Danish connection. Google's "
+                "'Results about you' monitors name hits ambiently — enroll it as "
+                "a complement; it is a policy track, separate from the Art. 17 "
+                "form. A resurfaced URL in the quarterly rescan raises an alert "
+                "automatically (Bing surface via DuckDuckGo)."
+            ),
+        },
     }

@@ -23,6 +23,10 @@ Die Hauptniederlassung des Verantwortlichen ist {{ controller_entity }} ({{ cont
 {% endif %}
 
 {% endif %}
+{% if delisting_url %}
+Diese Beschwerde betrifft ein Auslistungsersuchen (Recht auf Vergessenwerden) nach Artikel 17 DSGVO in seiner Anwendung auf Suchmaschinen (EuGH C-131/12, Google Spain). Die URL {{ delisting_url }} erscheint in den Ergebnissen bei Suchen nach meinem Namen{% if delisting_query %} („{{ delisting_query }}“){% endif %}; die Auslistung wurde über das vorgesehene Formular der Suchmaschine beantragt, und die Antwortfrist ist verstrichen.
+
+{% endif %}
 Meine Angaben:
 - Name: {{ profile.full_name }}
 - E-Mail: {{ profile.emails | join(', ') }}

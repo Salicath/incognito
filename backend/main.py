@@ -155,6 +155,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         vault, session_store, broker_registry, db_session_factory, config,
         lever_registry=lever_registry,
         controller_registry=controller_registry,
+        delisting_registry=delisting_registry,
     ))
     app.include_router(create_settings_router(
         vault, session_store, broker_registry, config, db_session_factory,

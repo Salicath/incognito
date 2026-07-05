@@ -23,6 +23,10 @@ L'établissement principal du responsable de traitement est {{ controller_entity
 {% endif %}
 
 {% endif %}
+{% if delisting_url %}
+La présente plainte concerne une demande de déréférencement (droit à l'oubli) au titre de l'article 17 du RGPD tel qu'appliqué aux moteurs de recherche (CJUE C-131/12, Google Spain). L'URL {{ delisting_url }} apparaît dans les résultats lors de recherches sur mon nom{% if delisting_query %} (« {{ delisting_query }} »){% endif %} ; le déréférencement a été demandé via le formulaire prévu par le moteur et le délai de réponse est expiré.
+
+{% endif %}
 Mes coordonnées :
 - Nom : {{ profile.full_name }}
 - E-mail : {{ profile.emails | join(', ') }}

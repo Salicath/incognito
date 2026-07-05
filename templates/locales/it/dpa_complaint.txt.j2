@@ -23,6 +23,10 @@ Lo stabilimento principale del titolare è {{ controller_entity }} ({{ controlle
 {% endif %}
 
 {% endif %}
+{% if delisting_url %}
+Il presente reclamo riguarda una richiesta di deindicizzazione (diritto all'oblio) ai sensi dell'articolo 17 del RGPD come applicato ai motori di ricerca (CGUE C-131/12, Google Spain). L'URL {{ delisting_url }} compare nei risultati per ricerche del mio nome{% if delisting_query %} («{{ delisting_query }}»){% endif %}; la deindicizzazione è stata richiesta tramite il modulo del motore e il termine di risposta è decorso.
+
+{% endif %}
 Dati identificativi:
 - Nome: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

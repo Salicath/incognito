@@ -165,6 +165,108 @@ def test_exposure_without_url_400(client, config):
 
 
 # ---------------------------------------------------------------------------
+# IMAP decision-email matching
+# ---------------------------------------------------------------------------
+
+
+def _open(request_id, broker_id, url):
+    return {"request_id": request_id, "broker_id": broker_id, "target_url": url}
+
+
+def test_google_decision_matches_on_body_url():
+    from backend.core.imap import ImapPoller, MatchTier
+
+    open_reqs = [_open("r1", "delisting-google", "https://example.com/malte/")]
+    m = ImapPoller._match_delisting_decision(
+        "removals@google.com",
+        "We have decided to block the following URL: https://example.com/malte",
+        open_reqs,
+    )
+    assert m is not None
+    assert m.request_id == "r1"
+    assert m.tier == MatchTier.DELISTING_DECISION
+
+
+def test_google_mail_without_url_is_ignored():
+    from backend.core.imap import ImapPoller
+
+    open_reqs = [_open("r1", "delisting-google", "https://example.com/malte")]
+    m = ImapPoller._match_delisting_decision(
+        "noreply@google.com", "Your Google Account security update", open_reqs,
+    )
+    assert m is None  # Google decisions list URLs; no URL -> no match, no noise
+
+
+def test_bing_decision_attaches_without_transition():
+    from backend.core.imap import ImapPoller, MatchTier
+
+    open_reqs = [_open("r2", "delisting-bing", "https://example.com/malte")]
+    m = ImapPoller._match_delisting_decision(
+        "someone@microsoft.com", "About your recent request", open_reqs,
+    )
+    assert m is not None
+    assert m.request_id == "r2"
+    assert m.tier == MatchTier.DOMAIN_ONLY  # attach-only: user confirms
+
+
+def test_bing_ambiguous_open_requests_no_match():
+    from backend.core.imap import ImapPoller
+
+    open_reqs = [
+        _open("r2", "delisting-bing", "https://a.com/x"),
+        _open("r3", "delisting-bing", "https://b.com/y"),
+    ]
+    m = ImapPoller._match_delisting_decision(
+        "someone@microsoft.com", "About your recent request", open_reqs,
+    )
+    assert m is None
+
+
+def test_unrelated_sender_no_match():
+    from backend.core.imap import ImapPoller
+
+    open_reqs = [_open("r1", "delisting-google", "https://example.com/malte")]
+    m = ImapPoller._match_delisting_decision(
+        "spam@evil.com", "https://example.com/malte", open_reqs,
+    )
+    assert m is None
+
+
+# ---------------------------------------------------------------------------
+# Complaint
+# ---------------------------------------------------------------------------
+
+
+def test_delisting_complaint_names_google_llc_and_url(client, config):
+    eid = _seed_url_exposure(config)
+    created = client.post(
+        f"/api/scan/exposures/{eid}/delisting-request", json={"engine": "google"},
+    ).json()
+    rid = created["request_id"]
+    client.post(f"/api/requests/{rid}/transition", json={"action": "mark_overdue"})
+    client.post(f"/api/requests/{rid}/transition", json={"action": "mark_escalated"})
+
+    resp = client.post(f"/api/blast/generate-complaint/{rid}")
+    assert resp.status_code == 200
+    data = resp.json()
+    # Google Search RTBF is a national Art. 55 case: residence SA decides itself
+    assert data["dpa"]["short_name"] == "Datatilsynet"
+    text = data["complaint_text"]
+    assert "Google LLC" in text
+    assert "artikel 55" in text  # Danish no-EU-establishment paragraph
+    assert created["target_url"] in text
+    assert "C-131/12" in text
+
+
+def test_kit_carries_verify_links(client, config):
+    eid = _seed_url_exposure(config)
+    kit = client.get(f"/api/scan/exposures/{eid}/delisting-kit").json()
+    assert "pws=0" in kit["verify"]["google"]
+    assert "mkt=da-DK" in kit["verify"]["bing"]
+    assert kit["verify"]["results_about_you"].startswith("https://myactivity.google.com")
+
+
+# ---------------------------------------------------------------------------
 # Rescan re-verification
 # ---------------------------------------------------------------------------
 
