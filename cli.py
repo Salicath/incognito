@@ -217,6 +217,17 @@ def follow_up(
         for lever_id in renewals.expired:
             console.print(f"[red]CPR lever EXPIRED — cascade brokers re-exposed: {lever_id}[/]")
 
+        from backend.core.time_locked import TimeLockedRegistry, check_time_locked_expiries
+
+        tl_path = config.brokers_dir / "time_locked.yaml"
+        if not tl_path.exists():
+            tl_path = Path(__file__).parent / "brokers" / "time_locked.yaml"
+        fired = check_time_locked_expiries(session, TimeLockedRegistry.load(tl_path))
+        for entry_id in fired.fired:
+            console.print(
+                f"[green]Statutory retention lapsed — send the Art. 17 now: {entry_id}[/]"
+            )
+
         mgr = RequestManager(session, config.gdpr_deadline_days)
         overdue = mgr.find_overdue()
 

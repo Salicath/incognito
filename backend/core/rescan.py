@@ -72,8 +72,8 @@ async def verify_delisted_urls(
         return []
 
     targets: dict[str, Request] = {}
-    for req in delisted:
-        targets[_normalize_url(req.target_url)] = req
+    for row in delisted:
+        targets[_normalize_url(row.target_url or "")] = row
 
     names = [profile.full_name, *profile.previous_names] if profile.full_name else list(
         profile.previous_names
@@ -89,17 +89,18 @@ async def verify_delisted_urls(
                 continue
             for res in results:
                 norm = _normalize_url(res.get("url", ""))
-                req = targets.get(norm) or targets.get(norm.split("?")[0])
-                if req is None or req.id in flagged:
+                hit_req = targets.get(norm) or targets.get(norm.split("?")[0])
+                if hit_req is None or hit_req.id in flagged:
                     continue
-                flagged.add(req.id)
+                flagged.add(hit_req.id)
                 alerts.append(RescanAlert(
                     broker_domain=norm.split("/")[0] if norm else "",
-                    broker_name=f"Delisted URL resurfaced ({req.broker_id})",
+                    broker_name=f"Delisted URL resurfaced ({hit_req.broker_id})",
                     snippet=res.get("snippet", ""),
                     url=res.get("url", ""),
                     previous_removal_date=(
-                        req.updated_at.strftime("%Y-%m-%d") if req.updated_at else None
+                        hit_req.updated_at.strftime("%Y-%m-%d")
+                        if hit_req.updated_at else None
                     ),
                 ))
 

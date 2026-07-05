@@ -115,6 +115,13 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         broker_registry, controller_registry, delisting=delisting_registry,
     )
 
+    from backend.core.restriction_only import RestrictionRegistry
+    from backend.core.time_locked import TimeLockedRegistry
+    time_locked_registry = TimeLockedRegistry.load(brokers_dir / "time_locked.yaml")
+    restriction_registry = RestrictionRegistry.load(
+        brokers_dir / "restriction_only.yaml"
+    )
+
     app.state.imap_poller = None
     from backend.core.controller import reply_matching_sets
     broker_domain_set, tier3_exclude = reply_matching_sets(
@@ -144,6 +151,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     ))
     app.include_router(create_controllers_router(
         vault, session_store, controller_registry, db_session_factory, config,
+    ))
+    from backend.api.statutory import create_statutory_router
+    app.include_router(create_statutory_router(
+        vault, session_store, time_locked_registry, restriction_registry,
+        db_session_factory, config,
     ))
     app.include_router(create_scan_router(
         vault, session_store, broker_registry, config, db_session_factory,

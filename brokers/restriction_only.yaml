@@ -1,0 +1,138 @@
+# restriction_only track — Danish sources where GDPR erasure is legally
+# impossible. Honest "you cannot delete this, but here is what you CAN do"
+# cards. Verified against primary sources 2026-07-05 (see docs/tracks/
+# restriction_only.md). NOT loaded into the broker registry.
+
+entries:
+  - id: sundhedsjournalen
+    name: Sundhedsjournalen / sundhed.dk
+    what_it_is: Your national health record (hospital notes, medicine, labs).
+    why_undeletable: >-
+      Journalføringspligt — records must be kept for patient safety and
+      documentation (Art. 17(3)(b)/(d); sundhedsloven, journalføringsbekendt-
+      gørelsen). Errors are corrected by dated addition, never deletion.
+    mitigation: >-
+      Privatmarkering blocks health-personnel access per episode or for the
+      whole record (sundhedsloven § 42 b): Min side > Mine registreringer >
+      Privatmarkering. FMK medicine entries: ask the prescribing doctor to
+      block. Audit who accessed you in "Min log". Caveat: emergencies can
+      bypass the marking.
+    mitigation_url: https://www.sundhed.dk/borger/min-side/
+    requires_mitid: true
+
+  - id: tinglysning
+    name: Tinglysning (property and rights register)
+    what_it_is: The public register of property ownership, mortgages and rights.
+    why_undeletable: >-
+      Statutory public register — legal certainty of ownership requires
+      permanence (Art. 17(3)(b)). Your name as owner cannot be hidden.
+    mitigation: >-
+      Discharged rights: have the creditor aflyse them — they move to the
+      historical register with restricted access (BEK 763/2009 § 35, stk. 4).
+      CPR numbers are never publicly disclosed (tinglysningsloven § 50 c).
+      You can demand disclosure of what the historical register holds on you.
+    mitigation_url: https://www.tinglysning.dk
+    requires_mitid: true
+
+  - id: statstidende
+    name: Statstidende (official gazette)
+    what_it_is: Official legal announcements — proklama, bankruptcy, probate.
+    why_undeletable: >-
+      Statutory publication with legal effect (Art. 17(3)(b), statstidendeloven).
+      The Royal Library's archived copies are permanent.
+    mitigation: >-
+      Name-search protection applies automatically after 1 year
+      (statstidendeloven § 5, stk. 2); database entries auto-delete after 5
+      years (§ 15). Incorrect or misleading notices: the publisher must
+      correct or delete (BEK 349/2014 § 8, stk. 2) — contact the editorial
+      office.
+    mitigation_url: https://statstidende.dk
+    requires_mitid: false
+
+  - id: cvr-historik
+    name: CVR historical roles
+    what_it_is: Your name and role history in companies (director, board, owner).
+    why_undeletable: >-
+      CVR-loven § 18, stk. 3 — name and role history is published permanently
+      for commercial transparency (Art. 17(3)(b)).
+    mitigation: >-
+      CPR navne-/adressebeskyttelse auto-hides your address in CVR while the
+      protection is valid (CVR-loven § 18, stk. 4 — renew yearly; see the CPR
+      lever track). Addresses on past roles drop after 5 years on their own.
+    mitigation_url: https://www.borger.dk/bolig-og-flytning/flytning_oversigt/navne-og-adressebeskyttelse
+    requires_mitid: true
+
+  - id: telelogning
+    name: Telco metadata retention (logning)
+    what_it_is: Statutory logging of telephony/IP metadata for law enforcement.
+    why_undeletable: >-
+      Mandated by the logning rules (Art. 17(3)(b)); no opt-out exists. The
+      current rules (BEK 397/2026) run until 2027-03-29 and are renewed
+      annually.
+    mitigation: >-
+      Nothing removable. You can send an Art. 15 access request to your
+      provider, and minimize what accrues: end-to-end encrypted messaging
+      instead of SMS/calls; a VPN limits destination logging (the IP-assignment
+      log remains).
+    mitigation_url: ""
+    requires_mitid: false
+
+  - id: rigsarkivet-arkivloven
+    name: Rigsarkivet / public archives
+    what_it_is: Public-authority records transferred to the national archives.
+    why_undeletable: >-
+      Arkivloven § 10 — archival purposes in the public interest
+      (Art. 17(3)(d)); culling (kassation) happens only per the Culture
+      Ministry's rules, never on request.
+    mitigation: >-
+      Protection comes from closure periods instead: 20 years generally, 75
+      years for records about private matters (arkivloven §§ 22-23). You can
+      apply for access to records about yourself.
+    mitigation_url: https://www.rigsarkivet.dk
+    requires_mitid: false
+
+  - id: cpr-registret
+    name: CPR-registret (civil registration)
+    what_it_is: The civil register — name and address history for life.
+    why_undeletable: >-
+      Statutory civil registration (Art. 17(3)(b), CPR-loven). History is
+      never deleted.
+    mitigation: >-
+      Four protections via borger.dk/your municipality: navne-/adresse-
+      beskyttelse (§ 28, 1 year, renewable — set it BEFORE a move),
+      lokalvejviserbeskyttelse (§ 29, stk. 1), Robinson-listen (§ 29, stk. 2)
+      and kreditadvarsel (§ 29, stk. 3). Note: § 28 can be pierced by
+      documented legal claims (§ 42). See the CPR lever track for the first
+      three.
+    mitigation_url: https://www.borger.dk/bolig-og-flytning/flytning_oversigt/navne-og-adressebeskyttelse
+    requires_mitid: true
+
+  - id: domsdatabasen
+    name: Domsdatabasen (published court decisions)
+    what_it_is: The public database of court decisions.
+    why_undeletable: >-
+      Open justice — publication is statutory (Art. 17(3)(b)); the court file
+      itself remains obtainable via aktindsigt regardless.
+    mitigation: >-
+      If you are identifiable in a published decision: email
+      domsdatabasen@domstolsstyrelsen.dk and request extended pseudonymization
+      (BEK 2708/2021 § 3, stk. 2) or non-publication (§ 2, stk. 4). Covers the
+      published copy only.
+    mitigation_url: https://domsdatabasen.dk
+    requires_mitid: false
+
+  - id: dk-skat-restriction-only
+    name: Skatteforvaltningen (tax records)
+    what_it_is: Tax records about you held by the tax authority.
+    why_undeletable: >-
+      Public-authority processing under legal obligation (Art. 17(3)(b)/(e));
+      records are preserved or culled only per Rigsarkivet's rules. The
+      reassessment (2/4 years) and limitation (3/5/10 years) windows govern how
+      long the data is needed — they never make erasure demandable, so no
+      "fires at" date exists.
+    mitigation: >-
+      Art. 16 rectification for wrong data; Art. 18(1)(a) restriction while
+      accuracy is contested; a Datatilsynet complaint if processing seems
+      excessive.
+    mitigation_url: ""
+    requires_mitid: false

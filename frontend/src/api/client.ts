@@ -38,6 +38,18 @@ export const api = {
       `/controllers/${id}/request`, { method: "POST" }),
   getControllerKit: (id: string) =>
     request<{ request_id: string; kit: Record<string, unknown> }>(`/controllers/${id}/kit`),
+  getTimeLocked: () => request<Array<Record<string, unknown>>>("/statutory/time-locked"),
+  armTimeLocked: (id: string, triggerDate: string, institution: string, conservative: boolean) =>
+    request<Record<string, unknown>>(`/statutory/time-locked/${id}/arm`, {
+      method: "POST",
+      body: JSON.stringify({ trigger_date: triggerDate, institution, conservative }),
+    }),
+  dismissTimeLockedHold: (holdId: number) =>
+    request<Record<string, unknown>>(`/statutory/time-locked/holds/${holdId}/dismiss`, { method: "POST" }),
+  getTimeLockedKit: (holdId: number) =>
+    request<{ request_text: string; escalation_after_days: number }>(
+      `/statutory/time-locked/holds/${holdId}/kit`),
+  getRestrictionOnly: () => request<Array<Record<string, unknown>>>("/statutory/restriction-only"),
   getCprLevers: () => request<Array<Record<string, unknown>>>("/cpr-levers"),
   confirmCprLever: (id: string) =>
     request<{ status: string; activated_at: string; expires_at: string | null }>(`/cpr-levers/${id}/confirm`, { method: "POST" }),

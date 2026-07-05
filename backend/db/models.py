@@ -42,6 +42,12 @@ class CprLeverStatus(enum.StrEnum):
     USER_DEFERRED = "user_deferred"
 
 
+class TimeLockedStatus(enum.StrEnum):
+    ARMED = "armed"       # trigger date entered, waiting for retention to lapse
+    FIRED = "fired"       # retention lapsed — Art. 17 kit available
+    DISMISSED = "dismissed"
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -127,6 +133,23 @@ class CprLeverState(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+
+
+class TimeLockedState(Base):
+    __tablename__ = "time_locked_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entry_id: Mapped[str] = mapped_column(String, nullable=False)
+    institution: Mapped[str] = mapped_column(String, nullable=False, default="")
+    trigger_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    conservative: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[TimeLockedStatus] = mapped_column(
+        Enum(TimeLockedStatus), nullable=False, default=TimeLockedStatus.ARMED
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
     )
 
 

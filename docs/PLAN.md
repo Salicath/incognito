@@ -113,8 +113,16 @@ Add `da` locale to `templates/locales/` (5 template types).
 **Phase 4 — Long tail**
 - `account` track: ✅ JustDelete.me sites.json vendored (`data/justdeleteme_sites.json`, 2556 entries) + `core/account_registry.py` maps every discovered account (user-scanner/Maigret hit) to its exact deletion URL + difficulty in the Exposures inbox; `impossible` → `legally_impossible`. Still TODO: an automated `account_delete` sender (most services have no deletion API — guided self-service is the realistic ceiling).
 - ✅ `newsletter` track: IMAP `List-Unsubscribe` scan (`scanner/newsletter.py`) surfaces every mailing-list sender in the Exposures inbox; unsubscribe action (`core/unsubscribe.py`) does the RFC 8058 one-click POST (SSRF-guarded, HTTPS-only, no redirects) or a mailto send via the SMTP sender.
-- `time_locked` track: scheduled-fire requests for bank/Skat retention windows
-- `restriction_only` track: info pages for legally-undeletable sources
+- ✅ `time_locked` track (`docs/tracks/time_locked.md`): 5 verified DK
+  retention holds (bank/hvidvask +5y exact — the "+1mo" was escalation
+  tolerance only; bogføring FY+5y+1d; insurer 3y/10y toggle; telco 3y;
+  employer 5y). User arms a hold with the trigger date; the follow-up job
+  fires the Art. 17 kit when the duty matures. Skat moved to
+  restriction_only — no computable expiry exists (Art. 17(3)(b)/(e)).
+- ✅ `restriction_only` track (`docs/tracks/restriction_only.md`): 9 honest
+  "cannot delete, but here is the restriction" cards (sundhedsjournalen
+  privatmarkering, tinglysning, statstidende, CVR historik, telelogning,
+  arkivloven, CPR-registret, domsdatabasen, Skat).
 
 **Phase 5 — Personal completeness pass**
 - Run full pipeline against self; iterate on gaps until self-search returns nothing actionable
