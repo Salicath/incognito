@@ -147,37 +147,26 @@ class ImapPoller:
     ) -> MatchResult | None:
         """Match a form-triggered RTBF decision email to a tracked request.
 
-        Strong (auto-acknowledge): sender is the engine's decision domain and
-        the tracked URL appears in the body — Google enumerates requested URLs
-        in its decision mail. Weak (attach-only, Bing): Bing replies carry no
-        case number and no URLs, so a microsoft.com mail attaches to the single
-        open Bing request without transitioning; the user confirms.
+        Auto-acknowledge requires BOTH an exact known decision-sender address
+        and the tracked URL in the body. Domain-wide matching is forbidden
+        here: Google Alerts / "Results about you" notifications quote the
+        same URL from @google.com senders and must never stop the Art. 12(3)
+        clock. Bing sends nothing machine-recognizable — always user-confirmed.
         """
-        from backend.core.delisting import DECISION_SENDER_DOMAINS
+        from backend.core.delisting import DECISION_SENDER_ADDRESSES
 
-        sender_domain = _extract_domain(from_address)
-        candidates = [
-            r for r in delisting_open
-            if any(
-                sender_domain == d or sender_domain.endswith("." + d)
-                for d in DECISION_SENDER_DOMAINS.get(r["broker_id"], set())
-            )
-        ]
-        if not candidates:
-            return None
+        addr = from_address.strip().lower()
+        if "<" in addr and addr.endswith(">"):
+            addr = addr[addr.rfind("<") + 1:-1]
 
-        for r in candidates:
+        for r in delisting_open:
+            if addr not in DECISION_SENDER_ADDRESSES.get(r["broker_id"], set()):
+                continue
             url = r["target_url"].rstrip("/")
             if url and url in body:
                 return MatchResult(
                     request_id=r["request_id"], tier=MatchTier.DELISTING_DECISION,
                 )
-
-        bing = [r for r in candidates if r["broker_id"] == "delisting-bing"]
-        if len(bing) == 1:
-            return MatchResult(
-                request_id=bing[0]["request_id"], tier=MatchTier.DOMAIN_ONLY,
-            )
         return None
 
     def process_message(self, msg, *, _lookup_maps=None) -> MatchResult | None:

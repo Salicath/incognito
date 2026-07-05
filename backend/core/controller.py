@@ -153,6 +153,28 @@ class RegistryUnion:
         return items
 
 
+def reply_matching_sets(
+    broker_registry: BrokerRegistry,
+    controller_registry: ControllerRegistry,
+    delisting_registry=None,
+) -> tuple[set[str], set[str]]:
+    """Single source for the IMAP poller's (broker_domains, tier3_exclude).
+
+    Both the web server and the check-replies CLI build these; constructing
+    them in two places already caused the two entry points to enforce
+    different matching invariants once.
+    """
+    domains = {b.domain.lower() for b in broker_registry.brokers}
+    for c in controller_registry.controllers:
+        domains.add(c.domain.lower())
+        domains.update(d.lower() for d in c.extra_domains)
+    exclude = {c.id for c in controller_registry.controllers}
+    if delisting_registry is not None:
+        domains.update(t.domain.lower() for t in delisting_registry.targets)
+        exclude.update(t.id for t in delisting_registry.targets)
+    return domains, exclude
+
+
 def account_email_ok(controller: Controller, profile: Profile, smtp: SmtpConfig) -> bool:
     """Whether an automated send would come from an address the platform accepts.
 

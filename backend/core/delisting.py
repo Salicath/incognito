@@ -54,6 +54,7 @@ class DelistingTarget:
     name: str
     domain: str
     dpo_email: str
+    erasure_form_url: str = ""  # complaint contact fallback for form engines
     eu_entity: str = ""
     entity_country: str = "US"
     lead_dpa: str = ""
@@ -97,13 +98,20 @@ _TARGET_FACTS: dict[str, dict] = {
 }
 
 # Decision emails are form-triggered, not replies: Message-ID/REF matching can
-# never fire for Google/Bing. Senders verified July 2026 — Google decisions
-# come from @google.com (removals@) and enumerate the requested URLs; Bing
-# replies come from @microsoft.com with no case number and no URLs.
-DECISION_SENDER_DOMAINS: dict[str, set[str]] = {
-    "delisting-google": {"google.com"},
-    "delisting-bing": {"microsoft.com"},
-    "delisting-brave": {"brave.com"},
+# never fire for Google/Bing. Exact sender addresses only — matching on the
+# whole google.com domain would let Google Alerts / "Results about you"
+# notifications that quote the tracked URL auto-acknowledge the request and
+# silently disarm the Art. 12(3) chase. Precision over recall: an unknown
+# decision sender just means the user confirms manually. Bing has no reliable
+# sender or body signal at all, so Bing decisions are always user-confirmed.
+DECISION_SENDER_ADDRESSES: dict[str, set[str]] = {
+    "delisting-google": {
+        "removals@google.com",
+        "google-legal-support@google.com",
+        "reportcontent-noreply@google.com",
+        "noreply-reportcontent@google.com",
+    },
+    "delisting-brave": {"privacy@brave.com", "gdprnomrep@brave.com"},
 }
 
 
@@ -115,6 +123,7 @@ class DelistingRegistry:
                 name=f"{e.name} delisting (RTBF)",
                 domain=e.domain or e.key + ".com",
                 dpo_email=e.target if e.action == "email" else "",
+                erasure_form_url=e.target if e.action == "form" else "",
                 **_TARGET_FACTS.get(e.key, {}),
             )
             for e in ENGINES
@@ -230,8 +239,9 @@ def build_delisting_kit(
                 "Open signed-out from your normal Danish connection. Google's "
                 "'Results about you' monitors name hits ambiently — enroll it as "
                 "a complement; it is a policy track, separate from the Art. 17 "
-                "form. A resurfaced URL in the quarterly rescan raises an alert "
-                "automatically (Bing surface via DuckDuckGo)."
+                "form. The rescan command/timer re-runs name queries and alerts "
+                "if a granted delisting resurfaces (Bing surface via DuckDuckGo; "
+                "check the Google link manually)."
             ),
         },
     }

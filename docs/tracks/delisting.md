@@ -33,13 +33,15 @@ Google/Bing decisions are **form-triggered mail, not replies** — Message-ID an
 
 | Engine | Sender | Signal | Action |
 |---|---|---|---|
-| Google | `*@google.com` (operative: `removals@`) | Decision mail enumerates the requested URLs | `target_url` in body → attach + auto-ACKNOWLEDGED (`delisting_decision` tier). No URL → ignored (Google sends too much routine mail) |
-| Bing | `*@microsoft.com` | None reliable — no case number, no URLs | Attach-only to the *single* open Bing request (`domain_only` tier, no transition); ambiguous → skip; user confirms |
+| Google | Exact-address allowlist (`removals@google.com` + variants) — **never** the whole google.com domain: Google Alerts / "Results about you" notifications quote the same URL and would auto-ACK the request and disarm the Art. 12(3) clock | Decision mail enumerates the requested URLs | allowlisted sender **and** `target_url` in body → attach + auto-ACKNOWLEDGED (`delisting_decision` tier); anything else → untouched, user confirms |
+| Bing | — | None reliable — no case number, no URLs, and domain-wide matching would file Microsoft security codes onto the legal thread and mark them read | No auto-matching at all; user confirms manually |
 | Brave | `privacy@brave.com` | Normal reply threading | Existing tiers 1–2, no new code |
 
 Granted/refused body phrases ("decided not to take action on the following
 URL(s)") are practitioner-reported, not documented — they stay out of the code;
-the user classifies via the normal transition buttons.
+the user classifies via the normal transition buttons. Precision over recall
+throughout: a missed auto-ACK costs a manual click; a false auto-ACK silently
+kills the deadline chase.
 
 ## Escalation (Danish user)
 
@@ -59,11 +61,13 @@ upheld by Østre Landsret).
 
 ## Re-verification
 
-- **Bing surface — automatic.** The quarterly DDG rescan re-runs name queries
-  (DDG resells Bing; region param `kl=dk-da` makes the EU RTBF filter reliable).
-  A COMPLETED delisting whose exact `target_url` resurfaces raises
-  `DATA_REAPPEARED`. Syndication lag after a grant is 2–4 weeks — don't panic
-  on an early hit.
+- **Bing surface — automatic.** `verify_delisted_urls` (run by the rescan
+  command/timer) issues bare name queries via DDG (DDG resells Bing; the
+  region param `kl=dk-da` makes the EU RTBF filter reliable — it is set ONLY
+  here, since region-biasing the broker discovery scan costs recall on US
+  brokers). A COMPLETED delisting whose `target_url` resurfaces (scheme/www
+  insensitive) raises `DATA_REAPPEARED`. Syndication lag after a grant is 2–4
+  weeks — don't panic on an early hit.
 - **Google surface — manual, guided.** No ToS-safe programmatic option exists
   (Custom Search JSON API closed to new customers, retires 2027; SERP APIs break
   DK geoscoping). The kit carries signed-out check links

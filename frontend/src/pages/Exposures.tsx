@@ -130,6 +130,9 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
             <div className="space-y-1.5">
               {kit.engines.map((eng) => {
                 const tracked = kit.requests?.[eng.key];
+                // terminal requests can be re-filed (e.g. a resurfaced URL)
+                const refileable =
+                  tracked && (tracked.status === "completed" || tracked.status === "refused");
                 return (
                   <div key={eng.key} className="text-xs">
                     <a
@@ -140,18 +143,23 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
                       <ExternalLink className="w-3 h-3" /> {eng.name} {eng.action === "form" ? "form" : "email"}
                     </a>
                     {eng.id_required && <span className="ml-2 text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1 py-0.5 rounded">ID upload</span>}
-                    {tracked ? (
+                    {tracked && (
                       <span className="ml-2 text-[10px] uppercase tracking-wide bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 px-1 py-0.5 rounded">
                         {tracked.status}
                         {tracked.deadline_at ? ` · due ${tracked.deadline_at.slice(0, 10)}` : ""}
                       </span>
-                    ) : (
+                    )}
+                    {(!tracked || refileable) && (
                       <button
                         onClick={() => handleFiled(eng.key)}
                         disabled={filing === eng.key}
                         className="ml-2 text-[11px] text-green-700 dark:text-green-300 border border-green-600 rounded px-1.5 py-0.5 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-50"
                       >
-                        {filing === eng.key ? "…" : "I filed it — start the clock"}
+                        {filing === eng.key
+                          ? "…"
+                          : refileable
+                            ? "Re-file — start a new clock"
+                            : "I filed it — start the clock"}
                       </button>
                     )}
                     <span className="text-gray-500 dark:text-gray-400 ml-1">— {eng.note}</span>

@@ -22,7 +22,7 @@ The controller's main establishment is {{ controller_entity }} ({{ controller_co
 
 {% endif %}
 {% if delisting_url %}
-This complaint concerns a search-engine delisting (right to be forgotten) request under Article 17 GDPR as applied to search engines (CJEU C-131/12, Google Spain). The URL {{ delisting_url }} appears in results for searches of my name{% if delisting_query %} ("{{ delisting_query }}"){% endif %}; delisting was requested via the engine's designated form and the response period has lapsed.
+This complaint concerns a search-engine delisting (right to be forgotten) request under Article 17 GDPR as applied to search engines (CJEU C-131/12, Google Spain). The URL {{ delisting_url }} appears in results for searches of my name{% if delisting_query %} ("{{ delisting_query }}"){% endif %}. {% if delisting_channel == "email" %}Delisting was requested by email to the engine's designated privacy address, and the response period has lapsed.{% else %}Delisting was requested via the engine's designated form, and the response period has lapsed.{% endif %} {% if delisting_no_oss %}The controller for this processing is {{ delisting_controller }}; it has no main establishment in the EU for this processing, so the one-stop-shop mechanism does not apply and you have full competence under Article 55 GDPR.{% else %}The controller for this processing is {{ delisting_controller }}, with its main establishment in {{ delisting_country }}; the lead supervisory authority is {{ delisting_lead_sa }}. I request that this complaint be forwarded under Article 56 GDPR as appropriate.{% endif %}
 
 {% endif %}
 My identifying details:

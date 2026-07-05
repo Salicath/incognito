@@ -1232,9 +1232,29 @@ def create_scan_router(
             )
             mgr.mark_sent(req.id)
 
-            row.disposition = "actioned"
-            row.actioned = True
-            row.note = f"RTBF request filed with {engine.name}"
+            # The practical surface is Google + Bing (the kit's own coverage
+            # note) — only mark the exposure handled once both are filed, or
+            # the Bing-powered half of the market stays searchable while the
+            # inbox shows the exposure as done.
+            filed = {
+                key for key in ("google", "bing")
+                if db.query(Request)
+                .filter(
+                    Request.broker_id == f"delisting-{key}",
+                    Request.target_url == url,
+                    Request.status != RequestStatus.REFUSED,
+                )
+                .first() is not None
+            }
+            if {"google", "bing"} <= filed:
+                row.disposition = "actioned"
+                row.actioned = True
+                row.note = "RTBF requests filed with Google and Bing"
+            else:
+                remaining = ", ".join(sorted({"google", "bing"} - filed))
+                row.note = (
+                    f"RTBF request filed with {engine.name} — still to file: {remaining}"
+                )
             db.commit()
 
             return {

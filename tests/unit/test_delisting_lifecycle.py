@@ -117,7 +117,16 @@ def test_file_delisting_request_starts_clock(client, config):
     assert detail["broker"]["removal_method"] == "web_form"
     assert detail["target_url"] == data["target_url"]
 
-    # exposure marked actioned
+    # Google alone does NOT action the exposure — Bing covers the other half
+    # of the market; the inbox must keep prompting until both are filed
+    exposures = client.get("/api/scan/exposures").json()["exposures"]
+    row = next(e for e in exposures if e["id"] == eid)
+    assert row["disposition"] != "actioned"
+    assert "still to file: bing" in row["note"]
+
+    client.post(
+        f"/api/scan/exposures/{eid}/delisting-request", json={"engine": "bing"},
+    )
     exposures = client.get("/api/scan/exposures").json()["exposures"]
     row = next(e for e in exposures if e["id"] == eid)
     assert row["disposition"] == "actioned"
@@ -173,7 +182,7 @@ def _open(request_id, broker_id, url):
     return {"request_id": request_id, "broker_id": broker_id, "target_url": url}
 
 
-def test_google_decision_matches_on_body_url():
+def test_google_decision_matches_on_allowlisted_sender_and_body_url():
     from backend.core.imap import ImapPoller, MatchTier
 
     open_reqs = [_open("r1", "delisting-google", "https://example.com/malte/")]
@@ -187,39 +196,59 @@ def test_google_decision_matches_on_body_url():
     assert m.tier == MatchTier.DELISTING_DECISION
 
 
+def test_google_alerts_quoting_the_url_must_not_match():
+    """A Google Alert / Results-about-you mail quoting the tracked URL would
+    otherwise auto-ACK the request and silently disarm the Art. 12(3) chase."""
+    from backend.core.imap import ImapPoller
+
+    open_reqs = [_open("r1", "delisting-google", "https://example.com/malte")]
+    for sender in (
+        "googlealerts-noreply@google.com",
+        "resultsaboutyou-noreply@google.com",
+        "noreply@google.com",
+    ):
+        m = ImapPoller._match_delisting_decision(
+            sender, "New result for you: https://example.com/malte", open_reqs,
+        )
+        assert m is None, sender
+
+
 def test_google_mail_without_url_is_ignored():
     from backend.core.imap import ImapPoller
 
     open_reqs = [_open("r1", "delisting-google", "https://example.com/malte")]
     m = ImapPoller._match_delisting_decision(
-        "noreply@google.com", "Your Google Account security update", open_reqs,
+        "removals@google.com", "We received your request", open_reqs,
     )
-    assert m is None  # Google decisions list URLs; no URL -> no match, no noise
+    assert m is None  # decisions list URLs; no URL -> user confirms
 
 
-def test_bing_decision_attaches_without_transition():
-    from backend.core.imap import ImapPoller, MatchTier
-
-    open_reqs = [_open("r2", "delisting-bing", "https://example.com/malte")]
-    m = ImapPoller._match_delisting_decision(
-        "someone@microsoft.com", "About your recent request", open_reqs,
-    )
-    assert m is not None
-    assert m.request_id == "r2"
-    assert m.tier == MatchTier.DOMAIN_ONLY  # attach-only: user confirms
-
-
-def test_bing_ambiguous_open_requests_no_match():
+def test_bing_mail_never_auto_matches():
+    """Bing sends nothing machine-recognizable; domain-wide matching would
+    file Microsoft security codes onto the legal thread and mark them SEEN."""
     from backend.core.imap import ImapPoller
 
-    open_reqs = [
-        _open("r2", "delisting-bing", "https://a.com/x"),
-        _open("r3", "delisting-bing", "https://b.com/y"),
-    ]
+    open_reqs = [_open("r2", "delisting-bing", "https://example.com/malte")]
+    for sender in (
+        "someone@microsoft.com",
+        "account-security-noreply@accountprotection.microsoft.com",
+    ):
+        m = ImapPoller._match_delisting_decision(
+            sender, "About your recent request https://example.com/malte", open_reqs,
+        )
+        assert m is None, sender
+
+
+def test_sender_with_display_name_is_parsed():
+    from backend.core.imap import ImapPoller, MatchTier
+
+    open_reqs = [_open("r1", "delisting-google", "https://example.com/malte")]
     m = ImapPoller._match_delisting_decision(
-        "someone@microsoft.com", "About your recent request", open_reqs,
+        "Google Removals <removals@google.com>",
+        "Decision on https://example.com/malte",
+        open_reqs,
     )
-    assert m is None
+    assert m is not None and m.tier == MatchTier.DELISTING_DECISION
 
 
 def test_unrelated_sender_no_match():
@@ -230,6 +259,21 @@ def test_unrelated_sender_no_match():
         "spam@evil.com", "https://example.com/malte", open_reqs,
     )
     assert m is None
+
+
+def test_reply_matching_sets_cover_all_tracks():
+    """main.py and cli.py must share one construction — they drifted once."""
+    from backend.core.controller import reply_matching_sets
+
+    controllers = ControllerRegistry.load(
+        __import__("pathlib").Path(__file__).parent.parent.parent
+        / "brokers" / "controllers.yaml"
+    )
+    domains, exclude = reply_matching_sets(
+        BrokerRegistry([]), controllers, DelistingRegistry(),
+    )
+    assert {"brave.com", "bing.com", "google.com", "snap.com"} <= domains
+    assert "delisting-google" in exclude and "meta-com" in exclude
 
 
 # ---------------------------------------------------------------------------
@@ -253,9 +297,30 @@ def test_delisting_complaint_names_google_llc_and_url(client, config):
     assert data["dpa"]["short_name"] == "Datatilsynet"
     text = data["complaint_text"]
     assert "Google LLC" in text
-    assert "artikel 55" in text  # Danish no-EU-establishment paragraph
+    assert "artikel 55" in text  # Danish processing-scoped Art. 55 paragraph
     assert created["target_url"] in text
     assert "C-131/12" in text
+    # must NOT assert Google has no EU establishment at all — that is false
+    # (Google Ireland exists); only the Search-RTBF processing lacks one
+    assert "ingen etablering i EU" not in text
+    assert "for denne behandling" in text
+    # contact field must not be blank: form engines fall back to the form URL
+    assert "reportcontent.google.com" in text
+
+
+def test_brave_complaint_states_email_channel(client, config):
+    eid = _seed_url_exposure(config)
+    created = client.post(
+        f"/api/scan/exposures/{eid}/delisting-request", json={"engine": "brave"},
+    ).json()
+    rid = created["request_id"]
+    client.post(f"/api/requests/{rid}/transition", json={"action": "mark_overdue"})
+    client.post(f"/api/requests/{rid}/transition", json={"action": "mark_escalated"})
+
+    text = client.post(f"/api/blast/generate-complaint/{rid}").json()["complaint_text"]
+    # Brave filings go by email — the complaint must not claim a form was used
+    assert "e-mail" in text
+    assert "formular" not in text
 
 
 def test_kit_carries_verify_links(client, config):
@@ -303,6 +368,93 @@ def test_rescan_flags_resurfaced_delisted_url():
     assert len(report.reappeared) == 1
     assert "delisting-google" in report.reappeared[0].broker_name
     session.close()
+
+
+async def test_verify_delisted_urls_flags_resurfaced_variant():
+    """Bare name queries must catch a resurfaced delisted URL even when the
+    scheme/www form differs — the broker rescan is site:-scoped and blind here."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.core.profile import Profile
+    from backend.core.request import RequestManager
+    from backend.core.rescan import verify_delisted_urls
+    from backend.db.models import Base, RequestType
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+    mgr = RequestManager(session)
+    req = mgr.create(
+        "delisting-google", RequestType.ERASURE,
+        target_url="https://www.politiken.dk/article123",
+    )
+    mgr.mark_manual_action_needed(req.id, "filed")
+    mgr.mark_sent(req.id)
+    mgr.mark_acknowledged(req.id, "granted")
+    mgr.mark_completed(req.id)
+
+    async def fake_search(query, client, region=None):
+        assert region == "dk-da"  # RTBF filter is market-scoped
+        assert query == '"Test User"'
+        return [
+            {"url": "http://politiken.dk/article123/", "title": "t", "snippet": "s"},
+            {"url": "https://other.dk/x", "title": "t", "snippet": "s"},
+        ]
+
+    with patch("backend.scanner.duckduckgo._search_ddg", fake_search), patch(
+        "backend.core.notifier.notify"
+    ):
+        alerts = await verify_delisted_urls(
+            session, Profile(full_name="Test User", emails=["t@t.com"]),
+        )
+    assert len(alerts) == 1
+    assert "delisting-google" in alerts[0].broker_name
+    session.close()
+
+
+async def test_verify_delisted_urls_no_completed_requests_is_free():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.core.profile import Profile
+    from backend.core.rescan import verify_delisted_urls
+    from backend.db.models import Base
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+    with patch("backend.scanner.duckduckgo._search_ddg") as mock_search:
+        alerts = await verify_delisted_urls(
+            session, Profile(full_name="Test User", emails=["t@t.com"]),
+        )
+    assert alerts == []
+    mock_search.assert_not_called()  # no queries when nothing is delisted
+    session.close()
+
+
+async def test_ddg_region_only_set_when_requested():
+    """The broker discovery scan must stay region-neutral — forcing dk-da
+    region-biases US people-search queries and silently costs recall."""
+    from backend.scanner.duckduckgo import _search_ddg
+
+    captured = {}
+
+    class FakeResp:
+        text = "<html></html>"
+
+        def raise_for_status(self):
+            pass
+
+    class FakeClient:
+        async def post(self, url, **kwargs):
+            captured.update(kwargs)
+            return FakeResp()
+
+    await _search_ddg("q", FakeClient())
+    assert "kl" not in captured["data"]
+    await _search_ddg("q", FakeClient(), region="dk-da")
+    assert captured["data"]["kl"] == "dk-da"
 
 
 def test_rescan_ignores_unrelated_urls_for_delisting():

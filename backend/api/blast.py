@@ -381,14 +381,16 @@ def create_blast_router(
             dpa = get_dpa_for_request(broker, config.user_country)
 
             # Controllers/delisting: the complaint goes to the residence SA —
-            # pass the lead-SA facts as variables so each locale template
-            # renders its own translated one-stop-shop paragraph (Art. 56/60
-            # or Art. 55). Delisting complaints additionally carry the URL and
-            # the name-query scope (CJEU C-131/12).
+            # pass the facts as variables so each locale template renders its
+            # own translated jurisdiction paragraph. The two tracks use
+            # DIFFERENT blocks: the controller wording ("has no establishment
+            # in the EU") is literally true for Snap but would be false for
+            # Google, which has EU establishments — just none that controls
+            # Search RTBF processing. Delisting therefore gets its own
+            # processing-scoped Art. 55/56 wording, plus the URL and the
+            # name-query scope (CJEU C-131/12) and the actual filing channel.
             controller_vars: dict = {}
-            if broker.category in ("controller", "delisting"):
-                # Controller and DelistingTarget both carry these fields;
-                # plain Brokers never reach this branch.
+            if broker.category == "controller":
                 controller_vars = {
                     "controller_entity": getattr(broker, "eu_entity", ""),
                     "controller_country": getattr(broker, "entity_country", ""),
@@ -396,9 +398,16 @@ def create_blast_router(
                     "controller_no_eu": getattr(broker, "no_eu_establishment", False),
                     "controller_art27_rep": getattr(broker, "art27_rep", None) or "",
                 }
-            if broker.category == "delisting":
-                controller_vars["delisting_url"] = req.target_url or ""
-                controller_vars["delisting_query"] = profile.full_name
+            elif broker.category == "delisting":
+                controller_vars = {
+                    "delisting_url": req.target_url or "",
+                    "delisting_query": profile.full_name,
+                    "delisting_controller": getattr(broker, "eu_entity", ""),
+                    "delisting_channel": "email" if broker.dpo_email else "form",
+                    "delisting_no_oss": getattr(broker, "no_eu_establishment", False),
+                    "delisting_country": getattr(broker, "entity_country", ""),
+                    "delisting_lead_sa": getattr(broker, "lead_dpa", ""),
+                }
 
             # Only claim a follow-up/final warning was sent if one actually was
             # (form-only controllers are never chased by email).
