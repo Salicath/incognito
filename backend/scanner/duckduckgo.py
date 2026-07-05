@@ -26,13 +26,24 @@ class ScanReport:
     errors: list[str] = field(default_factory=list)
 
 
-async def _search_ddg(query: str, client: httpx.AsyncClient) -> list[dict]:
-    """Search DuckDuckGo HTML and extract results."""
+async def _search_ddg(
+    query: str, client: httpx.AsyncClient, region: str | None = None,
+) -> list[dict]:
+    """Search DuckDuckGo HTML and extract results.
+
+    region ("kl", e.g. "dk-da"): only region-scoped queries reliably carry the
+    EU-market RTBF filter, so delisting verification sets it — but the broker
+    discovery scan must NOT, or Danish ranking bias silently costs recall on
+    US people-search queries.
+    """
     url = "https://html.duckduckgo.com/html/"
+    data = {"q": query}
+    if region:
+        data["kl"] = region
     try:
         resp = await client.post(
             url,
-            data={"q": query},
+            data=data,
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) "

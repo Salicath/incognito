@@ -23,6 +23,10 @@ Główna jednostka organizacyjna administratora to {{ controller_entity }} ({{ c
 {% endif %}
 
 {% endif %}
+{% if delisting_url %}
+Niniejsza skarga dotyczy żądania usunięcia z wyników wyszukiwania (prawo do bycia zapomnianym) na podstawie art. 17 RODO w zastosowaniu do wyszukiwarek (TSUE C-131/12, Google Spain). Adres URL {{ delisting_url }} pojawia się w wynikach wyszukiwania mojego imienia i nazwiska{% if delisting_query %} („{{ delisting_query }}”){% endif %}. {% if delisting_channel == "email" %}Usunięcia zażądano pocztą elektroniczną na wyznaczony adres prywatności wyszukiwarki, a termin odpowiedzi upłynął.{% else %}Usunięcia zażądano za pośrednictwem formularza wyszukiwarki, a termin odpowiedzi upłynął.{% endif %} {% if delisting_no_oss %}Administratorem tego przetwarzania jest {{ delisting_controller }}; nie posiada on głównej jednostki organizacyjnej w UE dla tego przetwarzania, wobec czego mechanizm kompleksowej współpracy nie ma zastosowania, a organ ma pełną właściwość na podstawie art. 55 RODO.{% else %}Administratorem tego przetwarzania jest {{ delisting_controller }} z główną jednostką organizacyjną w {{ delisting_country }}; wiodącym organem nadzorczym jest {{ delisting_lead_sa }}. Wnoszę o przekazanie niniejszej skargi zgodnie z art. 56 RODO, o ile to właściwe.{% endif %}
+
+{% endif %}
 Dane identyfikacyjne:
 - Imię i nazwisko: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

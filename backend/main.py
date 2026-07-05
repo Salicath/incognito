@@ -107,17 +107,24 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     controller_registry = ControllerRegistry.load(brokers_dir / "controllers.yaml")
     app.state.controller_registry = controller_registry
-    registry_union = RegistryUnion(broker_registry, controller_registry)
+
+    from backend.core.delisting import DelistingRegistry
+    delisting_registry = DelistingRegistry()
+    app.state.delisting_registry = delisting_registry
+    registry_union = RegistryUnion(
+        broker_registry, controller_registry, delisting=delisting_registry,
+    )
 
     app.state.imap_poller = None
-    broker_domain_set = {b.domain.lower() for b in broker_registry.brokers}
-    for c in controller_registry.controllers:
-        broker_domain_set.add(c.domain.lower())
-        broker_domain_set.update(d.lower() for d in c.extra_domains)
+    from backend.core.controller import reply_matching_sets
+    broker_domain_set, tier3_exclude = reply_matching_sets(
+        broker_registry, controller_registry, delisting_registry,
+    )
     app.state.broker_domains = broker_domain_set
-    # Controllers send routine mail from their domains — restrict their reply
-    # matching to Message-ID threading and REF-code echo (no domain-only tier)
-    app.state.imap_tier3_exclude = {c.id for c in controller_registry.controllers}
+    # Controllers and search engines send routine mail from their domains —
+    # restrict their reply matching to Message-ID threading and REF-code echo
+    # (no domain-only tier)
+    app.state.imap_tier3_exclude = tier3_exclude
 
     app.include_router(create_auth_router(
         vault, session_store, rate_limiter,
@@ -145,6 +152,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         vault, session_store, broker_registry, db_session_factory, config,
         lever_registry=lever_registry,
         controller_registry=controller_registry,
+        delisting_registry=delisting_registry,
     ))
     app.include_router(create_settings_router(
         vault, session_store, broker_registry, config, db_session_factory,

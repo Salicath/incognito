@@ -76,6 +76,7 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
   const [kit, setKit] = useState<Kit | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [filing, setFiling] = useState("");
 
   const fetchKit = useCallback(async (r: string) => {
     setLoading(true);
@@ -85,6 +86,16 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
       setLoading(false);
     }
   }, [exposureId]);
+
+  async function handleFiled(engine: string) {
+    setFiling(engine);
+    try {
+      await api.createDelistingRequest(exposureId, engine);
+      await fetchKit(reason);
+    } finally {
+      setFiling("");
+    }
+  }
 
   return (
     <details className="mt-2 group" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open && !kit) fetchKit(reason); }}>
@@ -117,19 +128,44 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
               </button>
             </div>
             <div className="space-y-1.5">
-              {kit.engines.map((eng) => (
-                <div key={eng.key} className="text-xs">
-                  <a
-                    href={eng.action === "email" ? `mailto:${eng.target}?subject=RTBF%20request` : eng.target}
-                    target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline font-medium"
-                  >
-                    <ExternalLink className="w-3 h-3" /> {eng.name} {eng.action === "form" ? "form" : "email"}
-                  </a>
-                  {eng.id_required && <span className="ml-2 text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1 py-0.5 rounded">ID upload</span>}
-                  <span className="text-gray-500 dark:text-gray-400 ml-1">— {eng.note}</span>
-                </div>
-              ))}
+              {kit.engines.map((eng) => {
+                const tracked = kit.requests?.[eng.key];
+                // terminal requests can be re-filed (e.g. a resurfaced URL)
+                const refileable =
+                  tracked && (tracked.status === "completed" || tracked.status === "refused");
+                return (
+                  <div key={eng.key} className="text-xs">
+                    <a
+                      href={eng.action === "email" ? `mailto:${eng.target}?subject=RTBF%20request` : eng.target}
+                      target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline font-medium"
+                    >
+                      <ExternalLink className="w-3 h-3" /> {eng.name} {eng.action === "form" ? "form" : "email"}
+                    </a>
+                    {eng.id_required && <span className="ml-2 text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1 py-0.5 rounded">ID upload</span>}
+                    {tracked && (
+                      <span className="ml-2 text-[10px] uppercase tracking-wide bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 px-1 py-0.5 rounded">
+                        {tracked.status}
+                        {tracked.deadline_at ? ` · due ${tracked.deadline_at.slice(0, 10)}` : ""}
+                      </span>
+                    )}
+                    {(!tracked || refileable) && (
+                      <button
+                        onClick={() => handleFiled(eng.key)}
+                        disabled={filing === eng.key}
+                        className="ml-2 text-[11px] text-green-700 dark:text-green-300 border border-green-600 rounded px-1.5 py-0.5 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-50"
+                      >
+                        {filing === eng.key
+                          ? "…"
+                          : refileable
+                            ? "Re-file — start a new clock"
+                            : "I filed it — start the clock"}
+                      </button>
+                    )}
+                    <span className="text-gray-500 dark:text-gray-400 ml-1">— {eng.note}</span>
+                  </div>
+                );
+              })}
             </div>
             <p className="text-[11px] text-gray-400 dark:text-gray-500">{kit.coverage_note}</p>
           </>

@@ -63,12 +63,18 @@ class RequestManager:
 
         return req
 
-    def create(self, broker_id: str, request_type: RequestType) -> Request:
+    def create(
+        self,
+        broker_id: str,
+        request_type: RequestType,
+        target_url: str | None = None,
+    ) -> Request:
         req = Request(
             id=str(uuid.uuid4()),
             broker_id=broker_id,
             request_type=request_type,
             status=RequestStatus.CREATED,
+            target_url=target_url,
         )
         self._session.add(req)
 

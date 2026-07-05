@@ -102,13 +102,13 @@ Add `da` locale to `templates/locales/` (5 template types).
   (Snap) to the residence SA under Art. 55; lead SA named in the complaint text.
 - Deferred: vendoring the full datenanfragen.de company DB (CC0, ~3k records) as
   general registry enrichment.
-- 🟡 `delisting` track: Google + Bing RTBF. Shipped — the delisting-kit generator
-  (`core/delisting.py`, `GET /api/scan/exposures/{id}/delisting-kit`): per-engine
-  deep-links (Google/Bing forms + Brave email, with reseller coverage notes) and a
-  drafted locale-aware Art. 17 justification, surfaced on any URL exposure. Assist-only
-  (every engine is a manual ID-gated form; no API/DRP). TODO: request-lifecycle tracking
-  (Art. 12(3) one-month clock → OVERDUE → ESCALATED = Datatilsynet complaint), IMAP
-  decision-email matching, and quarterly name-search re-verification via the rescan timer.
+- ✅ `delisting` track (`docs/tracks/delisting.md`): kit generator (2026-07-03) +
+  lifecycle (2026-07-05). Tracked `(URL, engine)` requests with user-attested filing
+  (Art. 12(3) clock), decision-email matching (Google: URL-in-body auto-ACK; Bing:
+  attach-only; Brave: normal threading), residence-DPA escalation (Google = national
+  Art. 55 case vs Google LLC — no one-stop-shop; Bing = Microsoft Ireland → IE DPC),
+  and re-verification: quarterly DDG rescan (`kl=dk-da`) flags resurfaced delisted
+  URLs; Google surface via guided signed-out check links + "Results about you".
 
 **Phase 4 — Long tail**
 - `account` track: ✅ JustDelete.me sites.json vendored (`data/justdeleteme_sites.json`, 2556 entries) + `core/account_registry.py` maps every discovered account (user-scanner/Maigret hit) to its exact deletion URL + difficulty in the Exposures inbox; `impossible` → `legally_impossible`. Still TODO: an automated `account_delete` sender (most services have no deletion API — guided self-service is the realistic ceiling).

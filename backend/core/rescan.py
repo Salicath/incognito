@@ -31,6 +31,91 @@ class RescanReport:
     scan_date: str = ""
 
 
+def _normalize_url(url: str) -> str:
+    """Scheme/www/trailing-slash-insensitive form for delisted-URL comparison."""
+    u = url.strip().lower()
+    for prefix in ("https://", "http://"):
+        if u.startswith(prefix):
+            u = u[len(prefix):]
+            break
+    if u.startswith("www."):
+        u = u[4:]
+    return u.rstrip("/")
+
+
+async def verify_delisted_urls(
+    session: Session, profile, region: str | None = "dk-da",
+) -> list[RescanAlert]:
+    """Re-verify granted delistings with bare name queries.
+
+    The broker rescan only issues '"name" site:<broker>' queries, so a
+    delisted news article on a non-broker domain never enters its hit list.
+    This check searches the name directly (region-scoped — the EU RTBF filter
+    is market-scoped, C-507/17) and flags any COMPLETED delisting whose URL
+    resurfaces. Delisting is exact-URL: same content at a new URL needs a new
+    request, not an alert here.
+    """
+    import httpx
+
+    from backend.scanner.duckduckgo import _search_ddg
+
+    delisted = (
+        session.query(Request)
+        .filter(
+            Request.status == RequestStatus.COMPLETED,
+            Request.broker_id.like("delisting-%"),
+            Request.target_url.isnot(None),
+        )
+        .all()
+    )
+    if not delisted:
+        return []
+
+    targets: dict[str, Request] = {}
+    for req in delisted:
+        targets[_normalize_url(req.target_url)] = req
+
+    names = [profile.full_name, *profile.previous_names] if profile.full_name else list(
+        profile.previous_names
+    )
+    alerts: list[RescanAlert] = []
+    flagged: set[str] = set()
+    async with httpx.AsyncClient() as client:
+        for name in [n for n in names if n]:
+            try:
+                results = await _search_ddg(f'"{name}"', client, region=region)
+            except RuntimeError as exc:
+                log.warning("Delisting re-verification query failed: %s", exc)
+                continue
+            for res in results:
+                norm = _normalize_url(res.get("url", ""))
+                req = targets.get(norm) or targets.get(norm.split("?")[0])
+                if req is None or req.id in flagged:
+                    continue
+                flagged.add(req.id)
+                alerts.append(RescanAlert(
+                    broker_domain=norm.split("/")[0] if norm else "",
+                    broker_name=f"Delisted URL resurfaced ({req.broker_id})",
+                    snippet=res.get("snippet", ""),
+                    url=res.get("url", ""),
+                    previous_removal_date=(
+                        req.updated_at.strftime("%Y-%m-%d") if req.updated_at else None
+                    ),
+                ))
+
+    if alerts:
+        from backend.core.notifier import EventType, notify
+        for alert in alerts:
+            notify(
+                EventType.DATA_REAPPEARED,
+                "Delisted URL resurfaced in name search",
+                f"{alert.url} is back in name-query results "
+                f"(delisted {alert.previous_removal_date}). Re-file citing the "
+                "prior grant.",
+            )
+    return alerts
+
+
 def save_scan_results(
     session: Session,
     hits: list[dict],
@@ -73,6 +158,26 @@ def check_for_reappearances(
         for r in completed
     }
 
+    # Successfully delisted URLs should not resurface in name-search results.
+    # (The broker scan's hits are site:-scoped so this branch rarely fires on
+    # its own — verify_delisted_urls below runs the bare name queries.)
+    delisted_rows = (
+        session.query(Request.broker_id, Request.target_url, Request.updated_at)
+        .filter(
+            Request.status == RequestStatus.COMPLETED,
+            Request.broker_id.like("delisting-%"),
+            Request.target_url.isnot(None),
+        )
+        .all()
+    )
+    delisted_urls = {
+        _normalize_url(r.target_url): (
+            r.broker_id,
+            r.updated_at.strftime("%Y-%m-%d") if r.updated_at else None,
+        )
+        for r in delisted_rows
+    }
+
     # Get broker IDs that had previous scan hits (only fetch the column we need)
     previously_seen = {
         r[0] for r in session.query(ScanResult.broker_id).distinct().all()
@@ -88,7 +193,17 @@ def check_for_reappearances(
             previous_removal_date=None,
         )
 
-        if domain in completed_broker_ids:
+        hit_url = _normalize_url(hit.get("url") or "")
+        if hit_url and hit_url in delisted_urls:
+            engine_id, removal_date = delisted_urls[hit_url]
+            alert.broker_name = f"Delisted URL resurfaced ({engine_id})"
+            alert.previous_removal_date = removal_date
+            report.reappeared.append(alert)
+            log.warning(
+                "Delisted URL resurfaced in name search: %s (delisted %s via %s)",
+                hit_url, removal_date, engine_id,
+            )
+        elif domain in completed_broker_ids:
             # Data reappeared after confirmed deletion
             alert.previous_removal_date = completed_dates.get(domain)
             report.reappeared.append(alert)

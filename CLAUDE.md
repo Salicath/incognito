@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (420 tests, 220 brokers, 16 controllers, 23 DPAs)
+# Run tests (446 tests, 220 brokers, 16 controllers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -62,7 +62,7 @@ incognito report             # Privacy score and exposure report
 - Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl, ccpa
 - CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`). Renewal ladder (T-30/T-7/expiry) fires from the `follow-up` command via `check_lever_renewals`.
 - Controller track (`core/controller.py`, `brokers/controllers.yaml`, `docs/tracks/controller.md`): opt-in tech-giant erasure — 16 hand-verified platforms, never blasted (separate `ControllerRegistry`; `RegistryUnion` feeds shared machinery). Email-viable platforms send a controller-specific Art. 17 immediately; form-only ones enter MANUAL_ACTION_NEEDED with a filing kit and the user attests "I filed it" (→ SENT starts the Art. 12(3) clock). Complaints route to the residence SA via `dpa.get_dpa_for_request` (`INCOGNITO_USER_COUNTRY`, default DK; GB→ICO), with the lead SA named in the complaint text.
-- Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps. Account hits (user-scanner/Maigret) are resolved against the vendored JustDelete.me dataset (`core/account_registry.py`, `data/justdeleteme_sites.json`) to surface the exact deletion URL + difficulty; `difficulty: impossible` routes toward the `legally_impossible` disposition. Newsletter hits carry an unsubscribe action (`POST /api/scan/exposures/{id}/unsubscribe`): RFC 8058 one-click POST via `core/unsubscribe.py` (SSRF-guarded, HTTPS-only, no redirects), or a mailto send via the SMTP sender. Any URL exposure carries a delisting kit (`GET /api/scan/exposures/{id}/delisting-kit`, `core/delisting.py`): per-engine RTBF deep-links (Google/Bing forms + Brave email) plus a drafted, locale-aware Art. 17 justification — assist-only, since every engine is a manual ID-gated form.
+- Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps. Account hits (user-scanner/Maigret) are resolved against the vendored JustDelete.me dataset (`core/account_registry.py`, `data/justdeleteme_sites.json`) to surface the exact deletion URL + difficulty; `difficulty: impossible` routes toward the `legally_impossible` disposition. Newsletter hits carry an unsubscribe action (`POST /api/scan/exposures/{id}/unsubscribe`): RFC 8058 one-click POST via `core/unsubscribe.py` (SSRF-guarded, HTTPS-only, no redirects), or a mailto send via the SMTP sender. Any URL exposure carries a delisting kit (`GET /api/scan/exposures/{id}/delisting-kit`, `core/delisting.py`): per-engine RTBF deep-links (Google/Bing forms + Brave email) plus a drafted, locale-aware Art. 17 justification — filing is manual (ID-gated forms), but the lifecycle is tracked (`docs/tracks/delisting.md`): "I filed it" creates a `(URL, engine)` request (`Request.target_url`, `DelistingRegistry` pseudo-targets in the `RegistryUnion`) with the Art. 12(3) clock; decision emails match via `ImapPoller._match_delisting_decision` (Google URL-in-body → auto-ACK, Bing attach-only); escalation routes to the residence SA (Google = Art. 55 national case vs Google LLC); the quarterly rescan flags resurfaced delisted URLs.
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
@@ -130,6 +130,7 @@ pytest tests/unit/test_account_registry.py -v # JustDelete.me account-deletion l
 pytest tests/unit/test_newsletter.py -v       # Newsletter List-Unsubscribe parsing/scan
 pytest tests/unit/test_unsubscribe.py -v      # RFC 8058 one-click unsubscribe + SSRF guard
 pytest tests/unit/test_delisting.py -v        # Search-engine delisting (RTBF) assist kit
+pytest tests/unit/test_delisting_lifecycle.py -v  # Delisting lifecycle (tracking, IMAP decisions, complaint)
 ```
 
 ## Dependencies

@@ -6,12 +6,19 @@ import re
 import time
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
+from pydantic import BaseModel
 
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry
 from backend.core.profile import ProfileVault
 from backend.db.models import ScanResult
 from backend.scanner.duckduckgo import scan_profile
+
+
+# Module-level: scan.py uses PEP 563 annotations, so FastAPI can only resolve
+# request-body models it can find in module globals.
+class DelistingRequestBody(BaseModel):
+    engine: str
 
 log = logging.getLogger("incognito.scan")
 
@@ -1126,6 +1133,9 @@ def create_scan_router(
         if db_session_factory is None:
             raise HTTPException(status_code=503, detail="Database unavailable")
 
+        from backend.core.delisting import ENGINES, build_delisting_kit
+        from backend.db.models import Request
+
         db = db_session_factory()
         try:
             row = db.get(ScanResult, exposure_id)
@@ -1135,15 +1145,126 @@ def create_scan_router(
             url = (data.get("url") if isinstance(data, dict) else None) or ""
             if not url:
                 raise HTTPException(status_code=400, detail="Exposure has no URL to delist")
+
+            # Attach per-engine tracked-request status for this URL
+            tracked: dict[str, dict] = {}
+            for eng in ENGINES:
+                req = (
+                    db.query(Request)
+                    .filter(
+                        Request.broker_id == f"delisting-{eng.key}",
+                        Request.target_url == url,
+                    )
+                    .order_by(Request.created_at.desc())
+                    .first()
+                )
+                if req is not None:
+                    tracked[eng.key] = {
+                        "request_id": req.id,
+                        "status": req.status.value,
+                        "deadline_at": (
+                            req.deadline_at.isoformat() if req.deadline_at else None
+                        ),
+                    }
         finally:
             db.close()
-
-        from backend.core.delisting import build_delisting_kit
 
         name_queries = [profile.full_name, *profile.previous_names] if profile.full_name else list(
             profile.previous_names
         )
-        return build_delisting_kit(url, name_queries, reason=reason, locale=locale)
+        kit = build_delisting_kit(url, name_queries, reason=reason, locale=locale)
+        kit["requests"] = tracked
+        return kit
+
+    @r.post("/exposures/{exposure_id}/delisting-request")
+    def create_delisting_request(
+        exposure_id: int,
+        body: DelistingRequestBody,
+        session: str | None = Cookie(default=None),
+    ):
+        """Track a user-filed RTBF request: creates the request already SENT
+        (user attests filing by clicking), starting the Art. 12(3) clock."""
+        session_store.validate(session)
+        if db_session_factory is None:
+            raise HTTPException(status_code=503, detail="Database unavailable")
+
+        from backend.core.delisting import ENGINES
+        from backend.core.request import RequestManager
+        from backend.db.models import Request, RequestStatus, RequestType
+
+        engine = next((e for e in ENGINES if e.key == body.engine), None)
+        if engine is None:
+            raise HTTPException(status_code=404, detail="Unknown engine")
+
+        db = db_session_factory()
+        try:
+            row = db.get(ScanResult, exposure_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="Exposure not found")
+            data = _safe_json(row.found_data)
+            url = (data.get("url") if isinstance(data, dict) else None) or ""
+            if not url:
+                raise HTTPException(status_code=400, detail="Exposure has no URL to delist")
+
+            broker_id = f"delisting-{engine.key}"
+            existing = (
+                db.query(Request)
+                .filter(
+                    Request.broker_id == broker_id,
+                    Request.target_url == url,
+                    Request.status.notin_(
+                        [RequestStatus.COMPLETED, RequestStatus.REFUSED]
+                    ),
+                )
+                .first()
+            )
+            if existing is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Already tracked ({existing.status.value})",
+                )
+
+            deadline_days = config.gdpr_deadline_days if config else 30
+            mgr = RequestManager(db, deadline_days)
+            req = mgr.create(broker_id, RequestType.ERASURE, target_url=url)
+            mgr.mark_manual_action_needed(
+                req.id, f"RTBF filed by user via {engine.name}"
+            )
+            mgr.mark_sent(req.id)
+
+            # The practical surface is Google + Bing (the kit's own coverage
+            # note) — only mark the exposure handled once both are filed, or
+            # the Bing-powered half of the market stays searchable while the
+            # inbox shows the exposure as done.
+            filed = {
+                key for key in ("google", "bing")
+                if db.query(Request)
+                .filter(
+                    Request.broker_id == f"delisting-{key}",
+                    Request.target_url == url,
+                    Request.status != RequestStatus.REFUSED,
+                )
+                .first() is not None
+            }
+            if {"google", "bing"} <= filed:
+                row.disposition = "actioned"
+                row.actioned = True
+                row.note = "RTBF requests filed with Google and Bing"
+            else:
+                remaining = ", ".join(sorted({"google", "bing"} - filed))
+                row.note = (
+                    f"RTBF request filed with {engine.name} — still to file: {remaining}"
+                )
+            db.commit()
+
+            return {
+                "request_id": req.id,
+                "engine": engine.key,
+                "status": "sent",
+                "target_url": url,
+            }
+        finally:
+            db.close()
 
     @r.post("/exposures/{exposure_id}/unsubscribe")
     async def unsubscribe_exposure(

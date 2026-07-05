@@ -302,7 +302,7 @@ def test_imap_tier3_excludes_controllers(registry):
         broker_domains={"some.broker.com", "netflix.com"},
         tier3_exclude={c.id for c in registry.controllers},
     )
-    _ids, ref_map, domain_map = poller._build_lookup_maps(session)
+    _ids, ref_map, domain_map, _delisting = poller._build_lookup_maps(session)
     assert "some.broker.com" in domain_map
     assert "netflix.com" not in domain_map
     # tiers 1-2 still cover the controller request

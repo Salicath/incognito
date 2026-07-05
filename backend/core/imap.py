@@ -27,6 +27,9 @@ class MatchTier(enum.StrEnum):
     MESSAGE_ID = "message_id"
     REFERENCE_CODE = "reference_code"
     DOMAIN_ONLY = "domain_only"
+    # RTBF decisions are form-triggered mail (no threading, no REF echo):
+    # matched by decision-sender domain + the tracked URL appearing in the body
+    DELISTING_DECISION = "delisting_decision"
 
 
 @dataclass(frozen=True)
@@ -120,6 +123,7 @@ class ImapPoller:
         outbound_ids: dict[str, str] = {}
         ref_code_map: dict[str, str] = {}
         domain_request_map: dict[str, str] = {}
+        delisting_open: list[dict] = []
 
         for req in requests:
             if req.message_id:
@@ -128,16 +132,52 @@ class ImapPoller:
             ref_code_map[ref_code] = req.id
             if req.broker_id not in self._tier3_exclude:
                 domain_request_map[req.broker_id.replace("-", ".")] = req.id
+            if req.broker_id.startswith("delisting-"):
+                delisting_open.append({
+                    "request_id": req.id,
+                    "broker_id": req.broker_id,
+                    "target_url": req.target_url or "",
+                })
 
-        return outbound_ids, ref_code_map, domain_request_map
+        return outbound_ids, ref_code_map, domain_request_map, delisting_open
+
+    @staticmethod
+    def _match_delisting_decision(
+        from_address: str, body: str, delisting_open: list[dict],
+    ) -> MatchResult | None:
+        """Match a form-triggered RTBF decision email to a tracked request.
+
+        Auto-acknowledge requires BOTH an exact known decision-sender address
+        and the tracked URL in the body. Domain-wide matching is forbidden
+        here: Google Alerts / "Results about you" notifications quote the
+        same URL from @google.com senders and must never stop the Art. 12(3)
+        clock. Bing sends nothing machine-recognizable — always user-confirmed.
+        """
+        from backend.core.delisting import DECISION_SENDER_ADDRESSES
+
+        addr = from_address.strip().lower()
+        if "<" in addr and addr.endswith(">"):
+            addr = addr[addr.rfind("<") + 1:-1]
+
+        for r in delisting_open:
+            if addr not in DECISION_SENDER_ADDRESSES.get(r["broker_id"], set()):
+                continue
+            url = r["target_url"].rstrip("/")
+            if url and url in body:
+                return MatchResult(
+                    request_id=r["request_id"], tier=MatchTier.DELISTING_DECISION,
+                )
+        return None
 
     def process_message(self, msg, *, _lookup_maps=None) -> MatchResult | None:
         db = self._db_factory()
         try:
             if _lookup_maps is not None:
-                outbound_ids, ref_code_map, domain_request_map = _lookup_maps
+                outbound_ids, ref_code_map, domain_request_map, delisting_open = _lookup_maps
             else:
-                outbound_ids, ref_code_map, domain_request_map = self._build_lookup_maps(db)
+                (
+                    outbound_ids, ref_code_map, domain_request_map, delisting_open,
+                ) = self._build_lookup_maps(db)
 
             in_reply_to = ""
             references = ""
@@ -156,6 +196,8 @@ class ImapPoller:
             else:
                 to_addr = str(msg.to) if msg.to else ""
 
+            body_text = msg.text or ""
+
             result = match_reply(
                 in_reply_to=in_reply_to,
                 references=references,
@@ -167,11 +209,14 @@ class ImapPoller:
                 domain_request_map=domain_request_map,
             )
 
+            if result is None and delisting_open:
+                result = self._match_delisting_decision(
+                    from_addr, body_text, delisting_open,
+                )
+
             if result is None:
                 self.unmatched_count += 1
                 return None
-
-            body_text = msg.text or ""
             email_record = EmailMessage(
                 request_id=result.request_id,
                 message_id=in_reply_to or f"<unknown-{msg.uid}@imap>",
@@ -185,7 +230,10 @@ class ImapPoller:
             )
             db.add(email_record)
 
-            if result.tier in (MatchTier.MESSAGE_ID, MatchTier.REFERENCE_CODE):
+            if result.tier in (
+                MatchTier.MESSAGE_ID, MatchTier.REFERENCE_CODE,
+                MatchTier.DELISTING_DECISION,
+            ):
                 req = db.get(Request, result.request_id)
                 valid = (RequestStatus.SENT, RequestStatus.OVERDUE, RequestStatus.ESCALATED)
                 if req and req.status in valid:
@@ -207,7 +255,10 @@ class ImapPoller:
             self.matched_count += 1
             db.commit()
 
-            if result.tier in (MatchTier.MESSAGE_ID, MatchTier.REFERENCE_CODE):
+            if result.tier in (
+                MatchTier.MESSAGE_ID, MatchTier.REFERENCE_CODE,
+                MatchTier.DELISTING_DECISION,
+            ):
                 from backend.core.notifier import EventType, notify
                 notify(
                     EventType.REPLY_RECEIVED,

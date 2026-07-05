@@ -257,9 +257,12 @@ def follow_up(
             renderer = TemplateRenderer(templates_dir)
 
             from backend.core.controller import RegistryUnion
+            from backend.core.delisting import DelistingRegistry
 
             broker_registry = RegistryUnion(
-                _load_broker_registry(config), _load_controller_registry(config),
+                _load_broker_registry(config),
+                _load_controller_registry(config),
+                delisting=DelistingRegistry(),
             )
 
             result = asyncio.run(run_follow_ups(
@@ -585,45 +588,60 @@ def rescan():
 
     if not report.hits:
         console.print("[green]No data found in search results.[/]")
-        return
 
     session_factory = init_db(config.db_path)
     db = session_factory()
 
     try:
-        # Save results
-        hits = [
-            {
-                "broker_domain": h.broker_domain,
-                "broker_name": h.broker_name,
-                "snippet": h.snippet,
-                "url": h.url,
-            }
-            for h in report.hits
-        ]
-        save_scan_results(db, hits, source="duckduckgo")
+        if report.hits:
+            # Save results
+            hits = [
+                {
+                    "broker_domain": h.broker_domain,
+                    "broker_name": h.broker_name,
+                    "snippet": h.snippet,
+                    "url": h.url,
+                }
+                for h in report.hits
+            ]
+            save_scan_results(db, hits, source="duckduckgo")
 
-        # Check for reappearances
-        rescan = check_for_reappearances(db, hits)
+            # Check for reappearances
+            rescan = check_for_reappearances(db, hits)
 
-        if rescan.reappeared:
-            console.print(
-                f"\n[bold red]WARNING: {len(rescan.reappeared)} broker(s) "
-                "re-listed your data after confirmed deletion![/]"
-            )
-            for alert in rescan.reappeared:
+            if rescan.reappeared:
                 console.print(
-                    f"  [red]- {alert.broker_name} ({alert.broker_domain})"
-                    f" — removed {alert.previous_removal_date}[/]"
+                    f"\n[bold red]WARNING: {len(rescan.reappeared)} broker(s) "
+                    "re-listed your data after confirmed deletion![/]"
                 )
+                for alert in rescan.reappeared:
+                    console.print(
+                        f"  [red]- {alert.broker_name} ({alert.broker_domain})"
+                        f" — removed {alert.previous_removal_date}[/]"
+                    )
 
-        if rescan.new_exposures:
+            if rescan.new_exposures:
+                console.print(
+                    f"\n[yellow]{len(rescan.new_exposures)} new exposure(s) "
+                    "not seen in previous scans:[/]"
+                )
+                for alert in rescan.new_exposures:
+                    console.print(f"  - {alert.broker_name} ({alert.broker_domain})")
+
+        # Granted delistings: bare name queries (the broker scan is site:-scoped
+        # and would never see a delisted news article resurface)
+        from backend.core.rescan import verify_delisted_urls
+
+        resurfaced = asyncio.run(verify_delisted_urls(db, profile))
+        if resurfaced:
             console.print(
-                f"\n[yellow]{len(rescan.new_exposures)} new exposure(s) "
-                "not seen in previous scans:[/]"
+                f"\n[bold red]WARNING: {len(resurfaced)} delisted URL(s) "
+                "resurfaced in name-search results![/]"
             )
-            for alert in rescan.new_exposures:
-                console.print(f"  - {alert.broker_name} ({alert.broker_domain})")
+            for alert in resurfaced:
+                console.print(
+                    f"  [red]- {alert.url} — delisted {alert.previous_removal_date}[/]"
+                )
     finally:
         db.close()
 
@@ -668,19 +686,21 @@ def check_replies():
         )
         return
 
+    from backend.core.controller import reply_matching_sets
+    from backend.core.delisting import DelistingRegistry
+
     session_factory = init_db(config.db_path)
-    registry = _load_broker_registry(config)
-    controllers = _load_controller_registry(config).controllers
-    broker_domains = {b.domain.lower() for b in registry.brokers}
-    for c in controllers:
-        broker_domains.add(c.domain.lower())
-        broker_domains.update(d.lower() for d in c.extra_domains)
+    broker_domains, tier3_exclude = reply_matching_sets(
+        _load_broker_registry(config),
+        _load_controller_registry(config),
+        DelistingRegistry(),
+    )
 
     poller = ImapPoller(
         imap_config=imap,
         db_session_factory=session_factory,
         broker_domains=broker_domains,
-        tier3_exclude={c.id for c in controllers},
+        tier3_exclude=tier3_exclude,
     )
 
     console.print(
