@@ -73,6 +73,26 @@ def check_for_reappearances(
         for r in completed
     }
 
+    # Successfully delisted URLs should not resurface in name-search results.
+    # The DDG scan covers the Bing surface directly; any resurfaced URL is
+    # actionable regardless of which engine granted the delisting (re-file).
+    delisted_rows = (
+        session.query(Request.broker_id, Request.target_url, Request.updated_at)
+        .filter(
+            Request.status == RequestStatus.COMPLETED,
+            Request.broker_id.like("delisting-%"),
+            Request.target_url.isnot(None),
+        )
+        .all()
+    )
+    delisted_urls = {
+        r.target_url.rstrip("/"): (
+            r.broker_id,
+            r.updated_at.strftime("%Y-%m-%d") if r.updated_at else None,
+        )
+        for r in delisted_rows
+    }
+
     # Get broker IDs that had previous scan hits (only fetch the column we need)
     previously_seen = {
         r[0] for r in session.query(ScanResult.broker_id).distinct().all()
@@ -88,7 +108,17 @@ def check_for_reappearances(
             previous_removal_date=None,
         )
 
-        if domain in completed_broker_ids:
+        hit_url = (hit.get("url") or "").rstrip("/")
+        if hit_url and hit_url in delisted_urls:
+            engine_id, removal_date = delisted_urls[hit_url]
+            alert.broker_name = f"Delisted URL resurfaced ({engine_id})"
+            alert.previous_removal_date = removal_date
+            report.reappeared.append(alert)
+            log.warning(
+                "Delisted URL resurfaced in name search: %s (delisted %s via %s)",
+                hit_url, removal_date, engine_id,
+            )
+        elif domain in completed_broker_ids:
             # Data reappeared after confirmed deletion
             alert.previous_removal_date = completed_dates.get(domain)
             report.reappeared.append(alert)

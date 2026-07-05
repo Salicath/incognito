@@ -165,6 +165,72 @@ def test_exposure_without_url_400(client, config):
 
 
 # ---------------------------------------------------------------------------
+# Rescan re-verification
+# ---------------------------------------------------------------------------
+
+
+def test_rescan_flags_resurfaced_delisted_url():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.core.request import RequestManager
+    from backend.core.rescan import check_for_reappearances
+    from backend.db.models import Base, RequestType
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+    mgr = RequestManager(session)
+    req = mgr.create(
+        "delisting-google", RequestType.ERASURE,
+        target_url="https://example.com/malte-profile/",
+    )
+    mgr.mark_manual_action_needed(req.id, "filed")
+    mgr.mark_sent(req.id)
+    mgr.mark_acknowledged(req.id, "granted")
+    mgr.mark_completed(req.id)
+
+    hits = [{
+        "broker_domain": "example.com",
+        "broker_name": "example.com",
+        "snippet": "profile of Malte",
+        "url": "https://example.com/malte-profile",  # same URL, no trailing slash
+    }]
+    with patch("backend.core.notifier.notify"):
+        report = check_for_reappearances(session, hits)
+    assert len(report.reappeared) == 1
+    assert "delisting-google" in report.reappeared[0].broker_name
+    session.close()
+
+
+def test_rescan_ignores_unrelated_urls_for_delisting():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.core.request import RequestManager
+    from backend.core.rescan import check_for_reappearances
+    from backend.db.models import Base, RequestType
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+    mgr = RequestManager(session)
+    req = mgr.create(
+        "delisting-google", RequestType.ERASURE, target_url="https://example.com/a",
+    )
+    mgr.mark_manual_action_needed(req.id, "filed")
+    mgr.mark_sent(req.id)
+    mgr.mark_acknowledged(req.id, "granted")
+    mgr.mark_completed(req.id)
+
+    hits = [{"broker_domain": "example.com", "url": "https://example.com/other"}]
+    with patch("backend.core.notifier.notify"):
+        report = check_for_reappearances(session, hits)
+    assert report.reappeared == []
+    session.close()
+
+
+# ---------------------------------------------------------------------------
 # Scheduler integration
 # ---------------------------------------------------------------------------
 
