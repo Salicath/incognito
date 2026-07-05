@@ -37,6 +37,59 @@ class DelistingEngine:
     target: str  # form URL or email address
     id_required: bool
     note: str
+    domain: str = ""  # reply-sender domain, for IMAP matching
+
+
+@dataclass(frozen=True)
+class DelistingTarget:
+    """Broker-compatible surface for one engine, so tracked delisting requests
+    flow through the shared machinery (requests API, scheduler, complaints).
+
+    dpo_email is empty for form-only engines: the scheduler then skips email
+    chasing and auto-escalates after the window (same path as form-only
+    controllers). Brave keeps its email so overdue requests get chased.
+    """
+
+    id: str
+    name: str
+    domain: str
+    dpo_email: str
+    country: str = "US"
+    language: str = "en"
+    category: str = "delisting"
+    notes: str | None = None
+
+    @property
+    def removal_method(self):
+        from backend.core.broker import RemovalMethod
+
+        return RemovalMethod.EMAIL if self.dpo_email else RemovalMethod.WEB_FORM
+
+
+class DelistingRegistry:
+    def __init__(self) -> None:
+        self.targets = [
+            DelistingTarget(
+                id=f"delisting-{e.key}",
+                name=f"{e.name} delisting (RTBF)",
+                domain=e.domain or e.key + ".com",
+                dpo_email=e.target if e.action == "email" else "",
+            )
+            for e in ENGINES
+        ]
+        self._by_id = {t.id: t for t in self.targets}
+
+    def get(self, target_id: str) -> DelistingTarget | None:
+        return self._by_id.get(target_id)
+
+    def get_by_domain(self, domain: str | None) -> DelistingTarget | None:
+        if not domain:
+            return None
+        d = domain.strip().lower()
+        for t in self.targets:
+            if t.domain == d:
+                return t
+        return None
 
 
 ENGINES: list[DelistingEngine] = [
@@ -47,6 +100,7 @@ ENGINES: list[DelistingEngine] = [
         target="https://reportcontent.google.com/forms/rtbf?product=websearch",
         id_required=True,
         note="Covers Startpage (resells Google). Requires an ID upload; submit in your browser.",
+        domain="google.com",
     ),
     DelistingEngine(
         key="bing",
@@ -56,6 +110,7 @@ ENGINES: list[DelistingEngine] = [
         id_required=True,
         note="Covers DuckDuckGo, Ecosia and Yahoo (they resell Bing). "
         "Requires an ID upload and a signed declaration; submit in your browser.",
+        domain="bing.com",
     ),
     DelistingEngine(
         key="brave",
@@ -65,6 +120,7 @@ ENGINES: list[DelistingEngine] = [
         id_required=False,
         note="Independent index — not covered by Google/Bing. Email with subject "
         "'RTBF request'; send ID only if Brave asks.",
+        domain="brave.com",
     ),
 ]
 

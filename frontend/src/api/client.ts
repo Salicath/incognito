@@ -146,7 +146,13 @@ export const api = {
       justification: string;
       engines: Array<{ key: string; name: string; action: string; target: string; id_required: boolean; note: string }>;
       coverage_note: string;
+      requests: Record<string, { request_id: string; status: string; deadline_at: string | null }>;
     }>(`/scan/exposures/${id}/delisting-kit?reason=${encodeURIComponent(reason)}`),
+  createDelistingRequest: (id: number, engine: string) =>
+    request<{ request_id: string; engine: string; status: string; target_url: string }>(
+      `/scan/exposures/${id}/delisting-request`,
+      { method: "POST", body: JSON.stringify({ engine }) },
+    ),
   startNewsletterScan: () =>
     request<{ status: string }>("/scan/newsletters/start", { method: "POST" }),
   getNewsletterResults: () =>

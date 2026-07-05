@@ -60,6 +60,8 @@ class Request(Base):
     response_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     response_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     message_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Delisting requests target one URL per engine; NULL for broker/controller requests
+    target_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     reply_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow

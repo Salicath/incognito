@@ -115,27 +115,42 @@ class ControllerRegistry:
 
 
 class RegistryUnion:
-    """Broker + controller lookup for machinery shared by both tracks.
+    """Broker + controller (+ delisting) lookup for shared machinery.
 
     Blast never sees this — it iterates the plain BrokerRegistry, which is what
-    keeps controllers structurally excluded from bulk sends.
+    keeps controllers and delisting targets structurally excluded from bulk sends.
     """
 
-    def __init__(self, brokers: BrokerRegistry, controllers: ControllerRegistry):
+    def __init__(
+        self,
+        brokers: BrokerRegistry,
+        controllers: ControllerRegistry,
+        delisting=None,
+    ):
         self._brokers = brokers
         self._controllers = controllers
+        self._delisting = delisting
 
     def get(self, entry_id: str):
-        return self._brokers.get(entry_id) or self._controllers.get(entry_id)
+        hit = self._brokers.get(entry_id) or self._controllers.get(entry_id)
+        if hit is None and self._delisting is not None:
+            hit = self._delisting.get(entry_id)
+        return hit
 
     def get_by_domain(self, domain: str | None):
-        return self._brokers.get_by_domain(domain) or self._controllers.get_by_domain(
+        hit = self._brokers.get_by_domain(domain) or self._controllers.get_by_domain(
             domain
         )
+        if hit is None and self._delisting is not None:
+            hit = self._delisting.get_by_domain(domain)
+        return hit
 
     @property
     def brokers(self) -> list:
-        return [*self._brokers.brokers, *self._controllers.controllers]
+        items = [*self._brokers.brokers, *self._controllers.controllers]
+        if self._delisting is not None:
+            items.extend(self._delisting.targets)
+        return items
 
 
 def account_email_ok(controller: Controller, profile: Profile, smtp: SmtpConfig) -> bool:

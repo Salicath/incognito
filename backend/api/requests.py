@@ -50,11 +50,12 @@ def create_requests_router(
                 counts[status_val.value] = count
                 total += count
             counts["total"] = total
-            # Opt-in controllers don't belong in the blast-progress denominator
+            # Opt-in controllers and delisting pseudo-targets don't belong in
+            # the blast-progress denominator
             counts["broker_count"] = (
                 sum(
                     1 for b in broker_registry.brokers
-                    if getattr(b, "category", "") != "controller"
+                    if getattr(b, "category", "") not in ("controller", "delisting")
                 )
                 if broker_registry else 0
             )
@@ -110,6 +111,7 @@ def create_requests_router(
                     "sent_at": req.sent_at.isoformat() if req.sent_at else None,
                     "deadline_at": req.deadline_at.isoformat() if req.deadline_at else None,
                     "created_at": req.created_at.isoformat() if req.created_at else None,
+                    "target_url": req.target_url,
                 }
                 name = broker_names.get(req.broker_id)
                 if name:
@@ -154,6 +156,7 @@ def create_requests_router(
                 "response_body": req.response_body,
                 "created_at": req.created_at.isoformat() if req.created_at else None,
                 "updated_at": req.updated_at.isoformat() if req.updated_at else None,
+                "target_url": req.target_url,
             }
             if broker_registry:
                 broker = broker_registry.get(req.broker_id)

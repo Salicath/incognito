@@ -257,9 +257,12 @@ def follow_up(
             renderer = TemplateRenderer(templates_dir)
 
             from backend.core.controller import RegistryUnion
+            from backend.core.delisting import DelistingRegistry
 
             broker_registry = RegistryUnion(
-                _load_broker_registry(config), _load_controller_registry(config),
+                _load_broker_registry(config),
+                _load_controller_registry(config),
+                delisting=DelistingRegistry(),
             )
 
             result = asyncio.run(run_follow_ups(
