@@ -332,6 +332,8 @@ controllers:
     art27_rep: Snap B.V., Amsterdam
     contact_kind: dpo_email
     privacy_email: dpo@snap.com
+    extra_domains:
+      - snap.com
     email_viable: true
     selfservice_url: https://accounts.snapchat.com/accounts/delete_account
     erasure_form_url: "https://help.snapchat.com/hc/requests/new?ticket_form_id=360000016663"

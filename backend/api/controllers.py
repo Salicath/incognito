@@ -6,7 +6,7 @@ from fastapi import APIRouter, Cookie, HTTPException
 
 from backend.api.deps import SessionStore
 from backend.core.config import AppConfig
-from backend.core.controller import ControllerRegistry, build_kit
+from backend.core.controller import ControllerRegistry, account_email_ok, build_kit
 from backend.core.profile import ProfileVault
 from backend.core.request import RequestManager
 from backend.core.template import TemplateRenderer
@@ -98,25 +98,43 @@ def create_controllers_router(
         db = db_session_factory()
         try:
             existing = _latest_request(db, controller.id)
-            if existing and existing.status != RequestStatus.COMPLETED:
+            req = None
+            if existing and existing.status == RequestStatus.CREATED:
+                # A previous send failed — retry on the same request
+                req = existing
+            elif existing and existing.status != RequestStatus.COMPLETED:
                 raise HTTPException(
                     status_code=409,
                     detail=f"An active request already exists ({existing.status.value})",
                 )
 
             mgr = RequestManager(db, config.gdpr_deadline_days)
-            req = mgr.create(controller.id, RequestType.ERASURE)
+            if req is None:
+                req = mgr.create(controller.id, RequestType.ERASURE)
             renderer = TemplateRenderer(_templates_dir())
             kit = build_kit(controller, profile, req.id[:8].upper(), renderer)
 
+            # Platforms that only accept requests from the account's own email
+            # (Reddit) fall back to the manual kit when the SMTP identity is
+            # not one of the user's addresses — an auto-send would be rejected.
+            manual_reason = None
             if not controller.email_viable:
-                mgr.mark_manual_action_needed(
-                    req.id, "Form-only controller — file the kit via the web form"
+                manual_reason = "Form-only controller — file the kit via the web form"
+            elif smtp is not None and not account_email_ok(controller, profile, smtp):
+                manual_reason = (
+                    "Platform requires the request to come from your account email "
+                    f"({smtp.username} is not among your profile emails) — send the "
+                    "kit yourself from the right mailbox"
                 )
+
+            if manual_reason is not None:
+                if req.status == RequestStatus.CREATED:
+                    mgr.mark_manual_action_needed(req.id, manual_reason)
                 return {
                     "request_id": req.id,
                     "status": "manual_action_needed",
                     "kit": kit,
+                    "reason": manual_reason,
                 }
 
             assert smtp is not None  # guarded before request creation
@@ -125,6 +143,7 @@ def create_controllers_router(
                 to_email=controller.privacy_email,
                 rendered_text=kit["request_text"],
                 request_id=req.id,
+                cc=controller.cc_emails or None,
             )
             if result.status.value != "success":
                 # Request stays CREATED; blast send-all can't sweep it up because

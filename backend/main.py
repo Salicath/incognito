@@ -111,8 +111,13 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     app.state.imap_poller = None
     broker_domain_set = {b.domain.lower() for b in broker_registry.brokers}
-    broker_domain_set.update(c.domain.lower() for c in controller_registry.controllers)
+    for c in controller_registry.controllers:
+        broker_domain_set.add(c.domain.lower())
+        broker_domain_set.update(d.lower() for d in c.extra_domains)
     app.state.broker_domains = broker_domain_set
+    # Controllers send routine mail from their domains — restrict their reply
+    # matching to Message-ID threading and REF-code echo (no domain-only tier)
+    app.state.imap_tier3_exclude = {c.id for c in controller_registry.controllers}
 
     app.include_router(create_auth_router(
         vault, session_store, rate_limiter,

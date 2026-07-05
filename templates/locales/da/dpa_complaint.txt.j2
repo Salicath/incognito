@@ -7,10 +7,18 @@ Jeg indgiver hermed klage i medfør af artikel 77 i Den almindelige databeskytte
 Klagens nærmere omstændigheder:
 - Den {{ original_date }} indgav jeg en anmodning om databeskyttelse til {{ broker_name }} (Vedr.: {{ reference_id }}).
 - Den lovbestemte svarfrist på én måned, jf. artikel 12, stk. 3, er overskredet.
+{% if followed_up %}
 - Jeg har afsendt en rykker og en sidste varsling, men har ikke modtaget et materielt svar.
+{% else %}
+- Jeg har ikke modtaget noget materielt svar på min anmodning.
+{% endif %}
 
-{% if lead_sa_note %}
-{{ lead_sa_note }}
+{% if controller_entity %}
+{% if controller_no_eu %}
+Den dataansvarlige ({{ controller_entity }}) har ingen etablering i EU, så one-stop-shop-mekanismen finder ikke anvendelse, og tilsynsmyndigheden har fuld kompetence efter GDPR artikel 55.{% if controller_art27_rep %} Den dataansvarliges repræsentant efter artikel 27 er {{ controller_art27_rep }}.{% endif %}
+{% else %}
+Den dataansvarliges hovedvirksomhed er {{ controller_entity }} ({{ controller_country }}); den ledende tilsynsmyndighed er {{ controller_lead_sa }}. Jeg anmoder om, at klagen i relevant omfang videresendes efter GDPR artikel 56.
+{% endif %}
 
 {% endif %}
 Mine identifikationsoplysninger:

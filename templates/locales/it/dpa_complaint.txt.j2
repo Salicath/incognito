@@ -9,10 +9,18 @@ con la presente presento un reclamo ai sensi dell'art. 77 del Regolamento Genera
 Esposizione dei fatti:
 - In data {{ original_date }} ho inviato una richiesta di protezione dei dati a {{ broker_name }} (Ref: {{ reference_id }}).
 - Il termine legale di risposta di un mese previsto dall'art. 12, par. 3, del RGPD è decorso.
+{% if followed_up %}
 - Ho inviato un sollecito e un ultimo avviso senza ricevere alcuna risposta sostanziale.
+{% else %}
+- Non ho ricevuto alcuna risposta sostanziale alla mia richiesta.
+{% endif %}
 
-{% if lead_sa_note %}
-{{ lead_sa_note }}
+{% if controller_entity %}
+{% if controller_no_eu %}
+Il titolare ({{ controller_entity }}) non ha uno stabilimento nell'UE; il meccanismo dello sportello unico non si applica e codesta autorità ha piena competenza ai sensi dell'articolo 55 del RGPD.{% if controller_art27_rep %} Il suo rappresentante ai sensi dell'articolo 27 è {{ controller_art27_rep }}.{% endif %}
+{% else %}
+Lo stabilimento principale del titolare è {{ controller_entity }} ({{ controller_country }}); l'autorità di controllo capofila è {{ controller_lead_sa }}. Chiedo che il presente reclamo sia inoltrato ai sensi dell'articolo 56 del RGPD ove opportuno.
+{% endif %}
 
 {% endif %}
 Dati identificativi:

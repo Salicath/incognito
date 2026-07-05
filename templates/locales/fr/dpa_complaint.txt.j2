@@ -9,10 +9,18 @@ Par la présente, je dépose une plainte en vertu de l'article 77 du Règlement 
 Exposé des faits :
 - Le {{ original_date }}, j'ai adressé une demande relative à la protection de mes données personnelles à {{ broker_name }} (Réf : {{ reference_id }}).
 - Le délai légal de réponse d'un mois prévu par l'article 12, paragraphe 3, du RGPD est expiré.
+{% if followed_up %}
 - J'ai envoyé une relance ainsi qu'une mise en demeure, sans obtenir de réponse substantielle.
+{% else %}
+- Je n'ai reçu aucune réponse substantielle à ma demande.
+{% endif %}
 
-{% if lead_sa_note %}
-{{ lead_sa_note }}
+{% if controller_entity %}
+{% if controller_no_eu %}
+Le responsable de traitement ({{ controller_entity }}) n'a pas d'établissement dans l'UE ; le mécanisme du guichet unique ne s'applique donc pas et vous êtes pleinement compétents en vertu de l'article 55 du RGPD.{% if controller_art27_rep %} Son représentant au titre de l'article 27 est {{ controller_art27_rep }}.{% endif %}
+{% else %}
+L'établissement principal du responsable de traitement est {{ controller_entity }} ({{ controller_country }}) ; l'autorité de contrôle chef de file est {{ controller_lead_sa }}. Je demande que cette plainte soit transmise conformément à l'article 56 du RGPD le cas échéant.
+{% endif %}
 
 {% endif %}
 Mes coordonnées :

@@ -83,6 +83,7 @@ def test_email_viable_request_sends(authenticated_client):
     data = resp.json()
     assert data["status"] == "sent"
     assert mock_send.await_args.kwargs["to_email"] == "privacy@github.com"
+    assert mock_send.await_args.kwargs["cc"] == ["dpo@github.com"]
     sent_text = mock_send.await_args.kwargs["rendered_text"]
     assert "GitHub B.V." in sent_text
 
@@ -97,6 +98,63 @@ def test_email_send_failure_leaves_request_created(authenticated_client):
     listing = authenticated_client.get("/api/controllers").json()
     github = next(c for c in listing if c["id"] == "github-com")
     assert github["request"]["status"] == "created"
+
+
+def test_failed_send_can_be_retried(authenticated_client):
+    with patch(
+        "backend.api.controllers.EmailSender.send", new_callable=AsyncMock
+    ) as mock_send:
+        mock_send.return_value = SenderResult(status=SenderStatus.FAILURE, message="boom")
+        assert authenticated_client.post("/api/controllers/github-com/request").status_code == 502
+    with patch(
+        "backend.api.controllers.EmailSender.send", new_callable=AsyncMock
+    ) as mock_send:
+        mock_send.return_value = SenderResult(status=SenderStatus.SUCCESS, message="ok")
+        resp = authenticated_client.post("/api/controllers/github-com/request")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "sent"
+    # the retry reused the failed request instead of creating a second one
+    reqs = [
+        r for r in authenticated_client.get("/api/requests").json()
+        if r["broker_id"] == "github-com"
+    ]
+    assert len(reqs) == 1
+    assert reqs[0]["status"] == "sent"
+
+
+def test_send_from_account_email_mismatch_falls_back_to_kit(authenticated_client):
+    # sample_smtp username (test@test.com) is not among profile emails
+    # (test@example.com) — Reddit would reject an auto-send, so the request
+    # must fall back to the manual kit instead of burning the one email shot.
+    with patch(
+        "backend.api.controllers.EmailSender.send", new_callable=AsyncMock
+    ) as mock_send:
+        resp = authenticated_client.post("/api/controllers/reddit-com/request")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "manual_action_needed"
+    assert "account email" in data["reason"]
+    mock_send.assert_not_awaited()
+
+
+def test_request_detail_works_for_controller_request(authenticated_client):
+    created = authenticated_client.post("/api/controllers/meta-com/request").json()
+    resp = authenticated_client.get(f"/api/requests/{created['request_id']}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["broker"]["name"].startswith("Meta")
+    assert data["broker"]["removal_method"] == "web_form"
+
+
+def test_stats_broker_count_excludes_controllers(authenticated_client):
+    from pathlib import Path
+
+    from backend.core.broker import BrokerRegistry
+
+    project_brokers = Path(__file__).parent.parent.parent / "brokers"
+    expected = len(BrokerRegistry.load(project_brokers).brokers)
+    stats = authenticated_client.get("/api/requests/stats").json()
+    assert stats["broker_count"] == expected
 
 
 def test_complaint_for_controller_routes_to_residence_dpa(authenticated_client):
@@ -115,8 +173,13 @@ def test_complaint_for_controller_routes_to_residence_dpa(authenticated_client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["dpa"]["short_name"] == "Datatilsynet"
+    # Datatilsynet complaint renders in Danish, lead-SA paragraph included
     assert "IE DPC" in data["complaint_text"]
-    assert "Article 56" in data["complaint_text"]
+    assert "artikel 56" in data["complaint_text"]
+    assert "Meta Platforms Ireland" in data["complaint_text"]
+    # no follow-up was ever sent (form-only) — the complaint must not claim one
+    assert "rykker" not in data["complaint_text"]
+    assert "ikke modtaget noget materielt svar" in data["complaint_text"]
 
 
 def test_controller_requests_show_names_in_requests_list(authenticated_client):

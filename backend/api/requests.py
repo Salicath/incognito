@@ -50,7 +50,14 @@ def create_requests_router(
                 counts[status_val.value] = count
                 total += count
             counts["total"] = total
-            counts["broker_count"] = len(broker_registry.brokers) if broker_registry else 0
+            # Opt-in controllers don't belong in the blast-progress denominator
+            counts["broker_count"] = (
+                sum(
+                    1 for b in broker_registry.brokers
+                    if getattr(b, "category", "") != "controller"
+                )
+                if broker_registry else 0
+            )
             counts["unread_replies"] = (
                 db.query(Request)
                 .filter(

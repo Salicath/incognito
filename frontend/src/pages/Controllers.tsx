@@ -125,11 +125,10 @@ export default function Controllers() {
     }
   }
 
-  async function handleMarkFiled(c: Controller) {
-    if (!c.request) return;
-    setBusy(c.id);
+  async function handleMarkFiled(requestId: string, controllerId: string) {
+    setBusy(controllerId);
     try {
-      await api.transitionRequest(c.request.id, "mark_sent");
+      await api.transitionRequest(requestId, "mark_sent");
       setKit(null);
       await load();
     } catch (e) {
@@ -239,7 +238,9 @@ export default function Controllers() {
                 >
                   <ExternalLink className="w-4 h-4" /> Self-service deletion
                 </a>
-                {!c.request || c.request.status === "completed" ? (
+                {!c.request ||
+                c.request.status === "completed" ||
+                c.request.status === "created" ? (
                   <button
                     onClick={() => handleStart(c)}
                     disabled={busy === c.id}
@@ -252,7 +253,11 @@ export default function Controllers() {
                     ) : (
                       <ScrollText className="w-4 h-4" />
                     )}
-                    {c.email_viable ? "Send Art. 17 email" : "Generate filing kit"}
+                    {c.request?.status === "created"
+                      ? "Retry send"
+                      : c.email_viable
+                        ? "Send Art. 17 email"
+                        : "Generate filing kit"}
                   </button>
                 ) : c.request.status === "manual_action_needed" ? (
                   <>
@@ -264,7 +269,7 @@ export default function Controllers() {
                       <ScrollText className="w-4 h-4" /> View kit
                     </button>
                     <button
-                      onClick={() => handleMarkFiled(c)}
+                      onClick={() => c.request && handleMarkFiled(c.request.id, c.id)}
                       disabled={busy === c.id}
                       className="flex items-center justify-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-50"
                     >
@@ -338,7 +343,7 @@ export default function Controllers() {
                 <ClipboardCopy className="w-4 h-4" /> {copied ? "Copied" : "Copy text"}
               </button>
               <button
-                onClick={() => handleMarkFiled(kit.controller)}
+                onClick={() => handleMarkFiled(kit.requestId, kit.controller.id)}
                 disabled={busy === kit.controller.id}
                 className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-50"
               >

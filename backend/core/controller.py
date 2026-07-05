@@ -18,8 +18,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, computed_field
 
-from backend.core.broker import BrokerRegistry
-from backend.core.profile import Profile
+from backend.core.broker import BrokerRegistry, RemovalMethod
+from backend.core.profile import Profile, SmtpConfig
 from backend.core.template import TemplateRenderer
 
 log = logging.getLogger("incognito.controller")
@@ -36,6 +36,7 @@ class Controller(BaseModel):
     contact_kind: Literal["privacy_email", "dpo_email", "form_only"]
     privacy_email: str = ""
     cc_emails: list[str] = []
+    extra_domains: list[str] = []  # reply-sender domains besides `domain` (Snap: snap.com)
     email_viable: bool
     selfservice_url: str
     erasure_form_url: str = ""
@@ -71,6 +72,14 @@ class Controller(BaseModel):
     @property
     def category(self) -> str:
         return "controller"
+
+    @property
+    def removal_method(self) -> RemovalMethod:
+        return RemovalMethod.EMAIL if self.email_viable else RemovalMethod.WEB_FORM
+
+    @property
+    def removal_url(self) -> str | None:
+        return self.erasure_form_url or self.selfservice_url
 
 
 class ControllerRegistry:
@@ -127,6 +136,19 @@ class RegistryUnion:
     @property
     def brokers(self) -> list:
         return [*self._brokers.brokers, *self._controllers.controllers]
+
+
+def account_email_ok(controller: Controller, profile: Profile, smtp: SmtpConfig) -> bool:
+    """Whether an automated send would come from an address the platform accepts.
+
+    Platforms with send_from_account_email (Reddit) reject requests from
+    addresses other than the one verified on the account; if the SMTP identity
+    is not one of the user's known addresses, fall back to the manual kit.
+    """
+    if not controller.send_from_account_email:
+        return True
+    sender = smtp.username.strip().lower()
+    return any(sender == e.strip().lower() for e in profile.emails)
 
 
 def build_kit(

@@ -375,32 +375,35 @@ def create_blast_router(
 
             dpa = get_dpa_for_request(broker, config.user_country)
 
-            # Controllers: the complaint goes to the residence SA — name the
-            # lead SA in the text so it gets forwarded under Art. 56/60.
-            lead_sa_note = ""
+            # Controllers: the complaint goes to the residence SA — pass the
+            # lead-SA facts as variables so each locale template renders its
+            # own translated one-stop-shop paragraph (Art. 56/60 or Art. 55).
+            controller_vars: dict = {}
             if broker.category == "controller":
                 from typing import cast
 
                 from backend.core.controller import Controller
 
                 ctrl = cast(Controller, broker)
-                if ctrl.no_eu_establishment:
-                    lead_sa_note = (
-                        f"The controller ({ctrl.eu_entity}) has no establishment "
-                        f"in the EU, so no one-stop-shop applies and you have full "
-                        f"competence under Article 55 GDPR."
-                    )
-                    if ctrl.art27_rep:
-                        lead_sa_note += (
-                            f" Its Article 27 representative is {ctrl.art27_rep}."
-                        )
-                else:
-                    lead_sa_note = (
-                        f"The controller's main establishment is {ctrl.eu_entity} "
-                        f"({ctrl.entity_country}); the lead supervisory authority "
-                        f"is {ctrl.lead_dpa}. I request that this complaint be "
-                        f"forwarded under Article 56 GDPR as appropriate."
-                    )
+                controller_vars = {
+                    "controller_entity": ctrl.eu_entity,
+                    "controller_country": ctrl.entity_country,
+                    "controller_lead_sa": ctrl.lead_dpa,
+                    "controller_no_eu": ctrl.no_eu_establishment,
+                    "controller_art27_rep": ctrl.art27_rep or "",
+                }
+
+            # Only claim a follow-up/final warning was sent if one actually was
+            # (form-only controllers are never chased by email).
+            from backend.db.models import RequestEvent
+            followed_up = (
+                db.query(RequestEvent)
+                .filter(
+                    RequestEvent.request_id == req.id,
+                    RequestEvent.event_type == "follow_up_sent",
+                )
+                .count()
+            ) > 0
 
             # Render the complaint template
             templates_dir = Path(__file__).parent.parent.parent / "templates"
@@ -418,7 +421,8 @@ def create_blast_router(
                 broker_email=broker.dpo_email or getattr(broker, "erasure_form_url", ""),
                 original_date=req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown",
                 dpa_name=dpa_name,
-                lead_sa_note=lead_sa_note,
+                followed_up=followed_up,
+                **controller_vars,
             )
 
             return {

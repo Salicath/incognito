@@ -9,10 +9,18 @@ Niniejszym składam skargę na podstawie art. 77 Rozporządzenia Parlamentu Euro
 Opis stanu faktycznego:
 - W dniu {{ original_date }} skierowałem/am żądanie w zakresie ochrony danych osobowych do {{ broker_name }} (Ref: {{ reference_id }}).
 - Ustawowy termin odpowiedzi wynoszący jeden miesiąc, o którym mowa w art. 12 ust. 3 RODO, upłynął.
+{% if followed_up %}
 - Wysłałem/am przypomnienie oraz ostateczne wezwanie, lecz nie otrzymałem/am merytorycznej odpowiedzi.
+{% else %}
+- Nie otrzymałem/am merytorycznej odpowiedzi na moje żądanie.
+{% endif %}
 
-{% if lead_sa_note %}
-{{ lead_sa_note }}
+{% if controller_entity %}
+{% if controller_no_eu %}
+Administrator ({{ controller_entity }}) nie posiada jednostki organizacyjnej w UE; mechanizm kompleksowej współpracy nie ma zastosowania, a organ ma pełną właściwość na podstawie art. 55 RODO.{% if controller_art27_rep %} Jego przedstawicielem na podstawie art. 27 jest {{ controller_art27_rep }}.{% endif %}
+{% else %}
+Główna jednostka organizacyjna administratora to {{ controller_entity }} ({{ controller_country }}); wiodącym organem nadzorczym jest {{ controller_lead_sa }}. Wnoszę o przekazanie niniejszej skargi zgodnie z art. 56 RODO, o ile to właściwe.
+{% endif %}
 
 {% endif %}
 Dane identyfikacyjne:

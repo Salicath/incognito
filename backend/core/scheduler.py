@@ -30,6 +30,7 @@ class FollowUpResult:
     newly_overdue: int = 0
     follow_ups_sent: int = 0
     escalations_sent: int = 0
+    escalated_no_email: int = 0  # no email channel — DPA complaint is the only chase
     errors: list[str] = field(default_factory=list)
 
 
@@ -193,5 +194,54 @@ async def run_follow_ups(
                         result.errors.append(
                             f"Error sending escalation to {broker.name}: {e}"
                         )
+
+    # Step 3: Overdue entries with no email channel (form-only controllers)
+    # cannot be chased by mail — after the escalation window, move them to
+    # ESCALATED so the DPA-complaint path opens instead of stalling OVERDUE.
+    still_overdue = (
+        session.query(Request)
+        .filter(Request.status == RequestStatus.OVERDUE)
+        .all()
+    )
+    for req in still_overdue:
+        broker = broker_registry.get(req.broker_id)
+        if broker is None or broker.dpo_email:
+            continue
+        overdue_ev = (
+            session.query(RequestEvent)
+            .filter(
+                RequestEvent.request_id == req.id,
+                RequestEvent.event_type == "overdue",
+            )
+            .first()
+        )
+        if overdue_ev is None:
+            continue
+        overdue_at = _ensure_aware(overdue_ev.created_at)
+        if (now - overdue_at).total_seconds() < escalation_days * 86400:
+            continue
+        try:
+            mgr.mark_escalated(req.id)
+            session.add(RequestEvent(
+                request_id=req.id,
+                event_type="escalation_due",
+                details=(
+                    f"No email channel for {broker.name} — "
+                    "escalate via a DPA complaint"
+                ),
+            ))
+            session.commit()
+            result.escalated_no_email += 1
+
+            from backend.core.notifier import EventType, notify
+            notify(
+                EventType.ESCALATION_SENT,
+                f"{broker.name}: escalate via DPA complaint",
+                f"Request {req.id[:8].upper()} is overdue and the platform has "
+                "no email channel. Generate the DPA complaint from the request "
+                "page.",
+            )
+        except Exception as e:
+            result.errors.append(f"Failed to escalate {req.broker_id}: {e}")
 
     return result

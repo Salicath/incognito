@@ -670,15 +670,17 @@ def check_replies():
 
     session_factory = init_db(config.db_path)
     registry = _load_broker_registry(config)
+    controllers = _load_controller_registry(config).controllers
     broker_domains = {b.domain.lower() for b in registry.brokers}
-    broker_domains.update(
-        c.domain.lower() for c in _load_controller_registry(config).controllers
-    )
+    for c in controllers:
+        broker_domains.add(c.domain.lower())
+        broker_domains.update(d.lower() for d in c.extra_domains)
 
     poller = ImapPoller(
         imap_config=imap,
         db_session_factory=session_factory,
         broker_domains=broker_domains,
+        tier3_exclude={c.id for c in controllers},
     )
 
     console.print(

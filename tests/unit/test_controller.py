@@ -88,6 +88,29 @@ def test_no_eu_establishment_flag(registry):
     assert others == [snap]
 
 
+def test_snap_replies_from_snap_com_are_matchable(registry):
+    snap = registry.get_by_domain("snapchat.com")
+    assert "snap.com" in snap.extra_domains
+
+
+def test_removal_method_compat(registry):
+    assert registry.get("github-com").removal_method.value == "email"
+    assert registry.get("meta-com").removal_method.value == "web_form"
+
+
+def test_account_email_ok():
+    from backend.core.controller import account_email_ok
+
+    reddit = ControllerRegistry.load(CONTROLLERS_YAML).get_by_domain("reddit.com")
+    profile = Profile(full_name="T", emails=["me@example.com"])
+    smtp_match = SmtpConfig(host="h", port=587, username="Me@Example.com", password="p")
+    smtp_mismatch = SmtpConfig(host="h", port=587, username="relay@other.net", password="p")
+    assert account_email_ok(reddit, profile, smtp_match) is True
+    assert account_email_ok(reddit, profile, smtp_mismatch) is False
+    github = ControllerRegistry.load(CONTROLLERS_YAML).get_by_domain("github.com")
+    assert account_email_ok(github, profile, smtp_mismatch) is True
+
+
 def test_broker_registry_does_not_load_controllers():
     broker_registry = BrokerRegistry.load(PROJECT_ROOT / "brokers")
     assert broker_registry.get("meta-com") is None
@@ -218,7 +241,72 @@ async def test_follow_up_skips_form_only_controller(registry, profile, renderer)
         )
     assert result.newly_overdue == 1
     assert result.errors == []
+    assert result.escalated_no_email == 0  # escalation window not reached yet
     mock_send.assert_not_awaited()
+    session.close()
+
+
+async def test_form_only_controller_escalates_after_window(registry, profile, renderer):
+    """A form-only controller can't be chased by email — after the escalation
+    window it must move to ESCALATED so the DPA-complaint path opens."""
+    from backend.db.models import Request, RequestEvent, RequestStatus
+
+    session = _make_session()
+    mgr = RequestManager(session)
+    req = mgr.create("meta-com", RequestType.ERASURE)
+    mgr.mark_manual_action_needed(req.id, "form-only controller")
+    mgr.mark_sent(req.id)
+    mgr.mark_overdue(req.id)
+    overdue_ev = (
+        session.query(RequestEvent)
+        .filter(RequestEvent.request_id == req.id, RequestEvent.event_type == "overdue")
+        .one()
+    )
+    overdue_ev.created_at = datetime.now(UTC) - timedelta(days=8)
+    session.commit()
+
+    union = RegistryUnion(BrokerRegistry([]), registry)
+    smtp = SmtpConfig(host="smtp.test.com", port=587, username="t@t.com", password="pw")
+    with patch(
+        "backend.core.scheduler.EmailSender.send", new_callable=AsyncMock
+    ) as mock_send:
+        result = await run_follow_ups(
+            session=session, profile=profile, smtp=smtp,
+            broker_registry=union, renderer=renderer,
+        )
+    assert result.escalated_no_email == 1
+    assert result.errors == []
+    mock_send.assert_not_awaited()
+    assert session.get(Request, req.id).status == RequestStatus.ESCALATED
+    session.close()
+
+
+def test_imap_tier3_excludes_controllers(registry):
+    """Controller domains send routine mail — domain-only matching must skip
+    them so Netflix receipts don't land on the legal request thread."""
+    from backend.core.imap import ImapPoller
+    from backend.core.profile import ImapConfig
+    from backend.db.models import RequestStatus
+
+    session = _make_session()
+    mgr = RequestManager(session)
+    broker_req = mgr.create("some-broker-com", RequestType.ERASURE)
+    ctrl_req = mgr.create("netflix-com", RequestType.ERASURE)
+    for r in (broker_req, ctrl_req):
+        mgr.mark_sent(r.id)
+        assert session.get(type(r), r.id).status == RequestStatus.SENT
+
+    poller = ImapPoller(
+        ImapConfig(host="imap.test", port=993, username="t", password="p"),
+        db_session_factory=lambda: session,
+        broker_domains={"some.broker.com", "netflix.com"},
+        tier3_exclude={c.id for c in registry.controllers},
+    )
+    _ids, ref_map, domain_map = poller._build_lookup_maps(session)
+    assert "some.broker.com" in domain_map
+    assert "netflix.com" not in domain_map
+    # tiers 1-2 still cover the controller request
+    assert ctrl_req.id[:8].upper() in {k for k in ref_map}
     session.close()
 
 

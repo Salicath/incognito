@@ -9,10 +9,18 @@ hiermit reiche ich gemäß Art. 77 der Datenschutz-Grundverordnung (DSGVO) eine 
 Sachverhalt:
 - Am {{ original_date }} habe ich ein Datenschutzersuchen an {{ broker_name }} gerichtet (Ref: {{ reference_id }}).
 - Die gesetzliche Antwortfrist von einem Monat gemäß Art. 12 Abs. 3 DSGVO ist verstrichen.
+{% if followed_up %}
 - Ich habe eine Erinnerung sowie eine letzte Mahnung versendet, jedoch keine inhaltliche Antwort erhalten.
+{% else %}
+- Auf mein Ersuchen habe ich keine inhaltliche Antwort erhalten.
+{% endif %}
 
-{% if lead_sa_note %}
-{{ lead_sa_note }}
+{% if controller_entity %}
+{% if controller_no_eu %}
+Der Verantwortliche ({{ controller_entity }}) hat keine Niederlassung in der EU; das One-Stop-Shop-Verfahren findet keine Anwendung, und Sie sind nach Artikel 55 DSGVO unmittelbar zuständig.{% if controller_art27_rep %} Vertreter nach Artikel 27: {{ controller_art27_rep }}.{% endif %}
+{% else %}
+Die Hauptniederlassung des Verantwortlichen ist {{ controller_entity }} ({{ controller_country }}); die federführende Aufsichtsbehörde ist {{ controller_lead_sa }}. Ich bitte darum, diese Beschwerde gegebenenfalls nach Artikel 56 DSGVO weiterzuleiten.
+{% endif %}
 
 {% endif %}
 Meine Angaben:

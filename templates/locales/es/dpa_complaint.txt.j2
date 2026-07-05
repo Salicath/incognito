@@ -9,10 +9,18 @@ Por la presente presento una reclamación conforme al artículo 77 del Reglament
 Exposición de los hechos:
 - El {{ original_date }} envié una solicitud de protección de datos a {{ broker_name }} (Ref: {{ reference_id }}).
 - El plazo legal de respuesta de un mes previsto en el artículo 12, apartado 3, del RGPD ha transcurrido.
+{% if followed_up %}
 - He enviado un recordatorio y un último aviso sin haber recibido respuesta sustantiva.
+{% else %}
+- No he recibido respuesta sustantiva a mi solicitud.
+{% endif %}
 
-{% if lead_sa_note %}
-{{ lead_sa_note }}
+{% if controller_entity %}
+{% if controller_no_eu %}
+El responsable ({{ controller_entity }}) carece de establecimiento en la UE, por lo que no se aplica el mecanismo de ventanilla única y esa autoridad tiene plena competencia conforme al artículo 55 del RGPD.{% if controller_art27_rep %} Su representante del artículo 27 es {{ controller_art27_rep }}.{% endif %}
+{% else %}
+El establecimiento principal del responsable es {{ controller_entity }} ({{ controller_country }}); la autoridad de control principal es {{ controller_lead_sa }}. Solicito que esta reclamación se remita conforme al artículo 56 del RGPD cuando proceda.
+{% endif %}
 
 {% endif %}
 Datos identificativos:
