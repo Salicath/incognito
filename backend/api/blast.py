@@ -132,16 +132,17 @@ def create_blast_router(
                 detail="SMTP not configured. Add SMTP settings before sending requests.",
             )
 
+        from pathlib import Path
+
         from backend.db.models import EmailDirection
         from backend.db.models import EmailMessage as EmailMessageModel
         from backend.senders.email import EmailSender
-
+        repo_templates = Path(__file__).parent.parent.parent / "templates"
         templates_dir = config.data_dir / "templates"
         if not templates_dir.exists():
-            from pathlib import Path
-            templates_dir = Path(__file__).parent.parent.parent / "templates"
+            templates_dir = repo_templates
 
-        renderer = TemplateRenderer(templates_dir)
+        renderer = TemplateRenderer(templates_dir, fallback_dir=repo_templates)
         sender = EmailSender(smtp)
 
         db = db_session_factory()
@@ -310,6 +311,20 @@ def create_blast_router(
         templates_dir = Path(__file__).parent.parent.parent / "templates"
         renderer = TemplateRenderer(templates_dir)
 
+        # Renewal ladders and statutory holds must fire from the WEB follow-up
+        # too — server-only deployments have no CLI timer.
+        from backend.core.cpr_lever import CprLeverRegistry, check_lever_renewals
+        from backend.core.time_locked import (
+            TimeLockedRegistry,
+            check_time_locked_expiries,
+        )
+
+        repo_brokers = Path(__file__).parent.parent.parent / "brokers"
+
+        def _brokers_file(name: str) -> Path:
+            p = config.brokers_dir / name
+            return p if p.exists() else repo_brokers / name
+
         # Controller/delisting requests need follow-ups too — resolve via the union
         lookup_registry: BrokerRegistry | RegistryUnion = broker_registry
         if controller_registry is not None:
@@ -326,6 +341,12 @@ def create_blast_router(
                 broker_registry=lookup_registry,
                 renderer=renderer,
                 gdpr_deadline_days=config.gdpr_deadline_days,
+            )
+            renewals = check_lever_renewals(
+                db, CprLeverRegistry.load(_brokers_file("cpr_levers.yaml")),
+            )
+            fired = check_time_locked_expiries(
+                db, TimeLockedRegistry.load(_brokers_file("time_locked.yaml")),
             )
             if result.newly_overdue or result.follow_ups_sent or result.escalations_sent:
                 from backend.core.notifier import EventType, notify
@@ -346,6 +367,9 @@ def create_blast_router(
                 "newly_overdue": result.newly_overdue,
                 "follow_ups_sent": result.follow_ups_sent,
                 "escalations_sent": result.escalations_sent,
+                "lever_renewals_due": len(renewals.renewal_due) + len(renewals.escalated),
+                "levers_expired": len(renewals.expired),
+                "time_locked_fired": len(fired.fired),
                 "errors": result.errors,
             }
         finally:

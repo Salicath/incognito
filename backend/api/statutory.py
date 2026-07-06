@@ -73,6 +73,15 @@ def create_statutory_router(
             trigger = datetime.fromisoformat(body.trigger_date).date()
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid trigger_date") from None
+        # Trigger events are (near-)past events; a typo like 0224-03-15 would
+        # otherwise arm a hold that fires instantly with a nonsense letter.
+        from datetime import date as _date
+        from datetime import timedelta as _timedelta
+        if not (_date(1970, 1, 1) <= trigger <= _date.today() + _timedelta(days=366)):
+            raise HTTPException(
+                status_code=400,
+                detail="trigger_date must be between 1970 and one year from now",
+            )
 
         fires = compute_fires_at(entry, trigger, conservative=body.conservative)
         db = db_session_factory()
@@ -129,10 +138,11 @@ def create_statutory_router(
                 raise HTTPException(status_code=404, detail="Entry not found")
 
             profile, _, _ = vault.load_with_key(key)
+            repo_templates = Path(__file__).parent.parent.parent / "templates"
             templates_dir = config.data_dir / "templates"
             if not templates_dir.exists():
-                templates_dir = Path(__file__).parent.parent.parent / "templates"
-            renderer = TemplateRenderer(templates_dir)
+                templates_dir = repo_templates
+            renderer = TemplateRenderer(templates_dir, fallback_dir=repo_templates)
             text = renderer.render_localized(
                 "time_locked_erasure",
                 "da",

@@ -31,11 +31,12 @@ def create_controllers_router(
 ) -> APIRouter:
     r = APIRouter(prefix="/api/controllers", tags=["controllers"])
 
-    def _templates_dir() -> Path:
+    def _renderer() -> TemplateRenderer:
+        repo_templates = Path(__file__).parent.parent.parent / "templates"
         templates_dir = config.data_dir / "templates"
         if not templates_dir.exists():
-            templates_dir = Path(__file__).parent.parent.parent / "templates"
-        return templates_dir
+            templates_dir = repo_templates
+        return TemplateRenderer(templates_dir, fallback_dir=repo_templates)
 
     def _latest_request(db, controller_id: str) -> Request | None:
         return cast(
@@ -111,7 +112,7 @@ def create_controllers_router(
             mgr = RequestManager(db, config.gdpr_deadline_days)
             if req is None:
                 req = mgr.create(controller.id, RequestType.ERASURE)
-            renderer = TemplateRenderer(_templates_dir())
+            renderer = _renderer()
             kit = build_kit(controller, profile, req.id[:8].upper(), renderer)
 
             # Platforms that only accept requests from the account's own email
@@ -183,7 +184,7 @@ def create_controllers_router(
             if req is None or req.status == RequestStatus.COMPLETED:
                 raise HTTPException(status_code=404, detail="No active request")
             profile, _, _ = vault.load_with_key(key)
-            renderer = TemplateRenderer(_templates_dir())
+            renderer = _renderer()
             kit = build_kit(controller, profile, req.id[:8].upper(), renderer)
             return {"request_id": req.id, "kit": kit}
         finally:

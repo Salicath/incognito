@@ -4,7 +4,11 @@ Til den databeskyttelsesansvarlige,
 
 Jeg anmoder hermed om sletning af alle personoplysninger, I behandler om mig, i medfør af artikel 17 i databeskyttelsesforordningen (EU) 2016/679.
 
-Den lovpligtige opbevaringsperiode, der hidtil har været til hinder for sletning, er udløbet: {{ entry.legal_basis }}. Den udløsende begivenhed indtraf den {{ trigger_date }}, og opbevaringsperioden udløb den {{ fires_at }}. {{ entry.art17_note }}
+{% if entry.basis_kind == "limitation" %}
+Den forældelsesfrist, der hidtil har kunnet begrunde en berettiget interesse i fortsat opbevaring, er udløbet: {{ entry.legal_basis }}. Den udløsende begivenhed indtraf den {{ trigger_date }}, fristen udløb den {{ fires_at }}, og der er ikke rejst, anerkendt eller varslet krav. Der er derfor ikke længere et retsgrundlag for fortsat opbevaring.
+{% else %}
+Den lovpligtige opbevaringsperiode, der hidtil har været til hinder for sletning, er udløbet: {{ entry.legal_basis }}. Den udløsende begivenhed indtraf den {{ trigger_date }}, og opbevaringsperioden udløb den {{ fires_at }}.
+{% endif %}
 
 Mine identifikationsoplysninger:
 - Navn: {{ profile.full_name }}

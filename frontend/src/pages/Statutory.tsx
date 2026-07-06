@@ -102,6 +102,8 @@ export default function Statutory() {
   }
 
   async function handleDismiss(holdId: number) {
+    // no un-dismiss exists — a misclick would silently cancel a multi-year reminder
+    if (!window.confirm("Dismiss this hold? The reminder is cancelled permanently.")) return;
     try {
       await api.dismissTimeLockedHold(holdId);
       await load();

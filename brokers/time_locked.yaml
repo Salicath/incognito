@@ -41,6 +41,7 @@ entries:
     notes: "Fiscal year end defaults to 31 December; the kit states the assumption."
 
   - id: dk-insurer-foraeldelse
+    basis_kind: limitation
     name: Insurance company (claims limitation)
     holder_type: insurer
     legal_basis: "Forældelsesloven § 3 (3 years; 10 years for personal insurance/disputed claims)"
@@ -75,6 +76,7 @@ entries:
       disputed or late-paid bill restarts the 3-year clock.
 
   - id: dk-employer-post-employment
+    basis_kind: limitation
     name: Former employer (personnel file)
     holder_type: employer
     legal_basis: "Forældelsesloven § 3 + bogføringsloven § 12 (Datatilsynet guidance: 5 years after departure)"

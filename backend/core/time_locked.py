@@ -36,6 +36,11 @@ class TimeLockedEntry(BaseModel):
     legal_basis: str
     trigger_label: str
     expiry: ExpiryRule
+    # retention_duty: the statute itself mandated keeping (and then deleting)
+    # the data — the letter can assert a matured duty. limitation: retention
+    # rested on legitimate interest in potential claims, and the letter argues
+    # the limitation period lapsed with no claim — a different legal claim.
+    basis_kind: str = "retention_duty"
     escalation_after_days: int = 0
     art17_note: str
     notes: str | None = None
@@ -65,11 +70,15 @@ class TimeLockedRegistry:
 
 
 def _add_years(d: date, years: int) -> date:
-    """Same month/day N years on; Feb 29 maps to Feb 28."""
+    """Same month/day N years on; Feb 29 maps FORWARD to Mar 1.
+
+    Mapping back to Feb 28 would fire the request a day before the holder's
+    period indisputably lapsed — handing them a technically-correct refusal.
+    """
     try:
         return d.replace(year=d.year + years)
     except ValueError:
-        return d.replace(year=d.year + years, day=28)
+        return date(d.year + years, 3, 1)
 
 
 def compute_fires_at(

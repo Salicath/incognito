@@ -72,6 +72,18 @@ class BrokerRegistry:
                 "schema", "cpr_levers", "controllers", "time_locked",
                 "restriction_only",
             ):
+                # Reserved registry filenames. If the file actually holds a
+                # broker record (a user named their custom broker this), say
+                # so instead of silently dropping it from the registry.
+                try:
+                    data = yaml.safe_load(path.read_text())
+                    if isinstance(data, dict) and "dpo_email" in data:
+                        log.warning(
+                            "Ignoring %s: reserved registry filename — rename "
+                            "the file to load it as a broker", path.name,
+                        )
+                except Exception:
+                    pass
                 continue
             try:
                 data = yaml.safe_load(path.read_text())

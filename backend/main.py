@@ -93,19 +93,25 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.state.session_store = session_store
     app.state.db_session_factory = db_session_factory
 
+    project_brokers = Path(__file__).parent.parent / "brokers"
     brokers_dir = config.brokers_dir
-    if not brokers_dir.exists():
-        project_brokers = Path(__file__).parent.parent / "brokers"
-        if project_brokers.exists():
-            brokers_dir = project_brokers
+    if not brokers_dir.exists() and project_brokers.exists():
+        brokers_dir = project_brokers
+
+    def _registry_file(name: str) -> Path:
+        """Per-file repo fallback: a user brokers_dir created before a release
+        lacks the newer registry files — the CLI already falls back per file,
+        and the server must agree with it."""
+        p = brokers_dir / name
+        return p if p.exists() else project_brokers / name
 
     broker_registry = BrokerRegistry.load(brokers_dir)
     app.state.broker_registry = broker_registry
 
-    lever_registry = CprLeverRegistry.load(brokers_dir / "cpr_levers.yaml")
+    lever_registry = CprLeverRegistry.load(_registry_file("cpr_levers.yaml"))
     app.state.lever_registry = lever_registry
 
-    controller_registry = ControllerRegistry.load(brokers_dir / "controllers.yaml")
+    controller_registry = ControllerRegistry.load(_registry_file("controllers.yaml"))
     app.state.controller_registry = controller_registry
 
     from backend.core.delisting import DelistingRegistry
@@ -117,9 +123,9 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     from backend.core.restriction_only import RestrictionRegistry
     from backend.core.time_locked import TimeLockedRegistry
-    time_locked_registry = TimeLockedRegistry.load(brokers_dir / "time_locked.yaml")
+    time_locked_registry = TimeLockedRegistry.load(_registry_file("time_locked.yaml"))
     restriction_registry = RestrictionRegistry.load(
-        brokers_dir / "restriction_only.yaml"
+        _registry_file("restriction_only.yaml")
     )
 
     app.state.imap_poller = None
