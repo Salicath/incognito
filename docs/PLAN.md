@@ -74,7 +74,7 @@ Add `da` locale to `templates/locales/` (5 template types).
   supersets it and verifies profiles). Phone-axis account enumeration remains a gap
   (no maintained tool). Design/plan: `docs/superpowers/{specs,plans}/2026-07-03-account-discovery-scanners*`.
 - ✅ GitHub Code Search scanner (backend/scanner/github_scanner.py — PAT via Settings)
-- SearXNG Quadlet sidecar
+- ✅ SearXNG Quadlet sidecar (see Deferred/next below)
 - HIBP paid-tier wiring + PimEyes manual-result-import flow
 
 **Exposure triage layer** (new, not in original 8-track plan) ✅
@@ -85,7 +85,7 @@ Add `da` locale to `templates/locales/` (5 template types).
 - ✅ Secrets in vault: HIBP key + GitHub token now live in `_VaultData.secrets` (encrypted); legacy plaintext files auto-migrate on first access. Backup carries them inside the vault (no plaintext field).
 
 **Deferred / next**
-- SearXNG Quadlet sidecar
+- ✅ SearXNG Quadlet sidecar (`deploy/searxng.container` + `searxng-settings.yml`; `scanner/searxng.py` JSON-API backend, enabled via `INCOGNITO_SEARXNG_URL`, smoke-tested end-to-end against the live container)
 - HIBP paid-tier wiring + PimEyes manual-result-import flow
 - Phone-axis account enumeration (no maintained tool exists; ignorant is dead — port the technique if needed)
 
@@ -138,10 +138,8 @@ CI green, container publishing to `ghcr.io/salicath/incognito` (the publish job
 was silently broken until 2026-07-05 — lowercase fix).
 
 **Next work items, in order:**
-1. SearXNG Quadlet sidecar (rootless Podman, one Quadlet — see Malte's prefs)
-   + point the scanner at it as the DDG fallback/replacement.
-2. HIBP paid-tier wiring + PimEyes manual-result-import flow.
-3. **The Phase 5 gate: full project read-through + fresh online research
+1. HIBP paid-tier wiring + PimEyes manual-result-import flow.
+2. **The Phase 5 gate: full project read-through + fresh online research
    sweep** (agreed with Malte — do this before the completeness pass, or by
    2026-10 at the latest). Sweep agenda:
    - Re-verify `brokers/controllers.yaml` (each track doc has a "re-verify at

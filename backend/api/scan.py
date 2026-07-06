@@ -79,7 +79,10 @@ def create_scan_router(
                 _state["progress"] = checked
                 _state["total"] = total
 
-            report = await scan_profile(profile, broker_domains, on_progress=on_progress)
+            report = await scan_profile(
+                profile, broker_domains, on_progress=on_progress,
+                searxng_url=(config.searxng_url or None) if config else None,
+            )
             _state["report"] = report
             _state["error"] = None
 

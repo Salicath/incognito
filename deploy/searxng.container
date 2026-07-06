@@ -1,0 +1,17 @@
+[Unit]
+Description=SearXNG sidecar for Incognito discovery scans
+
+[Container]
+Image=docker.io/searxng/searxng:latest
+AutoUpdate=registry
+PublishPort=127.0.0.1:8888:8080
+# Copy deploy/searxng-settings.yml to ~/.config/incognito/searxng.yml first
+Volume=%h/.config/incognito/searxng.yml:/etc/searxng/settings.yml:Z,ro
+# Add SEARXNG_SECRET=<openssl rand -hex 32> to ~/.config/incognito/env
+EnvironmentFile=%h/.config/incognito/env
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
