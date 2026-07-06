@@ -131,6 +131,42 @@ Add `da` locale to `templates/locales/` (5 template types).
 
 **v2 (out of scope here)** — multi-profile / family-shared instance
 
+## Handoff — state as of 2026-07-05
+
+All eight tracks are built (Phases 1-4 complete, checkmarks above). 467 tests,
+CI green, container publishing to `ghcr.io/salicath/incognito` (the publish job
+was silently broken until 2026-07-05 — lowercase fix).
+
+**Next work items, in order:**
+1. SearXNG Quadlet sidecar (rootless Podman, one Quadlet — see Malte's prefs)
+   + point the scanner at it as the DDG fallback/replacement.
+2. HIBP paid-tier wiring + PimEyes manual-result-import flow.
+3. **The Phase 5 gate: full project read-through + fresh online research
+   sweep** (agreed with Malte — do this before the completeness pass, or by
+   2026-10 at the latest). Sweep agenda:
+   - Re-verify `brokers/controllers.yaml` (each track doc has a "re-verify at
+     refresh" list: Snap EEA notice, Reddit policy revision, X entity, ...)
+   - Re-verify delisting decision-sender addresses (practitioner-sourced) and
+     the Datatilsynet complaint URLs
+   - telelogning BEK renewal (marker: valid to 2027-03-29) and the
+     hvidvaskvejledning edition behind the +1mo escalation tolerance
+   - Revisit deferred datenanfragen.de vendoring (CC0 base for the long tail)
+   - Check for new tools: phone-axis account enumeration had no maintained
+     tool in 2026-07
+
+**Working conventions that produced this state (keep them):**
+- Research-first: verify contacts/legal facts online against primary sources
+  BEFORE baking them into YAML/templates — every research pass so far found
+  the plan or public datasets wrong somewhere (stale DPO emails, bank
+  "5y+1mo", Skat mislabeled time-locked).
+- GitHub flow: feature branch → PR → CI green → merge commit ("Merge: <track>
+  — <summary>"). Never straight to main except docs.
+- Adversarial review before merge — it found 10 confirmed bugs on each of the
+  two big tracks after tests were already green. An empty review result with
+  errored agents means verification never ran; re-run it, don't trust it.
+- Per-track docs in `docs/tracks/<name>.md`, PLAN.md checkmarks, CLAUDE.md
+  architecture bullet + test-file line per track.
+
 ## Definition of done (v1)
 
 - Pipeline run against Malte's identifiers finishes; all surfaced exposures routed to one of the eight tracks or marked `legally_impossible`
