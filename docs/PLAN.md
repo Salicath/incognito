@@ -131,9 +131,11 @@ Add `da` locale to `templates/locales/` (5 template types).
 
 **v2 (out of scope here)** — multi-profile / family-shared instance
 
-## Handoff — state as of 2026-07-05
+## Handoff — state as of 2026-07-06
 
-All eight tracks are built (Phases 1-4 complete, checkmarks above). 467 tests,
+All eight tracks are built (Phases 1-4 complete, checkmarks above), every
+track has passed an adversarial post-review with fixes merged, and the
+SearXNG sidecar shipped. 477 tests,
 CI green, container publishing to `ghcr.io/salicath/incognito` (the publish job
 was silently broken until 2026-07-05 — lowercase fix).
 
