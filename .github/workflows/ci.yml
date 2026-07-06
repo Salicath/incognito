@@ -144,6 +144,45 @@ jobs:
           print('All controller records valid')
           "
 
+      - name: Validate statutory registries
+        run: |
+          python -c "
+          from pathlib import Path
+          import yaml
+          import sys
+
+          errors = []
+
+          tl = yaml.safe_load(Path('brokers/time_locked.yaml').read_text())
+          tl_entries = tl.get('entries', [])
+          for e in tl_entries:
+              label = e.get('id', '<unnamed>')
+              for field in ['id', 'name', 'holder_type', 'legal_basis', 'trigger_label', 'expiry', 'art17_note']:
+                  if field not in e:
+                      errors.append(f'time_locked/{label}: missing \"{field}\"')
+              if not isinstance(e.get('expiry', {}).get('years'), int):
+                  errors.append(f'time_locked/{label}: expiry.years must be an int')
+              if e.get('basis_kind', 'retention_duty') not in ('retention_duty', 'limitation'):
+                  errors.append(f'time_locked/{label}: invalid basis_kind')
+
+          ro = yaml.safe_load(Path('brokers/restriction_only.yaml').read_text())
+          ro_entries = ro.get('entries', [])
+          for e in ro_entries:
+              label = e.get('id', '<unnamed>')
+              for field in ['id', 'name', 'what_it_is', 'why_undeletable', 'mitigation']:
+                  if field not in e:
+                      errors.append(f'restriction_only/{label}: missing \"{field}\"')
+
+          if not tl_entries or not ro_entries:
+              errors.append('statutory registries must not be empty')
+          print(f'Validated {len(tl_entries)} time_locked + {len(ro_entries)} restriction_only records')
+          if errors:
+              for e in errors:
+                  print(f'ERROR: {e}')
+              sys.exit(1)
+          print('All statutory records valid')
+          "
+
   container:
     runs-on: ubuntu-latest
     needs: [test, frontend]

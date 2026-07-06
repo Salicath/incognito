@@ -44,6 +44,11 @@ def test_time_locked_registry_loads(tl_registry):
     # PLAN's "5y+1mo" was wrong: the month is escalation tolerance, not fire date
     assert bank.escalation_after_days == 30
     assert "LBK 433" in bank.legal_basis  # never the defective LBK 1463/2025
+    # a limitation period is not a statutory retention duty — the letter must
+    # make a different legal claim for these two
+    assert bank.basis_kind == "retention_duty"
+    assert tl_registry.get("dk-insurer-foraeldelse").basis_kind == "limitation"
+    assert tl_registry.get("dk-employer-post-employment").basis_kind == "limitation"
 
 
 def test_restriction_registry_loads(ro_registry):
@@ -74,9 +79,11 @@ def test_bank_fires_at_exactly_five_years(tl_registry):
     assert compute_fires_at(bank, date(2024, 3, 15)) == date(2029, 3, 15)
 
 
-def test_leap_day_maps_to_feb_28(tl_registry):
+def test_leap_day_maps_forward_to_mar_1(tl_registry):
+    # Feb 28 would fire a day before the period indisputably lapsed — handing
+    # the bank a technically-correct refusal of the letter's central claim
     bank = tl_registry.get("dk-bank-hvidvask")
-    assert compute_fires_at(bank, date(2024, 2, 29)) == date(2029, 2, 28)
+    assert compute_fires_at(bank, date(2024, 2, 29)) == date(2029, 3, 1)
 
 
 def test_bogfoering_runs_from_fiscal_year_end(tl_registry):
@@ -182,10 +189,104 @@ def test_kit_for_fired_hold(authenticated_client):
     resp = authenticated_client.get(f"/api/statutory/time-locked/holds/{hold['id']}/kit")
     assert resp.status_code == 200
     kit = resp.json()
-    assert "artikel 17" in kit["request_text"]  # Danish template
-    assert "Hvidvaskloven" in kit["request_text"]
-    assert "2024-01-01" in kit["request_text"]  # fires_at = trigger + 5y
+    text = kit["request_text"]
+    assert "artikel 17" in text  # Danish template
+    assert "Hvidvaskloven" in text
+    assert "2024-01-01" in text  # fires_at = trigger + 5y
+    assert "lovpligtige opbevaringsperiode" in text  # retention-duty claim
     assert kit["escalation_after_days"] == 30
+    # UI guidance must never leak into the outgoing letter — it is English,
+    # addressed to the user, and self-undermining
+    assert "guaranteed win" not in text
+    assert "The statute itself mandates" not in text
+
+
+def test_limitation_kit_makes_the_limitation_claim(authenticated_client):
+    """Insurer/employer retention rests on limitation, not a retention duty —
+    asserting a lapsed 'lovpligtig opbevaringsperiode' would be legally wrong
+    and let the DPO refute the letter's premise."""
+    hold = authenticated_client.post(
+        "/api/statutory/time-locked/dk-insurer-foraeldelse/arm",
+        json={"trigger_date": "2019-01-01", "institution": "Old Insurer"},
+    ).json()
+    assert hold["status"] == "fired"
+    text = authenticated_client.get(
+        f"/api/statutory/time-locked/holds/{hold['id']}/kit"
+    ).json()["request_text"]
+    assert "forældelsesfrist" in text.lower()
+    assert "ikke rejst, anerkendt eller varslet krav" in text
+    assert "lovpligtige opbevaringsperiode" not in text
+
+
+def test_kit_survives_customized_templates_dir(authenticated_client, config):
+    """A user templates dir predating this release lacks the new template —
+    the renderer must fall back to the repo copy instead of 500ing."""
+    (config.data_dir / "templates").mkdir(exist_ok=True)
+    hold = authenticated_client.post(
+        "/api/statutory/time-locked/dk-bank-hvidvask/arm",
+        json={"trigger_date": "2019-01-01"},
+    ).json()
+    resp = authenticated_client.get(f"/api/statutory/time-locked/holds/{hold['id']}/kit")
+    assert resp.status_code == 200
+
+
+def test_arm_rejects_out_of_range_dates(authenticated_client):
+    for bad in ("0224-03-15", "9999-01-01"):
+        resp = authenticated_client.post(
+            "/api/statutory/time-locked/dk-bank-hvidvask/arm",
+            json={"trigger_date": bad},
+        )
+        assert resp.status_code == 400, bad
+
+
+def test_web_follow_up_fires_matured_holds(authenticated_client, config):
+    """Server-only deployments have no CLI timer — the web follow-up endpoint
+    must fire armed holds too."""
+    hold = authenticated_client.post(
+        "/api/statutory/time-locked/dk-bank-hvidvask/arm",
+        json={"trigger_date": "2025-01-01", "institution": "Web Bank"},
+    ).json()
+    assert hold["status"] == "armed"
+
+    from backend.db.session import init_db
+
+    db = init_db(config.db_path)()
+    try:
+        state = db.get(TimeLockedState, hold["id"])
+        state.fires_at = datetime.now(UTC) - timedelta(days=1)
+        db.commit()
+    finally:
+        db.close()
+
+    with patch("backend.core.time_locked.notify"):
+        resp = authenticated_client.post("/api/blast/follow-up")
+    assert resp.status_code == 200
+    assert resp.json()["time_locked_fired"] == 1
+
+    listing = authenticated_client.get("/api/statutory/time-locked").json()
+    bank = next(e for e in listing if e["id"] == "dk-bank-hvidvask")
+    assert bank["holds"][0]["status"] == "fired"
+
+
+def test_broker_loader_warns_on_reserved_stem_broker_file(tmp_path):
+    import yaml as _yaml
+
+    from backend.core.broker import BrokerRegistry
+
+    (tmp_path / "time_locked.yaml").write_text(_yaml.dump({
+        "name": "My Custom Broker", "domain": "custom.dk",
+        "category": "data_broker", "dpo_email": "dpo@custom.dk",
+        "removal_method": "email", "country": "DK", "gdpr_applies": True,
+        "verification_required": False, "language": "da",
+        "last_verified": "2026-01-01",
+    }))
+    with patch("backend.core.broker.log") as mock_log:
+        registry = BrokerRegistry.load(tmp_path)
+    assert registry.brokers == []
+    assert any(
+        "reserved registry filename" in str(call)
+        for call in mock_log.warning.call_args_list
+    )
 
 
 def test_kit_refused_while_armed(authenticated_client):

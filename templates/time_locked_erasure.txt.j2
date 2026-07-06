@@ -4,7 +4,11 @@ Dear Data Protection Officer,
 
 I am writing to request the erasure of all personal data you hold relating to me, pursuant to Article 17 of the General Data Protection Regulation (EU) 2016/679.
 
-The statutory retention that previously prevented erasure has lapsed: {{ entry.legal_basis }}. The triggering event occurred on {{ trigger_date }}, and the retention period matured on {{ fires_at }}. {{ entry.art17_note }}
+{% if entry.basis_kind == "limitation" %}
+The limitation period that underpinned any legitimate interest in retaining my data has expired: {{ entry.legal_basis }}. The triggering event occurred on {{ trigger_date }}, the period lapsed on {{ fires_at }}, and no claim has been reported, acknowledged or disputed. Continued retention therefore no longer has a legal basis.
+{% else %}
+The statutory retention that previously prevented erasure has lapsed: {{ entry.legal_basis }}. The triggering event occurred on {{ trigger_date }}, and the retention period matured on {{ fires_at }}.
+{% endif %}
 
 My identifying details:
 - Name: {{ profile.full_name }}
