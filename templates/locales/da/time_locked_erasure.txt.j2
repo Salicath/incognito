@@ -1,0 +1,18 @@
+Subject: Anmodning om sletning af personoplysninger efter GDPR artikel 17 — {{ profile.full_name }}
+
+Til den databeskyttelsesansvarlige,
+
+Jeg anmoder hermed om sletning af alle personoplysninger, I behandler om mig, i medfør af artikel 17 i databeskyttelsesforordningen (EU) 2016/679.
+
+Den lovpligtige opbevaringsperiode, der hidtil har været til hinder for sletning, er udløbet: {{ entry.legal_basis }}. Den udløsende begivenhed indtraf den {{ trigger_date }}, og opbevaringsperioden udløb den {{ fires_at }}. {{ entry.art17_note }}
+
+Mine identifikationsoplysninger:
+- Navn: {{ profile.full_name }}
+- E-mail: {{ profile.emails | join(', ') }}
+{% if profile.date_of_birth %}- Fødselsdato: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Adresse: {{ profile.addresses[0].formatted }}
+{% endif %}
+Hvis I påberåber jer en tilbageværende undtagelse efter artikel 17, stk. 3, for enkelte kategorier af oplysninger, bedes I angive kategorien, det konkrete retsgrundlag og den gældende opbevaringsperiode. Sletningen bedes bekræftet inden for én måned, jf. artikel 12, stk. 3.
+
+Med venlig hilsen
+{{ profile.full_name }}

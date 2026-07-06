@@ -1,0 +1,92 @@
+# time_locked track — Danish statutory retention holds that block Art. 17 until
+# they lapse. The user arms an entry with the trigger date; the tool computes
+# fires_at and raises the Art. 17 kit the day the holder's retention duty
+# matures. Verified against primary sources 2026-07-05 (see docs/tracks/
+# time_locked.md). NOT loaded into the broker registry.
+#
+# Citation trap: never cite hvidvaskloven LBK 1463 af 18/11/2025 — its printed
+# § 30, stk. 2 is a consolidation misprint. LBK 433 af 17/04/2026 is correct.
+
+entries:
+  - id: dk-bank-hvidvask
+    name: Bank / financial institution (AML retention)
+    holder_type: bank
+    legal_basis: "Hvidvaskloven § 30, stk. 2, 2. pkt. (LBK 433 af 17/04/2026)"
+    trigger_label: "Date the customer relationship ended (last account closed), or the one-off transaction date"
+    expiry:
+      years: 5
+    escalation_after_days: 30
+    art17_note: >-
+      The statute itself mandates deletion at exactly 5 years — on the fire
+      date the bank's own deletion duty has matured, so "AML retention" is no
+      longer a valid refusal. Lawful residual: bookkeeping copies until 5 years
+      after the relevant fiscal year end.
+    notes: >-
+      The one-month escalation window reflects Finanstilsynet's batch-deletion
+      tolerance (hvidvaskvejledning), not the statute.
+
+  - id: dk-company-bogfoering
+    name: Company bookkeeping records (invoices, customer data)
+    holder_type: company
+    legal_basis: "Bogføringsloven § 12 (5 years from the end of the fiscal year)"
+    trigger_label: "Date of the document/invoice (fiscal year assumed to end 31 Dec)"
+    expiry:
+      years: 5
+      from_fiscal_year_end: true
+    art17_note: >-
+      A pure retention duty with no deletion mandate — after expiry, GDPR
+      Art. 5(1)(e)/17 takes over. Targets records whose ONLY ground was
+      bogføringsloven § 12; live grounds (ongoing relationship, unexpired
+      claims) survive.
+    notes: "Fiscal year end defaults to 31 December; the kit states the assumption."
+
+  - id: dk-insurer-foraeldelse
+    name: Insurance company (claims limitation)
+    holder_type: insurer
+    legal_basis: "Forældelsesloven § 3 (3 years; 10 years for personal insurance/disputed claims)"
+    trigger_label: "Later of: policy end date / last claim closed"
+    expiry:
+      years: 3
+      conservative_years: 10
+    art17_note: >-
+      The 3-year request is a legitimate opening move, not a guaranteed win
+      (limitation can be suspended, forældelsesloven § 3, stk. 2). The 10-year
+      point is where refusal is no longer defensible. The kit pre-empts refusal
+      by stating no claim was reported or disputed.
+    notes: >-
+      Use the conservative 10-year option for life/accident/health policies or
+      if any claim was disputed. Personal-injury files can lawfully persist up
+      to 30 years from the injury date.
+
+  - id: dk-telco-billing
+    name: Telco billing and subscriber data
+    holder_type: telco
+    legal_basis: "BEK 1882/2020 § 10, stk. 2 (billing data: 3 years from invoice due date)"
+    trigger_label: "Due date of the last invoice (or subscription end + 1 month as an approximation)"
+    expiry:
+      years: 3
+    art17_note: >-
+      The regulation itself commands deletion at this point — the Art. 17
+      enforces a matured statutory duty. Bookkeeping residual may lawfully
+      persist until 5 years after the relevant fiscal year end.
+    notes: >-
+      Out of scope: data retained under the logning rules for law enforcement —
+      no erasure right exists there (see the restriction-only track). A
+      disputed or late-paid bill restarts the 3-year clock.
+
+  - id: dk-employer-post-employment
+    name: Former employer (personnel file)
+    holder_type: employer
+    legal_basis: "Forældelsesloven § 3 + bogføringsloven § 12 (Datatilsynet guidance: 5 years after departure)"
+    trigger_label: "Employment end date"
+    expiry:
+      years: 5
+    art17_note: >-
+      At 5 years after departure a full-file erasure request is no longer
+      refusable on limitation grounds; salary bookkeeping may lawfully persist
+      until 5 years after the relevant fiscal year end. Pending work-injury
+      (arbejdsskade) documentation is carved out.
+    notes: >-
+      Public-sector employers are different: notatpligt and arkivloven apply —
+      see the restriction-only track. A softer request for non-essential items
+      (applications, photos) is reasonable already 6-12 months after departure.

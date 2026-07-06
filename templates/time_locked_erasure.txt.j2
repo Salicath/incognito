@@ -1,0 +1,18 @@
+Subject: Data Erasure Request pursuant to Article 17 GDPR — {{ profile.full_name }}
+
+Dear Data Protection Officer,
+
+I am writing to request the erasure of all personal data you hold relating to me, pursuant to Article 17 of the General Data Protection Regulation (EU) 2016/679.
+
+The statutory retention that previously prevented erasure has lapsed: {{ entry.legal_basis }}. The triggering event occurred on {{ trigger_date }}, and the retention period matured on {{ fires_at }}. {{ entry.art17_note }}
+
+My identifying details:
+- Name: {{ profile.full_name }}
+- Email: {{ profile.emails | join(', ') }}
+{% if profile.date_of_birth %}- Date of birth: {{ profile.date_of_birth }}
+{% endif %}{% if profile.addresses %}- Address: {{ profile.addresses[0].formatted }}
+{% endif %}
+If you rely on a remaining exemption under Article 17(3) for any category of data, please identify the category, the specific legal basis, and the applicable retention period. Please confirm the erasure within one month as required by Article 12(3) GDPR.
+
+Yours faithfully,
+{{ profile.full_name }}
