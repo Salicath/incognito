@@ -239,7 +239,12 @@ export default function Statutory() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => setArming(e.id)}
+                    onClick={() => {
+                      setArming(e.id);
+                      setTriggerDate("");
+                      setInstitution("");
+                      setConservative(false);
+                    }}
                     className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
                   >
                     <Hourglass className="w-4 h-4" /> Arm a hold
