@@ -20,6 +20,7 @@ class AppConfig(BaseSettings):
     notify_url: str = ""  # Ntfy/Gotify/webhook URL for push notifications
     trusted_proxy_header: str = ""  # e.g. "Remote-User" for Authentik/Authelia
     user_country: str = "DK"  # Residence SA for controller-track Art. 77 complaints
+    searxng_url: str = ""  # Self-hosted SearXNG sidecar (e.g. http://127.0.0.1:8888)
 
     def setup_logging(self) -> logging.Logger:
         level = getattr(logging, self.log_level.upper(), None)

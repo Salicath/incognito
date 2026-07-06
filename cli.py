@@ -591,7 +591,10 @@ def rescan():
         if checked % 10 == 0 or checked == total:
             console.print(f"  {checked}/{total} searches completed")
 
-    report = asyncio.run(scan_profile(profile, broker_domains, on_progress))
+    report = asyncio.run(scan_profile(
+        profile, broker_domains, on_progress,
+        searxng_url=config.searxng_url or None,
+    ))
     console.print(
         f"\n[bold]Scan complete:[/] {len(report.hits)} hits "
         f"from {report.checked} searches"

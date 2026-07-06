@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (467 tests, 220 brokers, 16 controllers, 23 DPAs)
+# Run tests (472 tests, 220 brokers, 16 controllers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -45,7 +45,7 @@ incognito report             # Privacy score and exposure report
 - `api/` — FastAPI routes (auth, blast, brokers, controllers, cpr_levers, requests, scan, settings, setup, statutory)
 - `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry, IMAP poller)
 - `db/` — SQLAlchemy models + Alembic migrations. SQLite with WAL mode.
-- `scanner/` — DuckDuckGo search, user-scanner account discovery (email axis), HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan, Maigret deep username enumeration (isolated subprocess, ~3000 sites), newsletter scan (IMAP List-Unsubscribe discovery)
+- `scanner/` — DuckDuckGo search, user-scanner account discovery (email axis), HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan, Maigret deep username enumeration (isolated subprocess, ~3000 sites), newsletter scan (IMAP List-Unsubscribe discovery), SearXNG sidecar backend (`scanner/searxng.py`, used for discovery scans when `INCOGNITO_SEARXNG_URL` is set; delisting re-verification stays on DDG for the Bing surface)
 - `senders/` — Email sender (SMTP), web form sender (Playwright), base result types
 
 **Frontend** (`frontend/src/`):
@@ -132,6 +132,7 @@ pytest tests/unit/test_newsletter.py -v       # Newsletter List-Unsubscribe pars
 pytest tests/unit/test_unsubscribe.py -v      # RFC 8058 one-click unsubscribe + SSRF guard
 pytest tests/unit/test_delisting.py -v        # Search-engine delisting (RTBF) assist kit
 pytest tests/unit/test_statutory.py -v        # time_locked + restriction_only tracks
+pytest tests/unit/test_searxng.py -v          # SearXNG sidecar scanner backend
 pytest tests/unit/test_delisting_lifecycle.py -v  # Delisting lifecycle (tracking, IMAP decisions, complaint)
 ```
 
@@ -146,7 +147,7 @@ Core deps in `pyproject.toml`. Optional extras:
 ## Deployment
 
 Docker Compose file in project root (`docker-compose.yml`).
-Rootless Podman with Quadlet systemd units in `deploy/`.
+Rootless Podman with Quadlet systemd units in `deploy/` (incl. optional SearXNG sidecar: `searxng.container` + `searxng-settings.yml`).
 Container builds via `deploy/Containerfile` (multi-stage: Node frontend + Python backend).
 Container includes HEALTHCHECK on `/api/health`.
 Prometheus metrics at `/api/metrics`.

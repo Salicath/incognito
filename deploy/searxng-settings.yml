@@ -1,0 +1,16 @@
+# Minimal SearXNG settings for the Incognito sidecar (localhost-only).
+# Copy to ~/.config/incognito/searxng.yml (the Quadlet bind-mounts it), and
+# put SEARXNG_SECRET=<openssl rand -hex 32> in ~/.config/incognito/env.
+#
+# json must be an enabled format or the API returns 403; the limiter is for
+# public instances and blocks local API clients — off for a 127.0.0.1 bind.
+
+use_default_settings: true
+
+server:
+  limiter: false
+
+search:
+  formats:
+    - html
+    - json

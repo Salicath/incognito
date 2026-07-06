@@ -89,9 +89,13 @@ async def scan_profile(
     profile: Profile,
     broker_domains: list[tuple[str, str]],  # list of (domain, name)
     on_progress: Callable[[int, int], None] | None = None,
+    searxng_url: str | None = None,
 ) -> ScanReport:
     """
-    Scan DuckDuckGo for the user's data across broker sites.
+    Scan for the user's data across broker sites.
+
+    Uses the self-hosted SearXNG sidecar when searxng_url is set (JSON API,
+    no CAPTCHA exposure); falls back to scraping DDG HTML otherwise.
 
     broker_domains: list of (domain, broker_name) tuples
     on_progress: optional callback(checked, total) for progress updates
@@ -113,7 +117,11 @@ async def scan_profile(
     async with httpx.AsyncClient() as client:
         for i, (query, domain, broker_name) in enumerate(queries):
             try:
-                results = await _search_ddg(query, client)
+                if searxng_url:
+                    from backend.scanner.searxng import search_searxng
+                    results = await search_searxng(query, client, searxng_url)
+                else:
+                    results = await _search_ddg(query, client)
             except RuntimeError as e:
                 report.errors.append(str(e))
                 results = []
