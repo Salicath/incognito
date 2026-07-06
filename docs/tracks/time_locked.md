@@ -14,7 +14,8 @@ Facts verified against primary sources 2026-07-05.
  bank/insurer/employer, so a hold is armed per institution)
 
 ARMED (trigger date + institution entered; fires_at computed)
-  └→ FIRED     (fires_at reached — follow-up job notifies once; Art. 17 kit
+  └→ FIRED     (fires_at reached — the follow-up job, BOTH the CLI command and
+  │             the web endpoint, notifies once; Art. 17 kit
   │             available, assist-only: user sends from their own mailbox)
   └→ DISMISSED (user closes the hold)
 ```
@@ -25,7 +26,7 @@ Arming with a trigger date whose retention already lapsed fires immediately.
 
 | id | fires_at | Notes |
 |---|---|---|
-| `dk-bank-hvidvask` | trigger + 5y (Feb 29 → Feb 28) | Hvidvaskloven § 30, stk. 2, 2. pkt. mandates deletion at exactly 5 years. Escalate 1 month after fire (Finanstilsynet batch tolerance — guidance, not statute). **Citation trap:** never cite LBK 1463/2025 (defective § 30 consolidation); use LBK 433/2026+. |
+| `dk-bank-hvidvask` | trigger + 5y (Feb 29 → Mar 1: never fire before the period indisputably lapsed) | Hvidvaskloven § 30, stk. 2, 2. pkt. mandates deletion at exactly 5 years. Escalate 1 month after fire (Finanstilsynet batch tolerance — guidance, not statute). **Citation trap:** never cite LBK 1463/2025 (defective § 30 consolidation); use LBK 433/2026+. |
 | `dk-company-bogfoering` | fiscal-year-end(trigger) + 5y + 1 day | Pure retention duty, no deletion mandate — Art. 5(1)(e)/17 takes over at expiry. FY assumed 31 Dec. |
 | `dk-insurer-foraeldelse` | trigger + 3y; conservative toggle + 10y | 3y is a legitimate opening move, not a guaranteed win (forældelsesloven § 3, stk. 2 suspension); 10y is the cannot-refuse point. Personal-injury files may persist 30y from injury. |
 | `dk-telco-billing` | last invoice due + 3y | BEK 1882/2020 § 10, stk. 2 commands deletion — strongest entry. Logning data is out of scope (restriction_only). |
@@ -46,9 +47,14 @@ Arming with a trigger date whose retention already lapsed fires immediately.
   `check_time_locked_expiries` fired from the `follow-up` command)
 - `time_locked_state` table (migration `c9e5f2a7b4d1`)
 - `api/statutory.py`: list / arm / dismiss / kit endpoints
-- Kit renders `templates/time_locked_erasure.txt.j2` (da primary, en fallback)
-  citing the statute and the matured deletion duty — assist-only; the holder
-  is personal, not a registry entry, so there is no tracked Request
+- Kit renders `templates/time_locked_erasure.txt.j2` (da primary, en fallback).
+  The letter's legal claim follows `basis_kind`: retention_duty entries
+  (bank/bogføring/telco) assert the matured statutory deletion duty;
+  limitation entries (insurer/employer) assert the lapsed forældelsesfrist
+  with no claim reported — a "retention duty" claim there would be false
+  and refutable. UI guidance (`art17_note`) never enters the letter.
+  Assist-only; the holder is personal, not a registry entry, so there is
+  no tracked Request
 
 ## Re-verify at refresh
 
