@@ -156,6 +156,7 @@ export default function Settings() {
   }
 
   async function handleDeleteGithubToken() {
+    if (!window.confirm("Remove the stored GitHub token?")) return;
     setGithubDeleting(true);
     githubTok.setMessage({ type: "", text: "" });
     try {
@@ -170,6 +171,7 @@ export default function Settings() {
   }
 
   async function handleDeleteHibpKey() {
+    if (!window.confirm("Remove the stored HIBP API key?")) return;
     setHibpDeleting(true);
     hibp.setMessage({ type: "", text: "" });
     try {
@@ -228,6 +230,8 @@ export default function Settings() {
   }
 
   async function handleDeleteImap() {
+    // Deletes the stored IMAP config incl. the Bridge password — confirm first.
+    if (!window.confirm("Disable IMAP monitoring and delete the saved mailbox settings?")) return;
     await imap.withSaving(async () => {
       await api.deleteImap();
       imap.setMessage({ type: "success", text: "IMAP monitoring disabled." });

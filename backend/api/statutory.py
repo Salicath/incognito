@@ -100,6 +100,19 @@ def create_statutory_router(
             )
             db.add(state)
             db.commit()
+            # Arming with an already-lapsed trigger fires immediately — the
+            # scheduler only notifies ARMED→FIRED transitions, so notify here
+            # or this hold's "send now" prompt would never surface.
+            if state.status == TimeLockedStatus.FIRED:
+                from backend.core.notifier import EventType, notify
+                label = entry.name
+                who = f" ({state.institution})" if state.institution else ""
+                notify(
+                    EventType.REQUEST_OVERDUE,
+                    f"Statutory retention already lapsed: {label}{who}",
+                    "The retention period blocking erasure has already matured — "
+                    "send the Art. 17 now (kit on the Statutory page).",
+                )
             return _serialize_state(state)
         finally:
             db.close()
