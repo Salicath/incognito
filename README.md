@@ -5,11 +5,11 @@ Self-hosted tool that automates GDPR and CCPA personal data removal requests.
 [![CI](https://github.com/Salicath/incognito/actions/workflows/ci.yml/badge.svg)](https://github.com/Salicath/incognito/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/Tests-268_passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-477_passing-brightgreen.svg)](tests/)
 
 ## What It Does
 
-Incognito scans for your personal data across 201 data brokers in 22 countries, sends legally-binding GDPR Art. 17 and CCPA deletion requests, tracks the 30-day compliance deadline, monitors for broker replies via IMAP, and generates DPA complaints when brokers fail to respond. Everything runs on your own machine — no cloud, no telemetry, no third-party accounts.
+Incognito scans for your personal data across 220 data brokers, 16 tech giants and the open web, sends legally-binding GDPR Art. 17 and CCPA deletion requests, tracks the 30-day compliance deadline, monitors for broker replies via IMAP, and generates DPA complaints when controllers fail to respond. Beyond brokers it covers tech-giant account erasure, search-engine delisting (RTBF), Danish registry-level protections (CPR levers), statutory retention holds that fire the moment erasure becomes demandable, and honest "this is legally undeletable — here is what you can do" guidance. Everything runs on your own machine — no cloud, no telemetry, no third-party accounts.
 
 **Free alternative to DeleteMe ($129/year) and Incogni ($78/year).**
 
@@ -23,9 +23,13 @@ Incognito scans for your personal data across 201 data brokers in 22 countries, 
 
 ## Key Features
 
-- **201 data brokers** across 22 countries (EU-focused, plus US and international)
-- **Exposure scanning** — DuckDuckGo search, Have I Been Pwned breach check, Holehe account detection
-- **8 languages** — English, German, French, Spanish, Italian, Dutch, Polish, CCPA
+- **220 data brokers** (EU/Nordic-focused, plus US and international)
+- **Tech-giant erasure** — 16 hand-verified controllers (Meta, Google, Reddit, ...) with per-platform filing kits and jurisdiction-aware DPA escalation
+- **Search-engine delisting** — Google/Bing/Brave RTBF kits with tracked lifecycle, decision-email matching and resurfacing alerts
+- **Danish CPR levers & statutory tracks** — one MitID action covers whole broker clusters; retention holds fire an Art. 17 the day the legal duty matures
+- **Exposure scanning** — DuckDuckGo or a self-hosted SearXNG sidecar, Have I Been Pwned, Wayback Machine ghost profiles, GitHub code-leak search, account discovery by email (user-scanner) and username (Maigret, ~3000 sites), newsletter discovery via IMAP
+- **Exposures inbox** — every hit triaged to a one-click request, guided removal steps, or an honest "legally impossible"
+- **9 languages** — English, Danish, German, French, Spanish, Italian, Dutch, Polish, CCPA
 - **IMAP reply monitoring** — auto-detect broker responses in your inbox
 - **30-day deadline tracking** with automatic follow-up and escalation emails
 - **DPA complaint generation** — pre-filled complaints for 23 supervisory authorities
@@ -75,7 +79,7 @@ Multi-arch images available: `linux/amd64` and `linux/arm64`.
 ## How It Works
 
 1. **Setup** — Create a master password and enter your identity details
-2. **Scan** — Check where your data is exposed (DuckDuckGo + HIBP + Holehe)
+2. **Scan** — Check where your data is exposed (web search, breaches, archives, accounts)
 3. **Send** — Dispatch GDPR Art. 17 deletion requests to all brokers
 4. **Track** — Monitor the 30-day legal deadline; system sends follow-ups automatically
 5. **Escalate** — Generate DPA complaints when brokers fail to respond
@@ -111,6 +115,9 @@ Environment variables (prefix `INCOGNITO_`):
 | `INCOGNITO_SESSION_TIMEOUT_MINUTES` | `30` | Session idle timeout |
 | `INCOGNITO_GDPR_DEADLINE_DAYS` | `30` | GDPR response deadline |
 | `INCOGNITO_RATE_LIMIT_PER_HOUR` | `10` | Max emails per hour |
+| `INCOGNITO_USER_COUNTRY` | `DK` | Residence supervisory authority for complaints |
+| `INCOGNITO_SEARXNG_URL` | — | Self-hosted SearXNG sidecar for discovery scans |
+| `INCOGNITO_CORS_ORIGINS` | — | Extra allowed origins (comma-separated) |
 
 ## Integrations
 
@@ -130,7 +137,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). The easiest way to contribute is adding 
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -v      # 268 tests
+pytest tests/ -v      # 477 tests
 ruff check .          # Lint
 cd frontend && npm run dev  # Frontend dev server
 ```

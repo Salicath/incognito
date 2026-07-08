@@ -93,7 +93,7 @@ _TARGET_FACTS: dict[str, dict] = {
         "eu_entity": "Brave Software Inc. (US)",
         "entity_country": "US",
         "no_eu_establishment": True,
-        "art27_rep": "gdprnomrep@brave.com",
+        "art27_rep": "brave@gdprnomrep.eu",
     },
 }
 
@@ -111,7 +111,7 @@ DECISION_SENDER_ADDRESSES: dict[str, set[str]] = {
         "reportcontent-noreply@google.com",
         "noreply-reportcontent@google.com",
     },
-    "delisting-brave": {"privacy@brave.com", "gdprnomrep@brave.com"},
+    "delisting-brave": {"privacy@brave.com"},
 }
 
 

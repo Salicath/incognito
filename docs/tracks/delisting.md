@@ -49,7 +49,7 @@ kills the deadline chase.
 |---|---|---|
 | Google | **Google LLC** (Mountain View) | **Datatilsynet decides itself** — no EU main establishment for Search RTBF processing, so no one-stop-shop; pure national Art. 55 case. Precedent: IMY DI-2018-9274 fined Google LLC (upheld); Brussels Market Court 2021 annulled an APD fine *because* Google Belgium wasn't the controller |
 | Bing | Microsoft Ireland Operations Ltd | Datatilsynet → IE DPC as lead SA (Arts. 56/60); slower OSS timelines |
-| Brave | Brave Software Inc. (US, Art. 27 rep `gdprnomrep@brave.com`) | Datatilsynet, Art. 55 |
+| Brave | Brave Software Inc. (US, Art. 27 rep `brave@gdprnomrep.eu`) | Datatilsynet, Art. 55 |
 
 Implemented via `dpa.get_dpa_for_request` (category `delisting` routes by residence)
 and the complaint template's localized controller/Art. 55 block plus a delisting
