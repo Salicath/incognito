@@ -134,25 +134,38 @@ Add `da` locale to `templates/locales/` (5 template types).
 ## Handoff — state as of 2026-07-06
 
 All eight tracks are built (Phases 1-4 complete, checkmarks above), every
-track has passed an adversarial post-review with fixes merged, and the
-SearXNG sidecar shipped. 477 tests,
-CI green, container publishing to `ghcr.io/salicath/incognito` (the publish job
-was silently broken until 2026-07-05 — lowercase fix).
+track has passed an adversarial post-review with fixes merged, the SearXNG
+sidecar shipped, and the **Phase 5 gate read-through + research sweep ran
+2026-07-08** (findings fixed; see `docs/known-issues.md` for what was
+consciously deferred). 483 tests, CI green, container publishing to
+`ghcr.io/salicath/incognito`.
 
 **Next work items, in order:**
-1. HIBP paid-tier wiring + PimEyes manual-result-import flow.
-2. **The Phase 5 gate: full project read-through + fresh online research
-   sweep** (agreed with Malte — do this before the completeness pass, or by
-   2026-10 at the latest). Sweep agenda:
-   - Re-verify `brokers/controllers.yaml` (each track doc has a "re-verify at
-     refresh" list: Snap EEA notice, Reddit policy revision, X entity, ...)
-   - Re-verify delisting decision-sender addresses (practitioner-sourced) and
-     the Datatilsynet complaint URLs
-   - telelogning BEK renewal (marker: valid to 2027-03-29) and the
-     hvidvaskvejledning edition behind the +1mo escalation tolerance
-   - Revisit deferred datenanfragen.de vendoring (CC0 base for the long tail)
-   - Check for new tools: phone-axis account enumeration had no maintained
-     tool in 2026-07
+1. HIBP paid-tier wiring + PimEyes manual-result-import flow (purchase-gated —
+   see `docs/money.md`).
+2. Work down `docs/known-issues.md` (escalation_after_days dead field,
+   web-rescan cosmetics, /api/metrics auth, proxy rate-limit, address-capture
+   UI, a11y).
+3. Phase 5 completeness pass: run the full pipeline against Malte's own
+   identifiers, iterate until self-search returns nothing actionable, then
+   cut v1.0.
+
+**Phase 5 gate outcome (2026-07-08 sweep):**
+   - Research re-verified all 16 controllers + delisting + landscape. Registry
+     drift fixed: GitHub postal, Netflix retention 10→24mo, Strava full
+     address, Reddit building line, Tinder form host (bare `help.tinder.com`
+     is now NXDOMAIN → `www.`), Brave rep `brave@gdprnomrep.eu`. Snap still
+     no-EU-establishment (Art. 55 routing holds).
+   - **Regulatory:** EU Digital Omnibus GDPR half is STALLED (not law; only a
+     widened Art. 12(5) "abuse of rights" refusal ground would touch us —
+     watch when the Irish presidency tables a mandate). GDPR Procedural Reg
+     (EU) 2025/2518 is in force, cross-border chapters apply ~2027-04-02:
+     worth aligning the complaint generator to its fixed admissibility fields.
+     EDPB CEF-2025 erasure report = free citable ammunition for escalation
+     templates (backups in scope, anonymisation ≠ erasure).
+   - **Still-open sweep item:** the statutory recheck agent didn't finish
+     (session limit) — hvidvaskloven LBK currency, telelogning BEK renewal,
+     sundhed.dk privatmarkering URL still want a confirming pass.
 
 **Working conventions that produced this state (keep them):**
 - Research-first: verify contacts/legal facts online against primary sources
