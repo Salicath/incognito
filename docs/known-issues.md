@@ -6,10 +6,11 @@ remain, ranked. Each is anchored to a file so the next maintainer can pick one u
 
 ## Worth doing
 
-- **`time_locked` `escalation_after_days` is dead plumbing** (`core/time_locked.py`,
-  `brokers/time_locked.yaml`). It's carried into the kit JSON but nothing ever
-  escalates a FIRED hold after it, though the docs imply a T+30 step. Either wire
-  a follow-up escalation (a hold still FIRED 30 days on → nudge) or drop the field.
+- **`time_locked` `escalation_after_days` has no automatic action.** It is now
+  surfaced as guidance in the kit modal ("no reply within a month → Datatilsynet
+  complaint"), which matches the assist-only design. A fully-automatic escalation
+  would need a `fired_at`/reminder-stage on `TimeLockedState` (migration) — do that
+  only if the manual nudge proves insufficient.
 - **Web `/rescan` new-exposure detection is still cosmetic-only.** The scheduled
   CLI path was fixed (check-before-save); the web GET reads already-saved hits so
   `new_exposures` stays empty there. Fixing needs the check moved into `_run_scan`
