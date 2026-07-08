@@ -58,6 +58,9 @@ Arming with a trigger date whose retention already lapsed fires immediately.
 
 ## Re-verify at refresh
 
-- Finanstilsynet's +1-month batch tolerance is from the Nov 2020
-  hvidvaskvejledning — check for a newer edition.
+- Finanstilsynet's +1-month batch tolerance: the current main edition is
+  VEJ nr. 9875 af 28/08/2025 (superseded the Nov 2020 one). The 1-month
+  wording carried forward from 2020 and is reiterated in current guidance,
+  but retsinformation.dk 403s to automated fetch — a human should eyeball
+  the sentence in VEJ 9875 before treating it as gospel. Re-checked 2026-07-09.
 - Insurer +3y copy must never promise success (suspension rules).
