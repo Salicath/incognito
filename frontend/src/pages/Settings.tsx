@@ -556,7 +556,7 @@ export default function Settings() {
                 <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
                   className="text-indigo-600 underline">
                   haveibeenpwned.com/API/Key
-                </a>. The key is stored in plain text in your data directory.
+                </a>. The key is stored encrypted in your vault.
               </p>
               <div className="flex gap-2">
                 <button onClick={handleSaveHibpKey} disabled={hibp.saving || !hibpKeyInput.trim()}
@@ -638,7 +638,7 @@ export default function Settings() {
                 <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer"
                   className="text-indigo-600 underline">
                   github.com/settings/tokens
-                </a>. No scopes needed. The token is stored in plain text in your data directory.
+                </a>. No scopes needed. The token is stored encrypted in your vault.
               </p>
               <div className="flex gap-2">
                 <button onClick={handleSaveGithubToken} disabled={githubTok.saving || !githubTokenInput.trim()}

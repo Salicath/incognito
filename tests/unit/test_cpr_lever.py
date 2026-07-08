@@ -142,14 +142,21 @@ class TestApi:
         assert resp.status_code == 200
         assert resp.json()["expires_at"] is None
 
-    def test_mutual_exclusion_blocks_conflicting_confirm(self, authenticated_client):
-        authenticated_client.post("/api/cpr-levers/dk_cpr_navnebeskyttelse/confirm")
-        resp = authenticated_client.post("/api/cpr-levers/dk_robinsonlisten/confirm")
-        assert resp.status_code == 409
+    def test_mutual_exclusion_supersedes_instead_of_blocking(self, authenticated_client):
+        # Confirming a mutually-exclusive lever must NOT dead-end (a Robinsonlisten
+        # holder has to be able to record the navnebeskyttelse superset) — the
+        # newer confirmation wins and supersedes the conflicting one.
+        authenticated_client.post("/api/cpr-levers/dk_robinsonlisten/confirm")
+        resp = authenticated_client.post("/api/cpr-levers/dk_cpr_navnebeskyttelse/confirm")
+        assert resp.status_code == 200
+        assert resp.json()["superseded"] == ["dk_robinsonlisten"]
 
         levers = authenticated_client.get("/api/cpr-levers").json()
+        nav = next(lv for lv in levers if lv["lever_id"] == "dk_cpr_navnebeskyttelse")
         robinson = next(lv for lv in levers if lv["lever_id"] == "dk_robinsonlisten")
-        assert robinson["active_conflicts"] == ["dk_cpr_navnebeskyttelse"]
+        assert nav["status"] == "active"
+        assert robinson["status"] == "user_deferred"
+        assert "Superseded by dk_cpr_navnebeskyttelse" in robinson["user_note"]
 
     def test_defer_records_note(self, authenticated_client):
         resp = authenticated_client.post(

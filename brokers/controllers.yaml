@@ -250,7 +250,7 @@ controllers:
     email_viable: true
     selfservice_url: https://www.reddit.com/settings/account
     erasure_form_url: https://www.reddit.com/settings/data-request
-    postal_address: "Reddit Netherlands B.V., Looiersgracht 43, 1016 VR Amsterdam, Netherlands"
+    postal_address: "Reddit Netherlands B.V., Euro Business Center, Looiersgracht 43, 1016 VR Amsterdam, Netherlands"
     retention_note: >-
       Account deletion does NOT delete posts and comments — they stay live as
       [deleted], disassociated from your username.
@@ -263,7 +263,7 @@ controllers:
       - Send the email from the address verified on your Reddit account — Reddit rejects others
       - Also file the in-account data-request form; the email is the dated record
     language: en
-    last_verified: "2026-07-05"
+    last_verified: "2026-07-08"
     datenanfragen_slug: reddit
     notes: Postal address updated 2026-06 (Looiersgracht); older Keizersgracht address is stale.
 
@@ -279,7 +279,7 @@ controllers:
     email_viable: true
     selfservice_url: https://github.com/settings/admin
     erasure_form_url: https://support.github.com/contact/privacy
-    postal_address: "GitHub B.V., Vijzelstraat 68-72, 1017 HL Amsterdam, Netherlands"
+    postal_address: "GitHub B.V., Prins Bernhardplein 200, 1097 JB Amsterdam, Netherlands"
     retention_note: >-
       Account deletion removes owned repos, issues, PRs and gists; username is
       released after 90 days. Commit name/email in third-party repos survives —
@@ -290,7 +290,7 @@ controllers:
     prerequisites:
       - Transfer or delete organizations you solely own first
     language: en
-    last_verified: "2026-07-05"
+    last_verified: "2026-07-08"
     datenanfragen_slug: github
     notes: Cleanest email path of all 16 — address is verbatim in the privacy statement.
 
@@ -391,15 +391,16 @@ controllers:
     access_url: https://www.netflix.com/account/getmyinfo
     postal_address: "Netflix International B.V., Karperstraat 8-10, 1075 KZ Amsterdam, Netherlands"
     retention_note: >-
-      Cancelling the plan alone leaves your data sitting ~10 months for "easy
-      rejoin". Real deletion is Account > Security > Delete account.
+      Cancelling the plan alone leaves your data sitting 24 months for "easy
+      rejoin" (Netflix's stated auto-delete window). Real deletion is
+      Account > Security > Delete account.
     art17_value: >-
-      The email is the documented accelerator past the 10-month post-cancel
-      retention.
+      The email is the documented accelerator past the 24-month post-cancel
+      retention. Netflix keeps privacy@netflix.com correspondence 6 years.
     prerequisites:
       - Cancel the plan first, then use Account > Security > Delete account
     language: en
-    last_verified: "2026-07-05"
+    last_verified: "2026-07-08"
     datenanfragen_slug: netflix
     notes: >-
       /cancelplan only cancels the subscription; /account/getmyinfo is access-only
@@ -414,7 +415,7 @@ controllers:
     privacy_email: ""
     email_viable: false
     selfservice_url: https://account.gotinder.com
-    erasure_form_url: https://help.tinder.com/hc/en-us/requests/new
+    erasure_form_url: https://www.help.tinder.com/hc/en-us/requests/new
     postal_address: "Data Protection Officer, MTCH Technology Services Limited, 1 Hatch Street Upper, Dublin 2, D02 PY28, Ireland"
     retention_note: >-
       Deletion is delayed 90 days and does NOT cancel subscriptions. Retention
@@ -429,7 +430,7 @@ controllers:
       In the Tinder help form pick "another question about my data" and write
       "DPO" in the description so it routes to the privacy team.
     language: en
-    last_verified: "2026-07-05"
+    last_verified: "2026-07-08"
     datenanfragen_slug: tinder
     notes: >-
       Do NOT use privacy@gotinder.com or privacyinquiries@gotinder.com (2017-18
@@ -446,7 +447,7 @@ controllers:
     email_viable: true
     selfservice_url: https://www.strava.com/account
     erasure_form_url: ""
-    postal_address: "Strava Ireland Limited, ATTN: Data Protection Officer, Dublin, Ireland"
+    postal_address: "Strava Ireland Ltd., Attn: Legal, Making it Work, Magennis Court, Pearse Street, Dublin 2, D02 FK76, Ireland"
     retention_note: >-
       Up to 45 days of residual logs after deletion. Public segments and routes
       you created remain on the platform under a perpetual license.
@@ -457,6 +458,6 @@ controllers:
     prerequisites:
       - Export activities first (Settings > My Account > Download or Delete Your Account)
     language: en
-    last_verified: "2026-07-05"
+    last_verified: "2026-07-08"
     datenanfragen_slug: strava
     notes: Entity is Strava Ireland Ltd per policy effective 2026-01-01; datenanfragen (US Inc.) is stale.

@@ -608,7 +608,6 @@ def rescan():
 
     try:
         if report.hits:
-            # Save results
             hits = [
                 {
                     "broker_domain": h.broker_domain,
@@ -618,10 +617,12 @@ def rescan():
                 }
                 for h in report.hits
             ]
-            save_scan_results(db, hits, source="duckduckgo")
-
-            # Check for reappearances
+            # Compare BEFORE saving: check_for_reappearances derives
+            # "previously seen" from the ScanResult table, so saving first
+            # makes every current hit look already-seen and new_exposures
+            # would always be empty.
             rescan = check_for_reappearances(db, hits)
+            save_scan_results(db, hits, source="duckduckgo")
 
             if rescan.reappeared:
                 console.print(

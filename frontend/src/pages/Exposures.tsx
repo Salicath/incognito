@@ -77,11 +77,15 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [filing, setFiling] = useState("");
+  const [kitError, setKitError] = useState("");
 
   const fetchKit = useCallback(async (r: string) => {
     setLoading(true);
     try {
       setKit(await api.getDelistingKit(exposureId, r));
+      setKitError("");
+    } catch (e) {
+      setKitError(e instanceof Error ? e.message : "Failed to build kit");
     } finally {
       setLoading(false);
     }
@@ -91,7 +95,10 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
     setFiling(engine);
     try {
       await api.createDelistingRequest(exposureId, engine);
+      setKitError("");
       await fetchKit(reason);
+    } catch (e) {
+      setKitError(e instanceof Error ? e.message : "Failed to record filing");
     } finally {
       setFiling("");
     }
@@ -104,6 +111,7 @@ function DelistingKit({ exposureId }: { exposureId: number }) {
       </summary>
       <div className="mt-2 pl-3 border-l-2 border-teal-100 dark:border-teal-900/50 space-y-2">
         {loading && <p className="text-xs text-gray-500"><Loader2 className="w-3 h-3 animate-spin inline" /> Building kit…</p>}
+        {kitError && <p className="text-xs text-red-600 dark:text-red-400">{kitError}</p>}
         {kit && (
           <>
             <div className="flex items-center gap-2 flex-wrap">
@@ -383,7 +391,7 @@ export default function Exposures() {
                                 {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} Create erasure request
                               </button>
                             )}
-                            {e.source.startsWith("newsletter:") && Boolean(e.data.one_click || e.data.unsub_mailto) && (
+                            {e.source.startsWith("newsletter") && Boolean(e.data.one_click || e.data.unsub_mailto) && (
                               <button onClick={() => unsubscribe(e.id)} disabled={busy === e.id}
                                 title="Unsubscribe from this mailing list"
                                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition disabled:opacity-50">

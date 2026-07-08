@@ -140,8 +140,13 @@ def save_scan_results(
 def check_for_reappearances(
     session: Session,
     current_hits: list[dict],
+    notify_alerts: bool = True,
 ) -> RescanReport:
-    """Compare current scan hits against completed requests to detect reappearances."""
+    """Compare current scan hits against completed requests to detect reappearances.
+
+    notify_alerts=False for read-only callers (the web /rescan GET is polled on
+    every page view — pushing a DATA_REAPPEARED notification each time is spam).
+    """
     report = RescanReport(
         total_checked=len(current_hits),
         scan_date=datetime.now(UTC).isoformat(),
@@ -217,7 +222,7 @@ def check_for_reappearances(
             report.new_exposures.append(alert)
 
     # Send notifications for alerts
-    if report.reappeared or report.new_exposures:
+    if notify_alerts and (report.reappeared or report.new_exposures):
         from backend.core.notifier import EventType, notify
         for alert in report.reappeared:
             notify(

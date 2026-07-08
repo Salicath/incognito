@@ -38,7 +38,7 @@ Incognito scans for your personal data across 220 data brokers, 16 tech giants a
 - **Web form automation** — Playwright-based opt-out for web_form brokers (with YAML scripts)
 - **CSV import** — migrate history from DeleteMe, Optery, or other services
 - **Prometheus metrics** — `/api/metrics` for Grafana dashboards
-- **Reverse proxy auth** — Authentik/Authelia/Traefik ForwardAuth support
+- **Reverse proxy header** — surfaced on `/api/auth/status` (Authentik/Authelia/Traefik); the master password is still required
 - **Encrypted vault** — Argon2id (64MB, 3 iterations) + AES-256-GCM
 - **Web UI + CLI** — setup wizard, dashboard, dark mode, privacy report
 - **Re-scan monitoring** — detect data reappearing after removal
@@ -125,7 +125,7 @@ Environment variables (prefix `INCOGNITO_`):
 |---|---|
 | **Ntfy / Gotify** | Set `INCOGNITO_NOTIFY_URL` |
 | **Prometheus / Grafana** | Scrape `GET /api/metrics` |
-| **Authentik / Authelia** | Set `INCOGNITO_TRUSTED_PROXY_HEADER=Remote-User` |
+| **Authentik / Authelia** | Set `INCOGNITO_TRUSTED_PROXY_HEADER=Remote-User` (surfaced on the status endpoint; does not replace the vault unlock) |
 | **Traefik** | Uncomment labels in `docker-compose.yml` |
 | **Proton Bridge** | IMAP with STARTTLS on localhost:1143 |
 

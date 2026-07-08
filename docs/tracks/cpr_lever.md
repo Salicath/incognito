@@ -15,16 +15,18 @@ Standard `broker` track assumes: tool composes an email/form → broker → IMAP
 
 ```
 NEW
- └→ USER_NOTIFIED          (tool surfaces the lever + deep-link + MitID requirement)
-     └→ USER_CONFIRMED      (user clicks "I completed this on borger.dk" in the UI)
-         ├→ ACTIVE          (cascade brokers tagged with `dependent_on: <lever_id>`)
-         │   └→ RENEWAL_DUE (T-30 days from expiry: tool nags)
-         │       └→ EXPIRED (T=0: lever lapsed, downstream brokers re-exposed)
-         │           └→ USER_NOTIFIED (loop)
-         └→ USER_DEFERRED   (user chose not to activate — recorded with reason)
+ ├→ ACTIVE          (user clicks "I completed this on borger.dk" — confirm_lever
+ │   │               transitions straight to ACTIVE, sets activated_at/expires_at)
+ │   └→ RENEWAL_DUE (T-30 from expiry: nag; T-7: escalate — check_lever_renewals)
+ │       └→ EXPIRED (T=0: lever lapsed; blast re-includes the cascade brokers)
+ └→ USER_DEFERRED   (user chose not to activate — recorded with reason)
 ```
 
 No SENT/REPLY states. The tool tracks user confirmation, not broker correspondence.
+Implementation note: `CprLeverStatus` also defines `USER_NOTIFIED`, but no code
+path sets it — confirm goes NEW/deferred → ACTIVE directly. Coverage is an
+aggregate skip in the blast response (`covered_broker_ids`), not a per-broker
+`covered_by`/`dependent_on` status tag.
 
 ## Concrete levers (initial set)
 
@@ -35,7 +37,7 @@ No SENT/REPLY states. The tool tracks user confirmation, not broker corresponden
 | `dk_krak_selvbetjening` | Eniro DK | `https://opdater.krak.dk/person` | Yes (MitID + SMS) | Free | Persistent | krak.dk + degulesider.dk (same backend) — independent of CPR path |
 | `dk_telco_hemmeligt_nummer` | TDC/YouSee/3/Telia/Telenor | per-provider | Provider login | Free | Persistent | Propagates to 118.dk on next telco feed refresh |
 | `dk_nej_tak_reklamer` | PostNord / Forbrugerombudsmanden | physical "Reklamer Nej Tak" sticker + opt-out | No | Free | Persistent | Unaddressed flyers only |
-| `dk_cvr_adressebeskyttelse` | Erhvervsstyrelsen | Auto-applied if `dk_cpr_navnebeskyttelse` is active. Otherwise: `https://erhvervsstyrelsen.dk/nemmere-faa-adressebeskyttelse-i-cvr` | Yes | Free | Persistent (5y post-role tail) | Risika, Proff, ErhvervsKrak, cvrapi, D&B-DK |
+| `dk_cvr_adressebeskyttelse` | Erhvervsstyrelsen | Auto-applied if `dk_cpr_navnebeskyttelse` is active. Otherwise: `https://erhvervsstyrelsen.dk/nemmere-faa-adressebeskyttelse-i-cvr` | Yes | Free | Persistent (5y post-role tail) | ErhvervsKrak, Risika, NN Markedsdata, Visma Rating (`erhvervskrak-dk`, `risika-dk`, `nnmarkedsdata-dk`, `vismarating-dk`) |
 
 ## Mutual exclusion
 
@@ -65,11 +67,11 @@ State is per-user (single-profile in v1; per-profile in v2). Persisted in the SQ
 
 ## UI flow
 
-1. Setup wizard → after profile saved, ask "Are you a Danish resident with MitID?" — if yes, surface the lever track.
+1. The CPR Levers page is always in the nav (not gated on a residence question — the setup wizard has no such step; see the deferred-work note below).
 2. Each lever shown as a card: action, cascade list (how many brokers this covers), deep-link button.
 3. User clicks deep-link → opens `borger.dk` (new tab) → completes MitID action → returns → clicks "Confirm completed" in Incognito → state transitions to `active`, `activated_at = today`, `expires_at = today + expires_after_days`.
 4. Tool registers a renewal reminder at `expires_at - 30 days`.
-5. Cascading brokers in the registry get a derived status: `covered_by: <lever_id>` — pipeline skips Art. 17 sends for them while the lever is active.
+5. While the lever is active, the blast skips its `cascade_broker_ids` (an aggregate `covered_broker_ids` set — not a per-broker status tag).
 
 ## What this saves
 
@@ -79,7 +81,7 @@ For a Dane activating just `dk_cpr_navnebeskyttelse` + `dk_robinsonlisten` (mutu
 - 118.dk
 - eniro.dk (DK branch)
 - CVR personal-address exposure (auto-applies)
-- Downstream CVR aggregators within their next refresh cycle (Risika, Proff, ErhvervsKrak, cvrapi.dk)
+- Downstream CVR aggregators (ErhvervsKrak, Risika, NN Markedsdata, Visma Rating)
 
 ≈ 4 direct cascades + 4 indirect = **8 brokers eliminated without sending a single email.** Plus all cold-call telemarketing legally pre-blocked.
 

@@ -282,6 +282,31 @@ def test_create_request_no_broker_match_400(client, config):
     assert resp.status_code == 400
 
 
+def test_create_request_makes_new_request_when_prior_completed(client, config):
+    # Reappeared data: the prior erasure COMPLETED, rescan found the broker
+    # again. A new erasure must fire, not a link to the dead request.
+    from backend.core.request import RequestManager
+    from backend.db.session import init_db
+
+    eid = _seed_broker0(config)
+    first = client.post(f"/api/scan/exposures/{eid}/create-request").json()
+
+    db = init_db(config.db_path)()
+    try:
+        mgr = RequestManager(db)
+        rid = first["request_id"]
+        mgr.mark_sent(rid)
+        mgr.mark_acknowledged(rid, "ok")
+        mgr.mark_completed(rid)
+    finally:
+        db.close()
+
+    second_eid = _seed_broker0(config)
+    second = client.post(f"/api/scan/exposures/{second_eid}/create-request").json()
+    assert second["created"] is True
+    assert second["request_id"] != first["request_id"]
+
+
 def test_guidance_present_for_unmatched_absent_for_matched(client, config):
     _seed_broker0(config)   # maps to a registry broker
     _seed_github(config)    # no registry broker

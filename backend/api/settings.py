@@ -257,6 +257,7 @@ def create_settings_router(
             return {
                 "enabled": False,
                 "last_check": None,
+                "last_error": None,  # client types this required (string | null)
                 "matched_count": 0,
                 "unmatched_count": 0,
                 "poll_interval_minutes": None,
@@ -446,8 +447,18 @@ def create_settings_router(
         # Read the encrypted vault file
         vault_bytes = config.vault_path.read_bytes() if config.vault_path.exists() else b""
 
-        # Read the database
+        # Read the database. In WAL mode recent commits live in the -wal file
+        # until checkpointed, so a raw read of the main .db can miss data and
+        # be torn — checkpoint (TRUNCATE folds the WAL in and empties it) first.
         db_path = config.db_path
+        if db_path.exists() and db_session_factory is not None:
+            from sqlalchemy import text
+            db = db_session_factory()
+            try:
+                db.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+                db.commit()
+            finally:
+                db.close()
         db_bytes = db_path.read_bytes() if db_path.exists() else b""
 
         backup = {
@@ -538,6 +549,13 @@ def create_settings_router(
             _atomic_write(config.vault_path, vault_bytes)
         if db_bytes is not None:
             _atomic_write(config.db_path, db_bytes)
+            # Drop any stale WAL/SHM from the replaced database — SQLite would
+            # otherwise treat the old -wal as a hot journal for the new file
+            # and replay frames that belong to the wrong database.
+            for suffix in ("-wal", "-shm"):
+                stale = config.db_path.with_name(config.db_path.name + suffix)
+                if stale.exists():
+                    stale.unlink()
 
         # Backward compat: older backups carried the HIBP key as a plaintext field.
         # Land it in the legacy file so it migrates into the vault on next access.

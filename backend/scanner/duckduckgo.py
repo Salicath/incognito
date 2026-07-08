@@ -128,8 +128,9 @@ async def scan_profile(
             report.checked += 1
 
             for result in results:
-                # For site-specific queries, all results are hits
-                # For general queries, check if the result is from a known broker
+                # Site-specific queries: every result is a hit. General
+                # (bare-email) queries: accept every result too — the email
+                # appearing anywhere is itself the exposure.
                 if domain == "*" or domain in result.get("url", ""):
                     report.hits.append(ScanHit(
                         broker_domain=domain if domain != "*" else _extract_domain(result["url"]),

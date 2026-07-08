@@ -72,6 +72,39 @@ def test_detect_new_exposure():
     session.close()
 
 
+def test_ordering_save_before_check_hides_new_exposures():
+    # Regression guard: check_for_reappearances derives "previously seen" from
+    # the ScanResult table, so callers MUST check before saving. Saving first
+    # makes every current hit look already-seen and new_exposures goes empty.
+    session = make_session()
+    hits = [
+        {"broker_domain": "newbroker.com", "broker_name": "New", "snippet": "x", "url": "https://new.com"},
+    ]
+    save_scan_results(session, hits)                       # wrong order
+    assert check_for_reappearances(session, hits).new_exposures == []
+
+
+def test_notify_alerts_false_suppresses_pushes():
+    from unittest.mock import patch
+
+    from backend.core.request import RequestManager
+    from backend.db.models import RequestType
+
+    session = make_session()
+    mgr = RequestManager(session)
+    req = mgr.create("gone.com", RequestType.ERASURE)
+    mgr.mark_sent(req.id)
+    mgr.mark_acknowledged(req.id, "ok")
+    mgr.mark_completed(req.id)
+
+    hits = [{"broker_domain": "gone.com", "broker_name": "Gone", "snippet": "back", "url": "https://gone.com"}]
+    with patch("backend.core.notifier.notify") as mock_notify:
+        report = check_for_reappearances(session, hits, notify_alerts=False)
+    assert len(report.reappeared) == 1
+    mock_notify.assert_not_called()
+    session.close()
+
+
 def test_no_alert_for_known_exposure():
     session = make_session()
 
