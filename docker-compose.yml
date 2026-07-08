@@ -18,6 +18,9 @@ services:
       # Reverse proxy auth (Authentik/Authelia/Traefik ForwardAuth):
       # INCOGNITO_TRUSTED_PROXY_HEADER: Remote-User
       # INCOGNITO_SECURE_COOKIES: "true"
+      # Self-hosted meta-search for discovery scans (uncomment the searxng
+      # service below as well):
+      # INCOGNITO_SEARXNG_URL: http://searxng:8080
     restart: unless-stopped
     # Uncomment for Traefik reverse proxy:
     # labels:
@@ -31,6 +34,16 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+
+  # Optional: SearXNG sidecar for discovery scans (see deploy/searxng-settings.yml;
+  # copy it next to this file first). Set INCOGNITO_SEARXNG_URL above.
+  # searxng:
+  #   image: docker.io/searxng/searxng:latest
+  #   volumes:
+  #     - ./searxng-settings.yml:/etc/searxng/settings.yml:ro
+  #   environment:
+  #     SEARXNG_SECRET: ${SEARXNG_SECRET}
+  #   restart: unless-stopped
 
   # Optional: uncomment the services below for automated background tasks.
   # Set INCOGNITO_PASSWORD in your .env file first.
