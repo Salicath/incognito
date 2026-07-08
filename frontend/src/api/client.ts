@@ -185,7 +185,7 @@ export const api = {
   saveSmtp: (smtp: { host: string; port: number; username: string; password: string }) =>
     request("/settings/smtp", { method: "POST", body: JSON.stringify({ smtp }) }),
   getAppInfo: () => request<{ broker_count: number; dpa_count?: number; locale_count?: number; data_dir: string; version: string; notifications?: boolean }>("/settings/info"),
-  saveProfile: (profile: { full_name: string; previous_names?: string[]; emails: string[]; phones: string[]; usernames?: string[]; date_of_birth?: string }) =>
+  saveProfile: (profile: { full_name: string; previous_names?: string[]; emails: string[]; phones: string[]; usernames?: string[]; date_of_birth?: string; addresses?: Array<{ street: string; city: string; postal_code: string; country: string }> }) =>
     request("/settings/profile", { method: "POST", body: JSON.stringify({ profile }) }),
   testSmtp: () => request<{ status: string; message: string }>("/settings/test-smtp", { method: "POST" }),
   getAuditTrail: () =>
