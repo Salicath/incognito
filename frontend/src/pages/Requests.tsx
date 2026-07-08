@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { Send, Eye, Loader2 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
@@ -9,8 +9,10 @@ interface RequestEvent { id: number; event_type: string; details: string | null;
 
 export default function Requests() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [filter, setFilter] = useState("");
+  // Honor ?status=... so the dashboard "new replies" banner lands pre-filtered
+  const [filter, setFilter] = useState(searchParams.get("status") ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [events, setEvents] = useState<RequestEvent[]>([]);
   const [transitionLoading, setTransitionLoading] = useState("");

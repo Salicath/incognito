@@ -17,6 +17,13 @@ def test_is_safe_url_rejects_private_and_loopback():
     assert is_safe_url("https://169.254.1.1/unsub") is False
 
 
+def test_is_safe_url_rejects_cgnat_shared_space():
+    # 100.64.0.0/10 (CGNAT / Tailscale) is non-global but has is_private=False —
+    # the is_global guard is what rejects it.
+    assert is_safe_url("https://100.64.0.1/unsub") is False
+    assert is_safe_url("https://100.127.255.254/unsub") is False
+
+
 def test_is_safe_url_allows_public_ip():
     # IP literal — getaddrinfo does not hit the network.
     assert is_safe_url("https://8.8.8.8/unsub") is True

@@ -65,8 +65,10 @@ def create_scan_router(
     }
     _scan_lock = asyncio.Lock()
 
-    # Auto-clear stuck scans after 10 minutes
-    stuck_timeout = 600
+    # Auto-clear stuck scans. A full 220-broker run floors at ~340s of rate-
+    # limit sleeps alone, and an unreachable SearXNG burns the 20s timeout per
+    # query — 600s declared live scans "stuck" and let a second one start.
+    stuck_timeout = 3600
 
     def _is_stuck() -> bool:
         if not _state["running"]:
@@ -148,6 +150,10 @@ def create_scan_router(
         return {
             "has_results": True,
             "checked": report.checked,
+            # A fully-blocked scan (every query RuntimeError'd) otherwise reads
+            # as a clean "no data found" — surface the errors like the other
+            # scanner endpoints do.
+            "errors": report.errors,
             "hits": [
                 {
                     "broker_domain": hit.broker_domain,
@@ -869,7 +875,9 @@ def create_scan_router(
                 }
                 for h in report.hits
             ]
-            rescan = check_for_reappearances(db, hits)
+            # Read-only view polled on every refresh — don't re-push alerts
+            # (the scheduled CLI rescan is the notifying path).
+            rescan = check_for_reappearances(db, hits, notify_alerts=False)
             return {
                 "has_results": True,
                 "reappeared": [
@@ -1080,7 +1088,7 @@ def create_scan_router(
             raise HTTPException(status_code=503, detail="Database unavailable")
 
         from backend.core.request import RequestManager
-        from backend.db.models import Request, RequestType
+        from backend.db.models import Request, RequestStatus, RequestType
 
         db = db_session_factory()
         try:
@@ -1095,8 +1103,19 @@ def create_scan_router(
                     status_code=400, detail="No matching broker in the registry"
                 )
 
+            # Only reuse a still-open request. A COMPLETED/REFUSED one means the
+            # data reappeared after that request closed (the quarterly rescan's
+            # whole point) — link it to a dead request and no new erasure fires.
             existing = (
-                db.query(Request).filter(Request.broker_id == broker.id).first()
+                db.query(Request)
+                .filter(
+                    Request.broker_id == broker.id,
+                    Request.status.notin_(
+                        [RequestStatus.COMPLETED, RequestStatus.REFUSED]
+                    ),
+                )
+                .order_by(Request.created_at.desc())
+                .first()
             )
             if existing is not None:
                 request_id = existing.id

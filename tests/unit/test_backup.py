@@ -98,3 +98,40 @@ def test_import_backup_wrong_password(client, config):
     backup["password"] = "wrong"
     resp = client.post("/api/settings/backup/import", json=backup)
     assert resp.status_code == 401
+
+
+def test_export_captures_uncheckpointed_wal_writes(client, config):
+    # WAL mode keeps recent commits in the -wal file. The export must checkpoint
+    # first, or a just-created request is silently missing from the backup.
+    import base64
+    import json as _json
+
+    from backend.core.request import RequestManager
+    from backend.db.models import RequestType
+    from backend.db.session import init_db
+
+    db = init_db(config.db_path)()
+    try:
+        RequestManager(db).create("fresh-broker-com", RequestType.ERASURE)
+    finally:
+        db.close()  # committed to WAL, not necessarily checkpointed
+
+    resp = client.post("/api/settings/backup/export", json={"password": "password"})
+    db_bytes = base64.b64decode(_json.loads(resp.content)["database"])
+    assert b"fresh-broker-com" in db_bytes
+
+
+def test_import_clears_stale_wal(client, config):
+    # A leftover -wal beside the replaced db would be replayed over it. Import
+    # must delete it.
+    resp = client.post("/api/settings/backup/export", json={"password": "password"})
+    backup = resp.json()
+    backup["password"] = "password"
+
+    wal = config.db_path.with_name(config.db_path.name + "-wal")
+    wal.write_bytes(b"stale-wal-frames")
+    assert wal.exists()
+
+    resp = client.post("/api/settings/backup/import", json=backup)
+    assert resp.status_code == 200
+    assert not wal.exists()

@@ -84,7 +84,7 @@ async def _run_maigret(username, top_sites, timeout, binary, folder):
         "--timeout", str(timeout),
         "--no-recursion",
         "--no-color",
-        "--folder", folder,
+        "--folderoutput", folder,  # full flag; "--folder" only worked via abbrev
         "--",
         username,
         stdout=asyncio.subprocess.PIPE,

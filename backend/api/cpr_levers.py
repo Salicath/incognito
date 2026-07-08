@@ -80,16 +80,21 @@ def create_cpr_levers_router(
         db = db_session_factory()
         try:
             states = _states(db)
+            # Mutually-exclusive levers supersede rather than block: the user
+            # just performed this MitID action, so it reflects current reality.
+            # A hard 409 would trap them — e.g. a Robinsonlisten holder could
+            # never record navne-/adressebeskyttelse, the documented superset.
+            superseded: list[str] = []
             for other_id in lever.mutual_exclusion:
                 other = states.get(other_id)
                 if other and effective_status(other.status.value, other.expires_at) in (
                     "active",
                     "renewal_due",
                 ):
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"Conflicts with active lever '{other_id}' (CPR registry rule)",
-                    )
+                    other.status = CprLeverStatus.USER_DEFERRED
+                    other.user_note = f"Superseded by {lever_id}"
+                    db.merge(other)
+                    superseded.append(other_id)
 
             now = datetime.now(UTC)
             state = states.get(lever_id) or CprLeverState(lever_id=lever_id)
@@ -103,6 +108,7 @@ def create_cpr_levers_router(
                 "status": "active",
                 "activated_at": now.isoformat(),
                 "expires_at": state.expires_at.isoformat() if state.expires_at else None,
+                "superseded": superseded,
             }
         finally:
             db.close()

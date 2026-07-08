@@ -203,7 +203,12 @@ export default function CprLevers() {
                 )}
                 {(lever.status === "new" || lever.status === "user_notified") && (
                   <button
-                    onClick={() => setDeferring(deferring === lever.lever_id ? "" : lever.lever_id)}
+                    onClick={() => {
+                      // one shared deferNote — clear it when switching levers so
+                      // A's note doesn't carry into B's box
+                      setDeferNote("");
+                      setDeferring(deferring === lever.lever_id ? "" : lever.lever_id);
+                    }}
                     className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   >
                     Defer

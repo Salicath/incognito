@@ -156,6 +156,7 @@ export default function Settings() {
   }
 
   async function handleDeleteGithubToken() {
+    if (!window.confirm("Remove the stored GitHub token?")) return;
     setGithubDeleting(true);
     githubTok.setMessage({ type: "", text: "" });
     try {
@@ -170,6 +171,7 @@ export default function Settings() {
   }
 
   async function handleDeleteHibpKey() {
+    if (!window.confirm("Remove the stored HIBP API key?")) return;
     setHibpDeleting(true);
     hibp.setMessage({ type: "", text: "" });
     try {
@@ -228,6 +230,8 @@ export default function Settings() {
   }
 
   async function handleDeleteImap() {
+    // Deletes the stored IMAP config incl. the Bridge password — confirm first.
+    if (!window.confirm("Disable IMAP monitoring and delete the saved mailbox settings?")) return;
     await imap.withSaving(async () => {
       await api.deleteImap();
       imap.setMessage({ type: "success", text: "IMAP monitoring disabled." });
@@ -556,7 +560,7 @@ export default function Settings() {
                 <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
                   className="text-indigo-600 underline">
                   haveibeenpwned.com/API/Key
-                </a>. The key is stored in plain text in your data directory.
+                </a>. The key is stored encrypted in your vault.
               </p>
               <div className="flex gap-2">
                 <button onClick={handleSaveHibpKey} disabled={hibp.saving || !hibpKeyInput.trim()}
@@ -638,7 +642,7 @@ export default function Settings() {
                 <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer"
                   className="text-indigo-600 underline">
                   github.com/settings/tokens
-                </a>. No scopes needed. The token is stored in plain text in your data directory.
+                </a>. No scopes needed. The token is stored encrypted in your vault.
               </p>
               <div className="flex gap-2">
                 <button onClick={handleSaveGithubToken} disabled={githubTok.saving || !githubTokenInput.trim()}

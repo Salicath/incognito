@@ -44,6 +44,8 @@ export default function Brokers() {
       await api.createRequest(brokerId, requestType);
       setSuccessMessage(`${requestType === "access" ? "Art. 15" : "Art. 17"} request created for ${brokerId}`);
       setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create request");
     } finally {
       setCreatingRequest("");
     }

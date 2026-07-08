@@ -49,7 +49,7 @@ kills the deadline chase.
 |---|---|---|
 | Google | **Google LLC** (Mountain View) | **Datatilsynet decides itself** — no EU main establishment for Search RTBF processing, so no one-stop-shop; pure national Art. 55 case. Precedent: IMY DI-2018-9274 fined Google LLC (upheld); Brussels Market Court 2021 annulled an APD fine *because* Google Belgium wasn't the controller |
 | Bing | Microsoft Ireland Operations Ltd | Datatilsynet → IE DPC as lead SA (Arts. 56/60); slower OSS timelines |
-| Brave | Brave Software Inc. (US, Art. 27 rep `gdprnomrep@brave.com`) | Datatilsynet, Art. 55 |
+| Brave | Brave Software Inc. (US, Art. 27 rep `brave@gdprnomrep.eu`) | Datatilsynet, Art. 55 |
 
 Implemented via `dpa.get_dpa_for_request` (category `delisting` routes by residence)
 and the complaint template's localized controller/Art. 55 block plus a delisting
@@ -61,7 +61,7 @@ upheld by Østre Landsret).
 
 ## Re-verification
 
-- **Bing surface — automatic.** `verify_delisted_urls` (run by the rescan
+- **Bing surface — automatic.** `verify_delisted_urls` (run by the weekly rescan
   command/timer) issues bare name queries via DDG (DDG resells Bing; the
   region param `kl=dk-da` makes the EU RTBF filter reliable — it is set ONLY
   here, since region-biasing the broker discovery scan costs recall on US
@@ -84,5 +84,5 @@ upheld by Østre Landsret).
   circulates but is unverified.
 - The Google confirmation email carries a bracketed case ID reused in the
   decision subject — capturing it would strengthen matching (future).
-- T+7/T+30 post-grant verification reminders are folded into the quarterly
+- T+7/T+30 post-grant verification reminders are folded into the weekly
   rescan for now.

@@ -42,8 +42,13 @@ function App() {
   useEffect(() => { checkStatus(); }, []);
 
   async function checkStatus() {
-    const [s, profile] = await Promise.all([api.getStatus(), api.getProfile().catch(() => null)]);
-    setStatus({ initialized: s.initialized, authenticated: profile !== null, loading: false });
+    try {
+      const [s, profile] = await Promise.all([api.getStatus(), api.getProfile().catch(() => null)]);
+      setStatus({ initialized: s.initialized, authenticated: profile !== null, loading: false });
+    } catch {
+      // backend briefly unreachable — leave the loading screen rather than hang forever
+      setStatus({ initialized: true, authenticated: false, loading: false });
+    }
   }
 
   if (status.loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>;

@@ -7,6 +7,12 @@ AutoUpdate=registry
 PublishPort=127.0.0.1:8080:8080
 Volume=incognito-data.volume:/home/incognito/.incognito:Z
 Environment=INCOGNITO_LOG_LEVEL=info
+# To use the SearXNG sidecar (deploy/searxng.container) from inside this
+# container, uncomment BOTH lines. The pasta -T forward is required: the
+# sidecar publishes on host loopback, which rootless containers cannot reach
+# via host.containers.internal.
+# Network=pasta:-T,8888
+# Environment=INCOGNITO_SEARXNG_URL=http://127.0.0.1:8888
 UserNS=keep-id
 
 [Service]
