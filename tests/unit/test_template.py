@@ -246,3 +246,21 @@ def test_render_eu_locale_all_templates(renderer, profile, lang, regulation):
         result = renderer.render_localized(template, lang, **kwargs)
         assert "Subject:" in result
         assert "TestBroker" in result
+
+
+def test_every_complaint_locale_carries_all_conditional_blocks():
+    """A locale that silently loses a block would omit legally relevant content
+    from a real Art. 77 complaint, with nothing failing."""
+    from pathlib import Path
+
+    root = Path(__file__).parent.parent.parent / "templates"
+    files = [root / "dpa_complaint.txt.j2"] + sorted(
+        root.glob("locales/*/dpa_complaint.txt.j2")
+    )
+    assert len(files) == 8, f"expected 8 complaint templates, found {len(files)}"
+
+    required = ("followed_up", "controller_entity", "delisting_url", "edpb_cef", "proc_reg")
+    for f in files:
+        text = f.read_text()
+        for var in required:
+            assert "{% if " + var in text, f"{f.parent.name}/{f.name} lost the {var} block"
