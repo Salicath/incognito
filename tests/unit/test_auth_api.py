@@ -104,3 +104,67 @@ def test_rate_limiting_after_failed_attempts(client):
     # Even correct password should be blocked during lockout
     resp = client.post("/api/auth/unlock", json={"password": "master_password"})
     assert resp.status_code == 429
+
+
+# --- proxy-aware rate-limit keying ---
+
+def _req(peer: str, xff: str | None = None):
+    from unittest.mock import Mock
+    r = Mock()
+    r.client = Mock(host=peer)
+    r.headers = {"x-forwarded-for": xff} if xff else {}
+    return r
+
+
+def test_client_ip_direct_bind_uses_peer():
+    from backend.api.auth import client_ip_for
+    # no trusted proxy configured -> XFF is attacker-controlled, ignore it
+    assert client_ip_for(_req("10.0.0.9", xff="1.2.3.4"), trusted_proxy_header="") == "10.0.0.9"
+
+
+def test_client_ip_behind_proxy_uses_rightmost_xff():
+    from backend.api.auth import client_ip_for
+    # our trusted proxy appends the peer it saw; earlier hops are spoofable
+    req = _req("172.18.0.2", xff="1.2.3.4, 203.0.113.7")
+    assert client_ip_for(req, trusted_proxy_header="Remote-User") == "203.0.113.7"
+
+
+def test_client_ip_spoofed_xff_cannot_pin_lockout_on_victim():
+    # The attacker sets XFF to the victim's IP to burn the victim's rate-limit
+    # budget. A real proxy APPENDS the peer it saw, so the attacker's own IP is
+    # rightmost and the lockout lands on the attacker, not the victim.
+    from backend.api.auth import client_ip_for
+    req = _req("172.18.0.2", xff="victim-ip, 198.51.100.42")
+    assert client_ip_for(req, trusted_proxy_header="Remote-User") == "198.51.100.42"
+
+
+def test_client_ip_no_xff_falls_back_to_peer():
+    from backend.api.auth import client_ip_for
+    assert client_ip_for(_req("172.18.0.2"), trusted_proxy_header="Remote-User") == "172.18.0.2"
+
+
+def test_proxy_lockout_is_per_client_not_per_proxy(tmp_path, sample_profile, sample_smtp):
+    """Behind a reverse proxy, one attacker's failures must not lock out everyone."""
+    from fastapi.testclient import TestClient
+
+    from backend.core.config import AppConfig
+    from backend.core.profile import ProfileVault
+    from backend.main import create_app
+
+    cfg = AppConfig(data_dir=tmp_path, trusted_proxy_header="Remote-User")
+    ProfileVault(cfg.vault_path).save(sample_profile, sample_smtp, "correct-pw")
+    client = TestClient(create_app(cfg))
+
+    attacker = {"X-Forwarded-For": "10.0.0.1, 198.51.100.42"}
+    victim = {"X-Forwarded-For": "10.0.0.1, 203.0.113.7"}
+
+    # burn the attacker's budget (5 failures -> locked out)
+    for _ in range(5):
+        client.post("/api/auth/unlock", json={"password": "wrong"}, headers=attacker)
+    assert client.post(
+        "/api/auth/unlock", json={"password": "wrong"}, headers=attacker
+    ).status_code == 429
+
+    # the victim, arriving through the same proxy, is unaffected
+    resp = client.post("/api/auth/unlock", json={"password": "correct-pw"}, headers=victim)
+    assert resp.status_code == 200

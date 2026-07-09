@@ -118,13 +118,14 @@ Environment variables (prefix `INCOGNITO_`):
 | `INCOGNITO_USER_COUNTRY` | `DK` | Residence supervisory authority for complaints |
 | `INCOGNITO_SEARXNG_URL` | — | Self-hosted SearXNG sidecar for discovery scans |
 | `INCOGNITO_CORS_ORIGINS` | — | Extra allowed origins (comma-separated) |
+| `INCOGNITO_METRICS_TOKEN` | — | If set, `/api/metrics` requires `Authorization: Bearer <token>` |
 
 ## Integrations
 
 | Integration | How |
 |---|---|
 | **Ntfy / Gotify** | Set `INCOGNITO_NOTIFY_URL` |
-| **Prometheus / Grafana** | Scrape `GET /api/metrics` |
+| **Prometheus / Grafana** | Scrape `GET /api/metrics` (set `INCOGNITO_METRICS_TOKEN` before exposing it) |
 | **Authentik / Authelia** | Set `INCOGNITO_TRUSTED_PROXY_HEADER=Remote-User` (surfaced on the status endpoint; does not replace the vault unlock) |
 | **Traefik** | Uncomment labels in `docker-compose.yml` |
 | **Proton Bridge** | IMAP with STARTTLS on localhost:1143 |
@@ -145,7 +146,7 @@ cd frontend && npm run dev  # Frontend dev server
 ## Security
 
 - Profile encrypted at rest (AES-256-GCM, Argon2id with 64MB memory cost)
-- Login rate limiting: 5 failures = 10-minute lockout
+- Login rate limiting: 5 failures = 10-minute lockout (keyed on the real client IP behind a configured reverse proxy)
 - Max 3 concurrent sessions, 30-minute idle timeout
 - Binds to localhost only by default
 - SMTP/IMAP credentials stored in the encrypted vault

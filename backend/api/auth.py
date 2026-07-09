@@ -9,6 +9,32 @@ from backend.core.profile import ProfileVault
 log = logging.getLogger("incognito.auth")
 
 
+def client_ip_for(request: Request, trusted_proxy_header: str = "") -> str:
+    """The IP to key login rate-limiting on.
+
+    Direct binds: the socket peer. Behind a reverse proxy every request has the
+    proxy's IP, so five failures from anyone would lock out the real user —
+    take the client IP from X-Forwarded-For instead.
+
+    Only when `trusted_proxy_header` is configured (the operator asserting a
+    proxy fronts us), and only the RIGHTMOST entry: proxies append the peer
+    they saw, so the last hop is the one our trusted proxy observed. Earlier
+    entries are attacker-controlled and must never be trusted.
+
+    Assumes exactly one trusted hop. If you set `trusted_proxy_header` without
+    actually putting a proxy in front, a client controls the whole header and
+    can forge this value — don't.
+    """
+    peer = request.client.host if request.client else "unknown"
+    if not trusted_proxy_header:
+        return peer
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if not forwarded:
+        return peer
+    hops = [h.strip() for h in forwarded.split(",") if h.strip()]
+    return hops[-1] if hops else peer
+
+
 def create_auth_router(
     vault: ProfileVault,
     session_store: SessionStore,
@@ -35,7 +61,7 @@ def create_auth_router(
         if not vault.exists():
             raise HTTPException(status_code=400, detail="Not initialized")
 
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = client_ip_for(request, trusted_proxy_header)
         rate_limiter.check(client_ip)
 
         try:

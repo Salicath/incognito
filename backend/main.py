@@ -177,7 +177,18 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     ))
 
     @app.get("/api/metrics")
-    def metrics():
+    def metrics(request: Request):
+        # Unauthenticated by default (loopback bind). Set INCOGNITO_METRICS_TOKEN
+        # before exposing this through a reverse proxy — it discloses per-status
+        # request counts, broker totals and scan-result counts.
+        if config.metrics_token:
+            import secrets as _secrets
+
+            auth_header = request.headers.get("authorization", "")
+            presented = auth_header.removeprefix("Bearer ").strip()
+            if not _secrets.compare_digest(presented, config.metrics_token):
+                from fastapi.responses import PlainTextResponse
+                return PlainTextResponse("unauthorized", status_code=401)
         """Prometheus-compatible metrics endpoint."""
         from sqlalchemy import func
 

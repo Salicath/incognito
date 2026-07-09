@@ -16,6 +16,17 @@ class EmailSender:
         self._config = smtp_config
 
     @staticmethod
+    def _sanitize_header(value: str) -> str:
+        """Strip CR/LF from a header value.
+
+        Header content can originate untrusted — a newsletter's List-Unsubscribe
+        mailto carries a `?subject=` we render verbatim. A percent-encoded CRLF
+        there is an email header-injection attempt; EmailMessage rejects it with
+        an unhandled ValueError (a 500), so neutralize it before we get there.
+        """
+        return value.replace("\r", " ").replace("\n", " ").strip()
+
+    @staticmethod
     def _parse_rendered(text: str) -> tuple[str, str]:
         lines = text.strip().split("\n")
         if lines and lines[0].startswith("Subject:"):
@@ -36,10 +47,10 @@ class EmailSender:
 
         msg = EmailMessage()
         msg["From"] = self._config.username
-        msg["To"] = to_email
+        msg["To"] = self._sanitize_header(to_email)
         if cc:
-            msg["Cc"] = ", ".join(cc)
-        msg["Subject"] = subject
+            msg["Cc"] = ", ".join(self._sanitize_header(c) for c in cc)
+        msg["Subject"] = self._sanitize_header(subject)
         msg.set_content(body)
 
         if request_id:
