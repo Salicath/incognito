@@ -145,10 +145,11 @@ README.md and CLAUDE.md are recomputed and must match (they had silently
 drifted to 220 vs a real 228).
 
 **Next work items, in order:**
-1. Align the complaint generator to Reg (EU) 2025/2518's fixed admissibility
-   elements, and fold the EDPB CEF-2025 erasure findings into the escalation /
-   refusal-rebuttal templates. Legally locked in for 2027-04-02; needs no
-   purchase and no user input. (Research it first — do not guess at legal text.)
+1. ✅ Done 2026-07-09: complaint generator now carries the EDPB CEF-2025
+   rebuttal (when the controller refused) and the Reg (EU) 2025/2518
+   admissibility/15-month lines (gated on cross-border + date ≥ 2027-04-02).
+   See `docs/tracks/controller.md` — includes two corrections to widely-repeated
+   secondary-source errors.
 2. HIBP paid-tier wiring + PimEyes manual-result-import flow (purchase-gated —
    see `docs/money.md`).
 3. Phase 5 completeness pass: run the full pipeline against Malte's own

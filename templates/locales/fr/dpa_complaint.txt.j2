@@ -27,6 +27,13 @@ L'établissement principal du responsable de traitement est {{ controller_entity
 La présente plainte concerne une demande de déréférencement (droit à l'oubli) au titre de l'article 17 du RGPD tel qu'appliqué aux moteurs de recherche (CJUE C-131/12, Google Spain). L'URL {{ delisting_url }} apparaît dans les résultats lors de recherches sur mon nom{% if delisting_query %} (« {{ delisting_query }} »){% endif %}. {% if delisting_channel == "email" %}Le déréférencement a été demandé par courriel à l'adresse de confidentialité désignée du moteur, et le délai de réponse est expiré.{% else %}Le déréférencement a été demandé via le formulaire prévu par le moteur, et le délai de réponse est expiré.{% endif %} {% if delisting_no_oss %}Le responsable de ce traitement est {{ delisting_controller }} ; il ne dispose pas d'établissement principal dans l'UE pour ce traitement, de sorte que le mécanisme du guichet unique ne s'applique pas et que vous êtes pleinement compétents en vertu de l'article 55 du RGPD.{% else %}Le responsable de ce traitement est {{ delisting_controller }}, dont l'établissement principal se situe en {{ delisting_country }} ; l'autorité de contrôle chef de file est {{ delisting_lead_sa }}. Je demande que cette plainte soit transmise conformément à l'article 56 du RGPD le cas échéant.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+Le responsable du traitement invoque une exception au titre de l'article 17, paragraphe 3, du RGPD. J'attire l'attention de l'autorité sur le rapport du CEPD relatif à l'action coordonnée de contrôle 2025 sur la mise en œuvre du droit à l'effacement (adopté le 10 février 2026), qui constate que les exceptions sont souvent traitées comme automatiquement applicables sans examen au cas par cas ; que l'anonymisation ne remplace pas l'effacement lorsqu'une simple pseudonymisation ou un masquage partiel est appliqué ; et que les données de sauvegarde sont fréquemment exclues par défaut, sans justification.
+
+{% endif %}{% if proc_reg %}
+La présente plainte porte sur un traitement transfrontalier. En vertu de l'article 4, paragraphe 1, du règlement (UE) 2025/2518, aucune information autre que celles qui y sont énumérées ne peut être exigée pour que la plainte soit recevable. L'autorité de contrôle chef de file doit soumettre un projet de décision dans un délai de 15 mois à compter de la confirmation de sa compétence (article 12, paragraphe 1, dudit règlement).
+
+{% endif %}
 Mes coordonnées :
 - Nom : {{ profile.full_name }}
 - E-mail : {{ profile.emails | join(', ') }}

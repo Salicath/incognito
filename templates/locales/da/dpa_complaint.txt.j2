@@ -25,6 +25,13 @@ Den dataansvarliges hovedvirksomhed er {{ controller_entity }} ({{ controller_co
 Klagen vedrører en anmodning om fjernelse fra søgeresultater (retten til at blive glemt) efter GDPR artikel 17 som anvendt på søgemaskiner (EU-Domstolen C-131/12, Google Spain). URL'en {{ delisting_url }} fremkommer i søgeresultater ved søgning på mit navn{% if delisting_query %} ("{{ delisting_query }}"){% endif %}. {% if delisting_channel == "email" %}Fjernelse blev anmodet pr. e-mail til søgemaskinens angivne privatlivsadresse, og svarfristen er udløbet.{% else %}Fjernelse blev anmodet via søgemaskinens egen formular, og svarfristen er udløbet.{% endif %} {% if delisting_no_oss %}Den dataansvarlige for denne behandling er {{ delisting_controller }}; den har ingen hovedvirksomhed i EU for denne behandling, hvorfor one-stop-shop-mekanismen ikke finder anvendelse, og tilsynsmyndigheden har fuld kompetence efter GDPR artikel 55.{% else %}Den dataansvarlige for denne behandling er {{ delisting_controller }} med hovedvirksomhed i {{ delisting_country }}; den ledende tilsynsmyndighed er {{ delisting_lead_sa }}. Jeg anmoder om, at klagen i relevant omfang videresendes efter GDPR artikel 56.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+Den dataansvarlige påberåber sig en undtagelse efter GDPR artikel 17, stk. 3. Jeg henleder tilsynsmyndighedens opmærksomhed på EDPB's rapport om den koordinerede håndhævelsesindsats 2025 vedrørende retten til sletning (vedtaget den 10. februar 2026), hvori det konstateres, at undtagelser ofte behandles som automatisk anvendelige uden en konkret vurdering i det enkelte tilfælde; at anonymisering ikke træder i stedet for sletning, når der alene foretages basal pseudonymisering eller delvis maskering; og at backupdata ofte udelades som standard uden nogen begrundelse.
+
+{% endif %}{% if proc_reg %}
+Klagen vedrører grænseoverskridende behandling. Efter artikel 4, stk. 1, i forordning (EU) 2025/2518 må der ikke kræves andre oplysninger end de deri nævnte, for at klagen kan antages til behandling. Den ledende tilsynsmyndighed skal fremlægge et udkast til afgørelse senest 15 måneder efter, at den har bekræftet sin kompetence (artikel 12, stk. 1, i samme forordning).
+
+{% endif %}
 Mine identifikationsoplysninger:
 - Navn: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

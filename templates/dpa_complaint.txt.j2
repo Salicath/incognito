@@ -25,6 +25,13 @@ The controller's main establishment is {{ controller_entity }} ({{ controller_co
 This complaint concerns a search-engine delisting (right to be forgotten) request under Article 17 GDPR as applied to search engines (CJEU C-131/12, Google Spain). The URL {{ delisting_url }} appears in results for searches of my name{% if delisting_query %} ("{{ delisting_query }}"){% endif %}. {% if delisting_channel == "email" %}Delisting was requested by email to the engine's designated privacy address, and the response period has lapsed.{% else %}Delisting was requested via the engine's designated form, and the response period has lapsed.{% endif %} {% if delisting_no_oss %}The controller for this processing is {{ delisting_controller }}; it has no main establishment in the EU for this processing, so the one-stop-shop mechanism does not apply and you have full competence under Article 55 GDPR.{% else %}The controller for this processing is {{ delisting_controller }}, with its main establishment in {{ delisting_country }}; the lead supervisory authority is {{ delisting_lead_sa }}. I request that this complaint be forwarded under Article 56 GDPR as appropriate.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+The controller relies on an exception under Article 17(3) GDPR. I draw the authority's attention to the EDPB's 2025 Coordinated Enforcement Action report on the implementation of the right to erasure (adopted 10 February 2026), which found that exceptions are often "treated as automatically applicable without conducting a case-by-case assessment"; that reliance on anonymisation as a substitute for erasure does not satisfy the Regulation where only basic pseudonymisation or partial masking is applied; and that back-up data is often excluded "by default, without providing a justification for doing so".
+
+{% endif %}{% if proc_reg %}
+This complaint concerns cross-border processing. Under Article 4(1) of Regulation (EU) 2025/2518, no information additional to that listed in that provision may be required for the complaint to be admissible. The lead supervisory authority must submit a draft decision within 15 months of confirming its competence (Article 12(1) of that Regulation).
+
+{% endif %}
 My identifying details:
 - Name: {{ profile.full_name }}
 - Email: {{ profile.emails | join(', ') }}

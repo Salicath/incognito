@@ -1,4 +1,5 @@
 import logging
+from datetime import date as _date  # module-level so the 2027 gate is testable
 
 from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
@@ -433,6 +434,27 @@ def create_blast_router(
                     "delisting_lead_sa": getattr(broker, "lead_dpa", ""),
                 }
 
+            # EDPB CEF-2025 rebuttal ammunition, but only when the controller
+            # actually refused — citing it against silence would be a non-sequitur.
+            edpb_cef = req.status == RequestStatus.REFUSED or bool(req.response_body)
+
+            # Reg (EU) 2025/2518's admissibility + 15-month rules apply ONLY to
+            # cross-border processing (Art. 4(1)) and ONLY to complaints lodged
+            # on/after 2 April 2027 (Art. 36 + Art. 37(2)). A national Art. 55
+            # case — Google Search RTBF, Snap, any no-EU-establishment target —
+            # is not cross-border, so it must never carry these lines.
+            no_eu = getattr(broker, "no_eu_establishment", False)
+            lead_sa = getattr(broker, "lead_dpa", "")
+            entity_country = getattr(broker, "entity_country", "")
+            cross_border = bool(
+                broker.category in ("controller", "delisting")
+                and not no_eu
+                and lead_sa
+                and entity_country
+                and entity_country.upper() != config.user_country.upper()
+            )
+            proc_reg = cross_border and _date.today() >= _date(2027, 4, 2)
+
             # Only claim a follow-up/final warning was sent if one actually was
             # (form-only controllers are never chased by email).
             from backend.db.models import RequestEvent
@@ -462,6 +484,8 @@ def create_blast_router(
                 original_date=req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown",
                 dpa_name=dpa_name,
                 followed_up=followed_up,
+                edpb_cef=edpb_cef,
+                proc_reg=proc_reg,
                 **controller_vars,
             )
 

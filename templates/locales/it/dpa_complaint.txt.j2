@@ -27,6 +27,13 @@ Lo stabilimento principale del titolare è {{ controller_entity }} ({{ controlle
 Il presente reclamo riguarda una richiesta di deindicizzazione (diritto all'oblio) ai sensi dell'articolo 17 del RGPD come applicato ai motori di ricerca (CGUE C-131/12, Google Spain). L'URL {{ delisting_url }} compare nei risultati per ricerche del mio nome{% if delisting_query %} («{{ delisting_query }}»){% endif %}. {% if delisting_channel == "email" %}La deindicizzazione è stata richiesta via e-mail all'indirizzo privacy designato del motore, e il termine di risposta è decorso.{% else %}La deindicizzazione è stata richiesta tramite il modulo del motore, e il termine di risposta è decorso.{% endif %} {% if delisting_no_oss %}Il titolare di questo trattamento è {{ delisting_controller }}; non dispone di uno stabilimento principale nell'UE per questo trattamento, per cui il meccanismo dello sportello unico non si applica e codesta autorità ha piena competenza ai sensi dell'articolo 55 del RGPD.{% else %}Il titolare di questo trattamento è {{ delisting_controller }}, con stabilimento principale in {{ delisting_country }}; l'autorità di controllo capofila è {{ delisting_lead_sa }}. Chiedo che il presente reclamo sia inoltrato ai sensi dell'articolo 56 del RGPD ove opportuno.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+Il titolare invoca un'eccezione ai sensi dell'articolo 17, paragrafo 3, del RGPD. Richiamo l'attenzione dell'autorità sulla relazione dell'EDPB sull'azione coordinata di contrasto 2025 relativa all'attuazione del diritto alla cancellazione (adottata il 10 febbraio 2026), che ha rilevato come le eccezioni siano spesso trattate come automaticamente applicabili senza una valutazione caso per caso; come l'anonimizzazione non sostituisca la cancellazione quando è applicata solo una pseudonimizzazione di base o un mascheramento parziale; e come i dati di backup siano frequentemente esclusi per impostazione predefinita, senza alcuna giustificazione.
+
+{% endif %}{% if proc_reg %}
+Il presente reclamo riguarda un trattamento transfrontaliero. Ai sensi dell'articolo 4, paragrafo 1, del regolamento (UE) 2025/2518, per l'ammissibilità del reclamo non possono essere richieste informazioni ulteriori rispetto a quelle ivi elencate. L'autorità di controllo capofila deve presentare un progetto di decisione entro 15 mesi dalla conferma della propria competenza (articolo 12, paragrafo 1, del medesimo regolamento).
+
+{% endif %}
 Dati identificativi:
 - Nome: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

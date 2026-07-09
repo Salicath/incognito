@@ -102,5 +102,26 @@ URL and must never be stored.
   per-record expectations.
 - Commit name/email in third-party GitHub repos will be refused (immutable history) —
   the template sets expectations.
-- Reg (EU) 2025/2518 (15-month draft-decision cap) applies only to procedures initiated
-  after 2027-04-02 — complaint templates must not cite it before then.
+## Complaint content (verified against primary text, 2026-07-09)
+
+- **EDPB CEF-2025 rebuttal** (`edpb_cef` in `dpa_complaint`): rendered only when the
+  controller actually REFUSED. Cites the EDPB's *2025 Coordinated Enforcement Action —
+  Implementation of the right to erasure by controllers* (**adopted 10 February 2026**;
+  much press coverage says 18 Feb — the cover page says 10 Feb): exceptions are often
+  "treated as automatically applicable without conducting a case-by-case assessment";
+  anonymisation does not substitute for erasure where only basic pseudonymisation or
+  partial masking is applied; back-up data is often excluded "by default, without
+  providing a justification for doing so". Usable today.
+- **Reg (EU) 2025/2518** (`proc_reg`): gated on BOTH cross-border processing and
+  `date.today() >= 2027-04-02`. Art. 4(1) — not Art. 3 — lists the five admissibility
+  elements and says "No information additional to that referred to in the first
+  subparagraph shall be required"; Art. 12(1) sets the lead-SA 15-month draft-decision
+  deadline. It applies from 2 April 2027 (Art. 37(2)) to complaints **lodged** after
+  that date (Art. 36). A national Art. 55 case (Google Search RTBF, Snap, any
+  no-EU-establishment target) is NOT cross-border and must never carry these lines —
+  there is a test for exactly that.
+- **Correction to a common secondary-source error:** the 15-month cap's extension is
+  *once, up to 12 months*, for case complexity (Art. 12(3)). The widely-repeated "two
+  months" belongs to the separate 12-month simple-cooperation deadline (Art. 12(6)).
+- National procedural modalities (language, limitation, ID means, form, signature)
+  still apply alongside Art. 4(1) — Recital 33.

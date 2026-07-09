@@ -27,6 +27,13 @@ Główna jednostka organizacyjna administratora to {{ controller_entity }} ({{ c
 Niniejsza skarga dotyczy żądania usunięcia z wyników wyszukiwania (prawo do bycia zapomnianym) na podstawie art. 17 RODO w zastosowaniu do wyszukiwarek (TSUE C-131/12, Google Spain). Adres URL {{ delisting_url }} pojawia się w wynikach wyszukiwania mojego imienia i nazwiska{% if delisting_query %} („{{ delisting_query }}”){% endif %}. {% if delisting_channel == "email" %}Usunięcia zażądano pocztą elektroniczną na wyznaczony adres prywatności wyszukiwarki, a termin odpowiedzi upłynął.{% else %}Usunięcia zażądano za pośrednictwem formularza wyszukiwarki, a termin odpowiedzi upłynął.{% endif %} {% if delisting_no_oss %}Administratorem tego przetwarzania jest {{ delisting_controller }}; nie posiada on głównej jednostki organizacyjnej w UE dla tego przetwarzania, wobec czego mechanizm kompleksowej współpracy nie ma zastosowania, a organ ma pełną właściwość na podstawie art. 55 RODO.{% else %}Administratorem tego przetwarzania jest {{ delisting_controller }} z główną jednostką organizacyjną w {{ delisting_country }}; wiodącym organem nadzorczym jest {{ delisting_lead_sa }}. Wnoszę o przekazanie niniejszej skargi zgodnie z art. 56 RODO, o ile to właściwe.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+Administrator powołuje się na wyjątek z art. 17 ust. 3 RODO. Zwracam uwagę organu na sprawozdanie EROD ze skoordynowanego działania egzekucyjnego 2025 dotyczącego realizacji prawa do usunięcia danych (przyjęte 10 lutego 2026 r.), w którym stwierdzono, że wyjątki są często traktowane jako automatycznie stosowane bez oceny indywidualnej; że anonimizacja nie zastępuje usunięcia, gdy stosuje się jedynie podstawową pseudonimizację lub częściowe maskowanie; oraz że dane z kopii zapasowych są często wyłączane domyślnie, bez żadnego uzasadnienia.
+
+{% endif %}{% if proc_reg %}
+Niniejsza skarga dotyczy transgranicznego przetwarzania. Zgodnie z art. 4 ust. 1 rozporządzenia (UE) 2025/2518 do uznania skargi za dopuszczalną nie można wymagać informacji innych niż wymienione w tym przepisie. Wiodący organ nadzorczy musi przedstawić projekt decyzji w terminie 15 miesięcy od potwierdzenia swojej właściwości (art. 12 ust. 1 tego rozporządzenia).
+
+{% endif %}
 Dane identyfikacyjne:
 - Imię i nazwisko: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

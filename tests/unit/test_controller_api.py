@@ -198,3 +198,63 @@ def test_blast_excludes_controllers(authenticated_client):
     broker_ids = {r["broker_id"] for r in resp.json()["requests"]}
     assert "meta-com" not in broker_ids
     assert "github-com" not in broker_ids
+
+
+def test_edpb_cef_cited_only_when_controller_refused(authenticated_client):
+    """EDPB CEF-2025 findings rebut a refusal — citing them against silence
+    would be a non-sequitur in a real Art. 77 complaint."""
+    created = authenticated_client.post("/api/controllers/meta-com/request").json()
+    rid = created["request_id"]
+    authenticated_client.post(f"/api/requests/{rid}/transition", json={"action": "mark_sent"})
+
+    # overdue (silence), not refused -> no EDPB block
+    authenticated_client.post(f"/api/requests/{rid}/transition", json={"action": "mark_overdue"})
+    authenticated_client.post(f"/api/requests/{rid}/transition", json={"action": "mark_escalated"})
+    resp = authenticated_client.post(f"/api/blast/generate-complaint/{rid}")
+    assert "10. februar 2026" not in resp.json()["complaint_text"]
+
+    # now a refusal -> EDPB block appears
+    created2 = authenticated_client.post("/api/controllers/x-com/request").json()
+    rid2 = created2["request_id"]
+    authenticated_client.post(f"/api/requests/{rid2}/transition", json={"action": "mark_sent"})
+    authenticated_client.post(
+        f"/api/requests/{rid2}/transition",
+        json={"action": "mark_acknowledged", "details": "ack"},
+    )
+    authenticated_client.post(
+        f"/api/requests/{rid2}/transition",
+        json={"action": "mark_refused", "details": "Art. 17(3)(b) applies"},
+    )
+    authenticated_client.post(f"/api/requests/{rid2}/transition", json={"action": "mark_escalated"})
+    resp2 = authenticated_client.post(f"/api/blast/generate-complaint/{rid2}")
+    text2 = resp2.json()["complaint_text"]
+    assert "10. februar 2026" in text2          # EDPB CEF report date
+    assert "anonymisering" in text2.lower()
+
+
+def test_procedural_regulation_line_is_date_and_scope_gated(authenticated_client):
+    """Reg (EU) 2025/2518 applies only to cross-border processing and only to
+    complaints lodged on/after 2027-04-02 (Art. 36 + 37(2))."""
+    from datetime import date
+    from unittest.mock import patch
+
+    created = authenticated_client.post("/api/controllers/meta-com/request").json()
+    rid = created["request_id"]
+    for action in ("mark_sent", "mark_overdue", "mark_escalated"):
+        authenticated_client.post(f"/api/requests/{rid}/transition", json={"action": action})
+
+    # today (pre-2027) -> absent
+    resp = authenticated_client.post(f"/api/blast/generate-complaint/{rid}")
+    assert "2025/2518" not in resp.json()["complaint_text"]
+
+    # on/after the application date, for an IE-lead cross-border controller -> present
+    class FakeDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2027, 4, 2)
+
+    with patch("backend.api.blast._date", FakeDate):
+        resp = authenticated_client.post(f"/api/blast/generate-complaint/{rid}")
+    text = resp.json()["complaint_text"]
+    assert "2025/2518" in text
+    assert "15 måneder" in text
