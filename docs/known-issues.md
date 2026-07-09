@@ -6,10 +6,11 @@ remain, ranked. Each is anchored to a file so the next maintainer can pick one u
 
 ## Worth doing
 
-- **`time_locked` `escalation_after_days` is dead plumbing** (`core/time_locked.py`,
-  `brokers/time_locked.yaml`). It's carried into the kit JSON but nothing ever
-  escalates a FIRED hold after it, though the docs imply a T+30 step. Either wire
-  a follow-up escalation (a hold still FIRED 30 days on → nudge) or drop the field.
+- **`time_locked` `escalation_after_days` has no automatic action.** It is now
+  surfaced as guidance in the kit modal ("no reply within a month → Datatilsynet
+  complaint"), which matches the assist-only design. A fully-automatic escalation
+  would need a `fired_at`/reminder-stage on `TimeLockedState` (migration) — do that
+  only if the manual nudge proves insufficient.
 - **Web `/rescan` new-exposure detection is still cosmetic-only.** The scheduled
   CLI path was fixed (check-before-save); the web GET reads already-saved hits so
   `new_exposures` stays empty there. Fixing needs the check moved into `_run_scan`
@@ -25,9 +26,6 @@ remain, ranked. Each is anchored to a file so the next maintainer can pick one u
 - **`save_scan_results` has no dedup** (`core/rescan.py`). Every weekly rescan
   re-inserts hits, so a dismissed exposure reappears as a fresh `needs_triage` row.
   Carry disposition forward by (source, url) or dedup on insert.
-- **`Profile.addresses` is never collected in the UI** but the erasure/access
-  templates render it, and saving the profile from Settings/SetupWizard wipes any
-  stored addresses (hard-inits `addresses: []`). Add address fields.
 
 ## Low severity
 
@@ -66,4 +64,6 @@ rescan ordering + notify-on-GET spam; scan errors surfaced; scan stuck_timeout;
 CPR mutual-exclusion dead-end; newsletter unsubscribe button gate; App loading hang;
 Requests `?status=` filter; Brokers/DelistingKit error handling; HIBP "plain text"
 copy; imap status `last_error`; maigret `--folderoutput`; arm-past-expiry
-notification; Settings destructive-action confirms; CprLevers shared defer note.
+notification; Settings destructive-action confirms; CprLevers shared defer note;
+address capture (SetupWizard + Settings fields, preserve-on-save);
+`escalation_after_days` surfaced as kit guidance.

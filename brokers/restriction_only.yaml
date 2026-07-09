@@ -12,11 +12,13 @@ entries:
       documentation (Art. 17(3)(b)/(d); sundhedsloven, journalføringsbekendt-
       gørelsen). Errors are corrected by dated addition, never deletion.
     mitigation: >-
-      Privatmarkering blocks health-personnel access per episode or for the
-      whole record (sundhedsloven § 42 b): Min side > Mine registreringer >
-      Privatmarkering. FMK medicine entries: ask the prescribing doctor to
-      block. Audit who accessed you in "Min log". Caveat: emergencies can
-      bypass the marking.
+      Privatmarkering (a sundhed.dk feature) hides your record from other
+      health personnel on the platform, per episode or for the whole journal:
+      Min side > Mine registreringer > Privatmarkering. Note it is NOT the same
+      as a formal § 42 spærring in the source system (sundhed.dk's own help
+      says so); the substantive right to restrict access sits in sundhedsloven
+      § 42 a. FMK medicine entries: ask the prescribing doctor to block. Audit
+      who accessed you in "Min log". Caveat: emergencies can bypass the marking.
     mitigation_url: https://www.sundhed.dk/borger/min-side/
     requires_mitid: true
 

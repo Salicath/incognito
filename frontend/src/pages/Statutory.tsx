@@ -61,7 +61,7 @@ export default function Statutory() {
   const [triggerDate, setTriggerDate] = useState("");
   const [institution, setInstitution] = useState("");
   const [conservative, setConservative] = useState(false);
-  const [kit, setKit] = useState<{ title: string; text: string } | null>(null);
+  const [kit, setKit] = useState<{ title: string; text: string; escalationDays: number } | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function load() {
@@ -118,6 +118,7 @@ export default function Statutory() {
       setKit({
         title: `${entryName}${hold.institution ? ` — ${hold.institution}` : ""}`,
         text: resp.request_text,
+        escalationDays: resp.escalation_after_days,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load kit");
@@ -313,6 +314,11 @@ export default function Statutory() {
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
               Send this to the institution's DPO from your own mailbox — the
               retention duty has matured, so cite it with confidence.
+              {kit.escalationDays > 0 && (
+                <> No substantive reply within {Math.round(kit.escalationDays / 30) || 1} month
+                {(kit.escalationDays >= 60) ? "s" : ""} (Art. 12(3))? Escalate with a
+                Datatilsynet complaint.</>
+              )}
             </p>
             <textarea
               readOnly

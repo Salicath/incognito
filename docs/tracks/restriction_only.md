@@ -9,7 +9,7 @@ Facts verified against primary sources 2026-07-05.
 
 | id | Mitigation |
 |---|---|
-| `sundhedsjournalen` | Privatmarkering per episode/whole record (sundhedsloven § 42 b) via Min side; FMK blocking via prescribing doctor; access audit in Min log. Emergencies bypass. |
+| `sundhedsjournalen` | Privatmarkering (a sundhed.dk platform feature, NOT a formal § 42 spærring; substantive right is sundhedsloven § 42 a) per episode/whole record via Min side; FMK blocking via prescribing doctor; access audit in Min log. Emergencies bypass. |
 | `tinglysning` | Discharged rights: creditor aflyser → historical register with restricted access (BEK 763/2009 § 35, stk. 4); CPR numbers never public (TL § 50 c). |
 | `statstidende` | Name-search protection automatic after 1 year (§ 5, stk. 2); DB entries auto-delete after 5y (§ 15); wrong notices corrected by the editorial office (BEK 349/2014 § 8, stk. 2). Royal Library copies permanent. |
 | `cvr-historik` | CPR navne-/adressebeskyttelse auto-hides the address in CVR (CVR-loven § 18, stk. 4 — see CPR lever track). Name+role history permanent (§ 18, stk. 3). |
@@ -28,5 +28,12 @@ per-hit counterpart; these cards are the source-level explainer.
 
 ## Re-verify at refresh
 
-- sundhed.dk privatmarkering menu path/URL (SPA — verified from help pages).
-- Telelogning BEK number and expiry marker (annual renewal).
+Re-checked 2026-07-09: statstidende (§ 5 stk. 2 / § 15), domsdatabasen
+(`domsdatabasen@domstolsstyrelsen.dk`, BEK 2708/2021) and telelogning
+(BEK 397/2026, sunset 2027-03-29, Højesteret upheld DK logning) all still
+current. Open:
+
+- sundhedsjournalen legal basis: privatmarkering is a sundhed.dk feature, not
+  the § 42 spærring; the § 42 a vs § 42 b question wasn't pinned to primary
+  text — a legal-basis review would firm it up.
+- Telelogning BEK number + expiry marker (annual renewal — next: ~March 2027).

@@ -90,6 +90,7 @@ export default function Settings() {
   const [editPreviousNames, setEditPreviousNames] = useState<string[]>([]);
   const [editUsernames, setEditUsernames] = useState<string[]>([]);
   const [editDob, setEditDob] = useState("");
+  const [editAddress, setEditAddress] = useState({ street: "", city: "", postal_code: "", country: "" });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState({ type: "", text: "" });
 
@@ -127,6 +128,11 @@ export default function Settings() {
       setEditPreviousNames((prof.previous_names as string[]) || []);
       setEditUsernames((prof.usernames as string[]) || []);
       setEditDob((prof.date_of_birth as string) || "");
+      const addr = ((prof.addresses as Array<Record<string, string>>) || [])[0];
+      setEditAddress({
+        street: addr?.street || "", city: addr?.city || "",
+        postal_code: addr?.postal_code || "", country: addr?.country || "",
+      });
       if (smtpData.configured) {
         setSmtpForm({ host: smtpData.host || "", port: smtpData.port || 587, username: smtpData.username || "", password: "" });
       }
@@ -250,6 +256,11 @@ export default function Settings() {
         phones: editPhones.map((p) => p.trim()).filter(Boolean),
         usernames: editUsernames.map((u) => u.trim()).filter(Boolean),
         date_of_birth: editDob || undefined,
+        // Preserve/update the address — omitting it used to wipe it on every
+        // save, and erasure letters render it for identity verification.
+        addresses: Object.values(editAddress).some((v) => v.trim())
+          ? [editAddress]
+          : [],
       });
       setProfileMessage({ type: "success", text: "Profile saved." });
       setEditingProfile(false);
@@ -879,6 +890,40 @@ export default function Settings() {
                     onChange={(e) => setEditDob(e.target.value)}
                     className={inputClass}
                   />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Address <span className="text-gray-400">(rendered in erasure/access letters for identity verification)</span></label>
+                  <input
+                    type="text"
+                    value={editAddress.street}
+                    onChange={(e) => setEditAddress({ ...editAddress, street: e.target.value })}
+                    placeholder="Street and number"
+                    className={inputClass + " mb-2"}
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editAddress.postal_code}
+                      onChange={(e) => setEditAddress({ ...editAddress, postal_code: e.target.value })}
+                      placeholder="Postal code"
+                      className={inputClass}
+                    />
+                    <input
+                      type="text"
+                      value={editAddress.city}
+                      onChange={(e) => setEditAddress({ ...editAddress, city: e.target.value })}
+                      placeholder="City"
+                      className={inputClass}
+                    />
+                    <input
+                      type="text"
+                      value={editAddress.country}
+                      onChange={(e) => setEditAddress({ ...editAddress, country: e.target.value })}
+                      placeholder="Country"
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-2">

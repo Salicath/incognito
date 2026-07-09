@@ -88,6 +88,25 @@ def test_update_profile(client_with_smtp):
     assert resp.json()["full_name"] == "Updated Name"
 
 
+def test_update_profile_persists_address(client_with_smtp):
+    # The erasure/access letters render the address for identity verification;
+    # a profile save must round-trip it (the UI used to omit it and wipe it).
+    resp = client_with_smtp.post("/api/settings/profile", json={
+        "profile": {
+            "full_name": "Addr User",
+            "emails": ["addr@test.com"],
+            "addresses": [{
+                "street": "Testvej 1", "city": "København",
+                "postal_code": "1000", "country": "DK",
+            }],
+        },
+    })
+    assert resp.status_code == 200
+    addrs = client_with_smtp.get("/api/profile").json()["addresses"]
+    assert addrs and addrs[0]["postal_code"] == "1000"
+    assert addrs[0]["city"] == "København"
+
+
 def test_test_smtp_not_configured(client_no_smtp):
     resp = client_no_smtp.post("/api/settings/test-smtp")
     assert resp.status_code == 400

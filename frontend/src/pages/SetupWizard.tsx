@@ -36,6 +36,11 @@ export default function SetupWizard() {
           phones: profile.phones.filter((p) => p.trim()),
           usernames: usernamesInput.split(",").map((u) => u.trim()).filter(Boolean),
           date_of_birth: profile.date_of_birth || undefined,
+          // Drop an all-blank address so the letter template's {% if addresses %}
+          // guard doesn't render an empty ", ,  ," line.
+          addresses: profile.addresses.filter((a) =>
+            Object.values(a).some((v) => v.trim())
+          ),
         },
       });
       navigate("/");
@@ -85,6 +90,13 @@ export default function SetupWizard() {
             <input type="tel" placeholder="Phone (optional)" value={profile.phones[0]} onChange={(e) => setProfile({ ...profile, phones: [e.target.value] })} className={inputClass} />
             <input type="text" placeholder="Usernames / handles (optional, comma-separated)" value={usernamesInput} onChange={(e) => setUsernamesInput(e.target.value)} className={inputClass} />
             <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">Used by the account, archive, and code-leak scanners. You can add more later in Settings.</p>
+            <input type="text" placeholder="Street and number (optional)" value={profile.addresses[0]?.street ?? ""} onChange={(e) => setProfile({ ...profile, addresses: [{ street: e.target.value, city: profile.addresses[0]?.city ?? "", postal_code: profile.addresses[0]?.postal_code ?? "", country: profile.addresses[0]?.country ?? "" }] })} className={inputClass} />
+            <div className="flex gap-2">
+              <input type="text" placeholder="Postal code" value={profile.addresses[0]?.postal_code ?? ""} onChange={(e) => setProfile({ ...profile, addresses: [{ street: profile.addresses[0]?.street ?? "", city: profile.addresses[0]?.city ?? "", postal_code: e.target.value, country: profile.addresses[0]?.country ?? "" }] })} className={inputClass} />
+              <input type="text" placeholder="City" value={profile.addresses[0]?.city ?? ""} onChange={(e) => setProfile({ ...profile, addresses: [{ street: profile.addresses[0]?.street ?? "", city: e.target.value, postal_code: profile.addresses[0]?.postal_code ?? "", country: profile.addresses[0]?.country ?? "" }] })} className={inputClass} />
+              <input type="text" placeholder="Country" value={profile.addresses[0]?.country ?? ""} onChange={(e) => setProfile({ ...profile, addresses: [{ street: profile.addresses[0]?.street ?? "", city: profile.addresses[0]?.city ?? "", postal_code: profile.addresses[0]?.postal_code ?? "", country: e.target.value }] })} className={inputClass} />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">Rendered in erasure/access letters for identity verification. Optional but strengthens requests.</p>
             <div className="flex gap-3">
               <button onClick={() => setStep("password")} className="flex-1 border border-gray-300 dark:border-gray-600 py-2.5 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition">Back</button>
               <button onClick={() => { if (!profile.full_name.trim()) { setError("Name is required"); return; } if (!profile.emails[0]?.trim()) { setError("At least one email is required"); return; } setError(""); setStep("confirm"); }} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Continue</button>
