@@ -27,6 +27,13 @@ De hoofdvestiging van de verwerkingsverantwoordelijke is {{ controller_entity }}
 Deze klacht betreft een verzoek tot verwijdering uit zoekresultaten (recht op vergetelheid) op grond van artikel 17 AVG zoals toegepast op zoekmachines (HvJ-EU C-131/12, Google Spain). De URL {{ delisting_url }} verschijnt in de resultaten bij zoekopdrachten op mijn naam{% if delisting_query %} ("{{ delisting_query }}"){% endif %}. {% if delisting_channel == "email" %}De verwijdering is per e-mail aangevraagd bij het daarvoor aangewezen privacyadres van de zoekmachine; de antwoordtermijn is verstreken.{% else %}De verwijdering is aangevraagd via het daarvoor bestemde formulier van de zoekmachine; de antwoordtermijn is verstreken.{% endif %} {% if delisting_no_oss %}De verwerkingsverantwoordelijke voor deze verwerking is {{ delisting_controller }}; deze heeft voor deze verwerking geen hoofdvestiging in de EU, zodat het één-loketmechanisme niet van toepassing is en u volledig bevoegd bent op grond van artikel 55 AVG.{% else %}De verwerkingsverantwoordelijke voor deze verwerking is {{ delisting_controller }}, met hoofdvestiging in {{ delisting_country }}; de leidende toezichthoudende autoriteit is {{ delisting_lead_sa }}. Ik verzoek u deze klacht waar passend door te sturen op grond van artikel 56 AVG.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+De verwerkingsverantwoordelijke beroept zich op een uitzondering van artikel 17, lid 3, AVG. Ik wijs de autoriteit op het verslag van de EDPB over de gecoördineerde handhavingsactie 2025 inzake de uitvoering van het recht op gegevenswissing (vastgesteld op 10 februari 2026), waarin is vastgesteld dat uitzonderingen vaak als automatisch toepasselijk worden behandeld zonder beoordeling per geval; dat anonimisering geen vervanging is voor wissing wanneer slechts eenvoudige pseudonimisering of gedeeltelijke maskering wordt toegepast; en dat back-upgegevens vaak standaard worden uitgesloten zonder enige rechtvaardiging.
+
+{% endif %}{% if proc_reg %}
+Deze klacht betreft grensoverschrijdende verwerking. Op grond van artikel 4, lid 1, van Verordening (EU) 2025/2518 mag voor de ontvankelijkheid van de klacht geen andere informatie worden verlangd dan die welke daarin is opgesomd. De leidende toezichthoudende autoriteit moet binnen 15 maanden na bevestiging van haar bevoegdheid een ontwerpbesluit indienen (artikel 12, lid 1, van die verordening).
+
+{% endif %}
 Identificatiegegevens:
 - Naam: {{ profile.full_name }}
 - E-mail: {{ profile.emails | join(', ') }}

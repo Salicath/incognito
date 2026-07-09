@@ -27,6 +27,13 @@ Die Hauptniederlassung des Verantwortlichen ist {{ controller_entity }} ({{ cont
 Diese Beschwerde betrifft ein Auslistungsersuchen (Recht auf Vergessenwerden) nach Artikel 17 DSGVO in seiner Anwendung auf Suchmaschinen (EuGH C-131/12, Google Spain). Die URL {{ delisting_url }} erscheint in den Ergebnissen bei Suchen nach meinem Namen{% if delisting_query %} („{{ delisting_query }}“){% endif %}. {% if delisting_channel == "email" %}Die Auslistung wurde per E-Mail an die dafür vorgesehene Datenschutzadresse der Suchmaschine beantragt; die Antwortfrist ist verstrichen.{% else %}Die Auslistung wurde über das vorgesehene Formular der Suchmaschine beantragt; die Antwortfrist ist verstrichen.{% endif %} {% if delisting_no_oss %}Verantwortlicher für diese Verarbeitung ist {{ delisting_controller }}; er hat für diese Verarbeitung keine Hauptniederlassung in der EU, sodass das One-Stop-Shop-Verfahren keine Anwendung findet und Sie nach Artikel 55 DSGVO unmittelbar zuständig sind.{% else %}Verantwortlicher für diese Verarbeitung ist {{ delisting_controller }} mit Hauptniederlassung in {{ delisting_country }}; die federführende Aufsichtsbehörde ist {{ delisting_lead_sa }}. Ich bitte darum, diese Beschwerde gegebenenfalls nach Artikel 56 DSGVO weiterzuleiten.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+Der Verantwortliche beruft sich auf eine Ausnahme nach Artikel 17 Absatz 3 DSGVO. Ich verweise auf den Bericht des EDSA zur koordinierten Prüfaktion 2025 über die Umsetzung des Rechts auf Löschung (angenommen am 10. Februar 2026), wonach Ausnahmen häufig als automatisch anwendbar behandelt werden, ohne eine Einzelfallprüfung vorzunehmen; dass Anonymisierung die Löschung nicht ersetzt, wenn lediglich eine einfache Pseudonymisierung oder teilweise Maskierung erfolgt; und dass Sicherungskopien oft standardmäßig und ohne Begründung ausgenommen werden.
+
+{% endif %}{% if proc_reg %}
+Diese Beschwerde betrifft eine grenzüberschreitende Verarbeitung. Nach Artikel 4 Absatz 1 der Verordnung (EU) 2025/2518 dürfen für die Zulässigkeit der Beschwerde keine weiteren als die dort genannten Angaben verlangt werden. Die federführende Aufsichtsbehörde hat innerhalb von 15 Monaten nach Bestätigung ihrer Zuständigkeit einen Beschlussentwurf vorzulegen (Artikel 12 Absatz 1 dieser Verordnung).
+
+{% endif %}
 Meine Angaben:
 - Name: {{ profile.full_name }}
 - E-Mail: {{ profile.emails | join(', ') }}

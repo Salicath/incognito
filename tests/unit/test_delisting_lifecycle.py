@@ -594,3 +594,30 @@ def test_ddg_region_follows_user_country():
     assert ddg_region_for_country("de") == "de-de"      # case-insensitive
     assert ddg_region_for_country("") == "dk-da"        # fallback
     assert ddg_region_for_country("ZZ") == "dk-da"      # unknown -> fallback
+
+
+def test_google_art55_never_cites_procedural_regulation(client, config):
+    """Reg (EU) 2025/2518's admissibility/15-month rules are for CROSS-BORDER
+    processing. Google Search RTBF is a national Art. 55 case against Google
+    LLC — the line must stay out even after the 2027 application date."""
+    from datetime import date
+    from unittest.mock import patch
+
+    eid = _seed_url_exposure(config)
+    created = client.post(
+        f"/api/scan/exposures/{eid}/delisting-request", json={"engine": "google"},
+    ).json()
+    rid = created["request_id"]
+    client.post(f"/api/requests/{rid}/transition", json={"action": "mark_overdue"})
+    client.post(f"/api/requests/{rid}/transition", json={"action": "mark_escalated"})
+
+    class FakeDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2030, 1, 1)  # long after the application date
+
+    with patch("backend.api.blast._date", FakeDate):
+        resp = client.post(f"/api/blast/generate-complaint/{rid}")
+    text = resp.json()["complaint_text"]
+    assert "2025/2518" not in text
+    assert "artikel 55" in text  # still the national-competence wording

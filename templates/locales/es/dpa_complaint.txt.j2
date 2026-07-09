@@ -27,6 +27,13 @@ El establecimiento principal del responsable es {{ controller_entity }} ({{ cont
 La presente reclamación se refiere a una solicitud de retirada de resultados de búsqueda (derecho al olvido) conforme al artículo 17 del RGPD según se aplica a los motores de búsqueda (TJUE C-131/12, Google Spain). La URL {{ delisting_url }} aparece en los resultados al buscar mi nombre{% if delisting_query %} («{{ delisting_query }}»){% endif %}. {% if delisting_channel == "email" %}La retirada se solicitó por correo electrónico a la dirección de privacidad designada del buscador, y el plazo de respuesta ha vencido.{% else %}La retirada se solicitó mediante el formulario del buscador, y el plazo de respuesta ha vencido.{% endif %} {% if delisting_no_oss %}El responsable de este tratamiento es {{ delisting_controller }}; carece de establecimiento principal en la UE para este tratamiento, por lo que no se aplica el mecanismo de ventanilla única y esa autoridad tiene plena competencia conforme al artículo 55 del RGPD.{% else %}El responsable de este tratamiento es {{ delisting_controller }}, con establecimiento principal en {{ delisting_country }}; la autoridad de control principal es {{ delisting_lead_sa }}. Solicito que esta reclamación se remita conforme al artículo 56 del RGPD cuando proceda.{% endif %}
 
 {% endif %}
+{% if edpb_cef %}
+El responsable invoca una excepción del artículo 17, apartado 3, del RGPD. Señalo a la autoridad el informe del CEPD sobre la acción coordinada de ejecución de 2025 relativa a la aplicación del derecho de supresión (adoptado el 10 de febrero de 2026), que constató que las excepciones se tratan a menudo como automáticamente aplicables sin realizar una evaluación caso por caso; que la anonimización no sustituye a la supresión cuando solo se aplica una seudonimización básica o un enmascaramiento parcial; y que los datos de copia de seguridad se excluyen con frecuencia por defecto, sin justificación alguna.
+
+{% endif %}{% if proc_reg %}
+La presente reclamación se refiere a un tratamiento transfronterizo. Con arreglo al artículo 4, apartado 1, del Reglamento (UE) 2025/2518, no podrá exigirse información adicional a la enumerada en dicha disposición para que la reclamación sea admisible. La autoridad de control principal deberá presentar un proyecto de decisión en un plazo de 15 meses desde que confirme su competencia (artículo 12, apartado 1, del mismo Reglamento).
+
+{% endif %}
 Datos identificativos:
 - Nombre: {{ profile.full_name }}
 - Correo electrónico: {{ profile.emails | join(', ') }}
