@@ -5,11 +5,11 @@ Self-hosted tool that automates GDPR and CCPA personal data removal requests.
 [![CI](https://github.com/Salicath/incognito/actions/workflows/ci.yml/badge.svg)](https://github.com/Salicath/incognito/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/Tests-477_passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-497_passing-brightgreen.svg)](tests/)
 
 ## What It Does
 
-Incognito scans for your personal data across 220 data brokers, 16 tech giants and the open web, sends legally-binding GDPR Art. 17 and CCPA deletion requests, tracks the 30-day compliance deadline, monitors for broker replies via IMAP, and generates DPA complaints when controllers fail to respond. Beyond brokers it covers tech-giant account erasure, search-engine delisting (RTBF), Danish registry-level protections (CPR levers), statutory retention holds that fire the moment erasure becomes demandable, and honest "this is legally undeletable — here is what you can do" guidance. Everything runs on your own machine — no cloud, no telemetry, no third-party accounts.
+Incognito scans for your personal data across 228 data brokers, 16 tech giants and the open web, sends legally-binding GDPR Art. 17 and CCPA deletion requests, tracks the 30-day compliance deadline, monitors for broker replies via IMAP, and generates DPA complaints when controllers fail to respond. Beyond brokers it covers tech-giant account erasure, search-engine delisting (RTBF), Danish registry-level protections (CPR levers), statutory retention holds that fire the moment erasure becomes demandable, and honest "this is legally undeletable — here is what you can do" guidance. Everything runs on your own machine — no cloud, no telemetry, no third-party accounts.
 
 **Free alternative to DeleteMe ($129/year) and Incogni ($78/year).**
 
@@ -23,7 +23,7 @@ Incognito scans for your personal data across 220 data brokers, 16 tech giants a
 
 ## Key Features
 
-- **220 data brokers** (EU/Nordic-focused, plus US and international)
+- **228 data brokers** (EU/Nordic-focused, plus US and international)
 - **Tech-giant erasure** — 16 hand-verified controllers (Meta, Google, Reddit, ...) with per-platform filing kits and jurisdiction-aware DPA escalation
 - **Search-engine delisting** — Google/Bing/Brave RTBF kits with tracked lifecycle, decision-email matching and resurfacing alerts
 - **Danish CPR levers & statutory tracks** — one MitID action covers whole broker clusters; retention holds fire an Art. 17 the day the legal duty matures
@@ -138,7 +138,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). The easiest way to contribute is adding 
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -v      # 477 tests
+pytest tests/ -v      # 497 tests
 ruff check .          # Lint
 cd frontend && npm run dev  # Frontend dev server
 ```
