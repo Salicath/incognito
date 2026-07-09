@@ -117,24 +117,61 @@ async def verify_delisted_urls(
     return alerts
 
 
+def _hit_url(data) -> str:
+    return data.get("url", "") if isinstance(data, dict) else ""
+
+
 def save_scan_results(
     session: Session,
     hits: list[dict],
     source: str = "duckduckgo",
 ) -> int:
-    """Persist scan results to the database. Returns number saved."""
-    saved = 0
+    """Persist scan results, refreshing rows that already exist.
+
+    An exposure's identity is (source, broker_id, url). Re-inserting a row per
+    scan would resurrect a hit the user already dismissed as a fresh
+    needs_triage entry after every weekly rescan — so an existing row is
+    refreshed in place (new snippet, new scanned_at) and keeps its disposition.
+
+    Returns the number of NEW exposures (rows inserted).
+    """
+    inserted = 0
     for hit in hits:
-        result = ScanResult(
+        broker_id = hit.get("broker_domain", "")
+        url = _hit_url(hit)
+
+        existing = None
+        for row in (
+            session.query(ScanResult)
+            .filter(ScanResult.source == source, ScanResult.broker_id == broker_id)
+            .all()
+        ):
+            if _hit_url(_safe_load(row.found_data)) == url:
+                existing = row
+                break
+
+        if existing is not None:
+            # Refresh the evidence, preserve the user's triage decision.
+            existing.found_data = json.dumps(hit)
+            existing.scanned_at = datetime.now(UTC)
+            continue
+
+        session.add(ScanResult(
             source=source,
-            broker_id=hit.get("broker_domain", ""),
+            broker_id=broker_id,
             found_data=json.dumps(hit),
             scanned_at=datetime.now(UTC),
-        )
-        session.add(result)
-        saved += 1
+        ))
+        inserted += 1
     session.commit()
-    return saved
+    return inserted
+
+
+def _safe_load(text: str):
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return {}
 
 
 def check_for_reappearances(

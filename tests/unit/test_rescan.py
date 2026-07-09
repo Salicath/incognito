@@ -25,6 +25,47 @@ def test_save_scan_results():
     session.close()
 
 
+def test_rescan_preserves_dismissed_disposition():
+    # A dismissed exposure must not come back as needs_triage after the next
+    # weekly rescan re-finds the same hit.
+    from backend.db.models import ScanResult
+
+    session = make_session()
+    hit = {"broker_domain": "spokeo.com", "broker_name": "Spokeo", "snippet": "v1", "url": "https://spokeo.com/x"}
+    assert save_scan_results(session, [hit], source="duckduckgo") == 1
+
+    row = session.query(ScanResult).one()
+    row.disposition = "dismissed"
+    row.note = "not me"
+    session.commit()
+
+    # same hit, fresh snippet — refreshed in place, still dismissed, no new row
+    hit2 = {**hit, "snippet": "v2"}
+    assert save_scan_results(session, [hit2], source="duckduckgo") == 0
+
+    rows = session.query(ScanResult).all()
+    assert len(rows) == 1
+    assert rows[0].disposition == "dismissed"
+    assert rows[0].note == "not me"
+    assert "v2" in rows[0].found_data  # evidence refreshed
+    session.close()
+
+
+def test_dedup_is_scoped_by_source_and_url():
+    from backend.db.models import ScanResult
+
+    session = make_session()
+    base = {"broker_domain": "spokeo.com", "broker_name": "Spokeo"}
+    save_scan_results(session, [{**base, "url": "https://spokeo.com/a"}], source="duckduckgo")
+    # different URL on the same broker -> a distinct exposure
+    save_scan_results(session, [{**base, "url": "https://spokeo.com/b"}], source="duckduckgo")
+    # same URL but a different scanner -> a distinct exposure
+    save_scan_results(session, [{**base, "url": "https://spokeo.com/a"}], source="wayback")
+
+    assert session.query(ScanResult).count() == 3
+    session.close()
+
+
 def test_detect_reappearance():
     session = make_session()
 
