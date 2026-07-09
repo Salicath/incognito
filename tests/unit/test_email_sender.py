@@ -73,3 +73,20 @@ async def test_email_sender_send_failure(smtp_config):
     assert result.status == SenderStatus.FAILURE
     assert "dpo@broker.com" in result.message
     assert "Check SMTP settings" in result.message
+
+
+def test_subject_header_injection_is_neutralized(smtp_config):
+    """A newsletter's mailto ?subject= is rendered verbatim — a CRLF in it is a
+    header-injection attempt and used to raise an unhandled ValueError (500)."""
+    sender = EmailSender(smtp_config)
+    rendered = "Subject: Unsub\rBcc: victim@evil.com\n\nbody"
+    msg = sender.build_message("dpo@broker.com", rendered)
+    assert "\r" not in msg["Subject"] and "\n" not in msg["Subject"]
+    assert msg["Bcc"] is None
+    assert "victim@evil.com" not in str(msg["To"])
+
+
+def test_recipient_crlf_is_stripped(smtp_config):
+    sender = EmailSender(smtp_config)
+    msg = sender.build_message("dpo@broker.com\nBcc: x@evil.com", "Subject: S\n\nbody")
+    assert "\n" not in msg["To"]

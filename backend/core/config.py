@@ -21,6 +21,7 @@ class AppConfig(BaseSettings):
     trusted_proxy_header: str = ""  # e.g. "Remote-User" for Authentik/Authelia
     user_country: str = "DK"  # Residence SA for controller-track Art. 77 complaints
     searxng_url: str = ""  # Self-hosted SearXNG sidecar (e.g. http://127.0.0.1:8888)
+    metrics_token: str = ""  # If set, /api/metrics requires "Authorization: Bearer <token>"
 
     def setup_logging(self) -> logging.Logger:
         level = getattr(logging, self.log_level.upper(), None)

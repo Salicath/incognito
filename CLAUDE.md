@@ -88,7 +88,7 @@ Ntfy messages include priority levels and emoji tags. Notifications never crash 
 
 ## Security Model
 
-- Login rate limiting: 5 failures = 10min lockout
+- Login rate limiting: 5 failures = 10min lockout. Keyed on the socket peer, or — when `INCOGNITO_TRUSTED_PROXY_HEADER` is set — the rightmost `X-Forwarded-For` hop (the one the trusted proxy appended), so one client can't lock out everyone behind the proxy
 - Sessions: max 3 concurrent, auto-expire after 30min idle
 - Security headers on all responses (X-Frame-Options, CSP-adjacent, etc.)
 - File permissions: 0600 on vault/db, 0700 on data dir
@@ -99,6 +99,8 @@ Ntfy messages include priority levels and emoji tags. Notifications never crash 
 - CORS locked to localhost by default (configurable via INCOGNITO_CORS_ORIGINS)
 - Swagger/ReDoc disabled in production
 - Reverse proxy header is surfaced on `/api/auth/status` as `proxy_auth` (Authentik/Authelia/Traefik), but does NOT bypass the vault unlock — the master password is always required (the vault key derives from it)
+- `/api/metrics` is open by default (loopback bind); set `INCOGNITO_METRICS_TOKEN` to require a bearer token before exposing it
+- Outgoing email headers (To/Cc/Subject) are CR/LF-stripped — a newsletter's `List-Unsubscribe` mailto `?subject=` is untrusted input and was a header-injection / 500 vector
 - Error messages sanitized (internals logged, generic messages to client)
 
 ## Testing
