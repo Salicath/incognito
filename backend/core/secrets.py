@@ -18,6 +18,9 @@ LEGACY_FILES = {
     "github": "github_token.txt",
 }
 
+# Secrets that were vault-only from the start (no plaintext file ever existed).
+VAULT_ONLY = {"simplelogin"}
+
 
 def read_secret(
     vault: ProfileVault, data_dir: Path, key: bytes, salt: bytes, name: str
@@ -27,7 +30,10 @@ def read_secret(
     if value:
         return value
 
-    legacy = data_dir / LEGACY_FILES[name]
+    legacy_name = LEGACY_FILES.get(name)
+    if not legacy_name:
+        return None
+    legacy = data_dir / legacy_name
     if legacy.exists():
         migrated = legacy.read_text().strip()
         if migrated:
@@ -46,4 +52,6 @@ def remove_secret(
 ) -> None:
     vault.delete_secret(name, key, salt)
     # Also clear any legacy file that predates the vault migration.
-    (data_dir / LEGACY_FILES[name]).unlink(missing_ok=True)
+    legacy_name = LEGACY_FILES.get(name)
+    if legacy_name:
+        (data_dir / legacy_name).unlink(missing_ok=True)

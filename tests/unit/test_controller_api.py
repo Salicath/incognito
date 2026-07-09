@@ -293,3 +293,71 @@ def test_edpb_block_absent_when_controller_only_acknowledged(authenticated_clien
     text = resp.json()["complaint_text"]
     assert "10. februar 2026" not in text   # no EDPB rebuttal
     assert "artikel 17, stk. 3" not in text  # no "relies on an exception" claim
+
+
+# ---------------------------------------------------------------------------
+# Alias track wiring (see docs/tracks/alias.md)
+# ---------------------------------------------------------------------------
+
+
+def _enable_aliasing(client):
+    assert client.post(
+        "/api/settings/simplelogin", json={"api_key": "sl-key"}
+    ).status_code == 200
+
+
+def _fake_simplelogin():
+    sl = patch("backend.core.alias_resolver.SimpleLoginClient")
+    m = sl.start()
+    m.return_value.create_alias = AsyncMock(return_value=(7, "abc@aleeas.com"))
+    m.return_value.create_reverse_alias = AsyncMock(
+        return_value=(42, "reply+x@simplelogin.co")
+    )
+    return sl
+
+
+def test_controller_send_goes_to_the_reverse_alias(authenticated_client):
+    """amazon-de has no CC and no account-email requirement — it gets an alias,
+    so eu-privacy@amazon.de never learns the real mailbox."""
+    _enable_aliasing(authenticated_client)
+    sl = _fake_simplelogin()
+    try:
+        with patch(
+            "backend.api.controllers.EmailSender.send", new_callable=AsyncMock
+        ) as mock_send:
+            mock_send.return_value = SenderResult(status=SenderStatus.SUCCESS, message="ok")
+            resp = authenticated_client.post("/api/controllers/amazon-de/request")
+    finally:
+        sl.stop()
+
+    assert resp.status_code == 200
+    assert mock_send.await_args.kwargs["to_email"] == "reply+x@simplelogin.co"
+
+
+def test_cc_controllers_are_not_aliased(authenticated_client):
+    """github-com CCs dpo@github.com. A reverse-alias delivers only to its one
+    contact, so the CC would be served straight from the real mailbox — which
+    leaks the address the alias exists to hide. Don't alias; send as before."""
+    _enable_aliasing(authenticated_client)
+    sl = _fake_simplelogin()
+    try:
+        with patch(
+            "backend.api.controllers.EmailSender.send", new_callable=AsyncMock
+        ) as mock_send:
+            mock_send.return_value = SenderResult(status=SenderStatus.SUCCESS, message="ok")
+            resp = authenticated_client.post("/api/controllers/github-com/request")
+    finally:
+        sl.stop()
+
+    assert resp.status_code == 200
+    assert mock_send.await_args.kwargs["to_email"] == "privacy@github.com"
+
+
+def test_no_simplelogin_key_means_unchanged_sending(authenticated_client):
+    with patch(
+        "backend.api.controllers.EmailSender.send", new_callable=AsyncMock
+    ) as mock_send:
+        mock_send.return_value = SenderResult(status=SenderStatus.SUCCESS, message="ok")
+        resp = authenticated_client.post("/api/controllers/amazon-de/request")
+    assert resp.status_code == 200
+    assert mock_send.await_args.kwargs["to_email"] == "eu-privacy@amazon.de"

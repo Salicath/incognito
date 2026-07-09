@@ -128,6 +128,36 @@ def create_settings_router(
         remove_secret(vault, config.data_dir, key, salt, "github")
         return {"status": "deleted"}
 
+    @r.get("/simplelogin")
+    def get_simplelogin_status(session: str | None = Cookie(default=None)):
+        key, salt = session_store.validate(session)
+        value = read_secret(vault, config.data_dir, key, salt, "simplelogin")
+        if value:
+            return {"configured": True, "key_preview": _secret_preview(value)}
+        return {"configured": False}
+
+    @r.post("/simplelogin")
+    def update_simplelogin_key(body: dict, session: str | None = Cookie(default=None)):
+        key, salt = session_store.validate(session)
+        value = body.get("api_key", "").strip()
+        if not value:
+            raise HTTPException(status_code=400, detail="API key required")
+        if len(value) > 10_000:
+            raise HTTPException(status_code=400, detail="API key too long")
+        write_secret(vault, key, salt, "simplelogin", value)
+        return {"status": "saved"}
+
+    @r.delete("/simplelogin")
+    def delete_simplelogin_key(session: str | None = Cookie(default=None)):
+        """Stop minting new aliases.
+
+        Existing BrokerAlias rows stay: they are the only way to route replies
+        already in flight, and deleting them would strand open requests.
+        """
+        key, salt = session_store.validate(session)
+        remove_secret(vault, config.data_dir, key, salt, "simplelogin")
+        return {"status": "deleted"}
+
     @r.post("/test-smtp")
     async def test_smtp(session: str | None = Cookie(default=None)):
         key, _salt = session_store.validate(session)
