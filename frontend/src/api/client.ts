@@ -31,7 +31,6 @@ export const api = {
     request("/setup", { method: "POST", body: JSON.stringify(data) }),
   getProfile: () => request<Record<string, unknown>>("/profile"),
   getBrokers: () => request<Array<Record<string, unknown>>>("/brokers"),
-  getBroker: (id: string) => request<Record<string, unknown>>(`/brokers/${id}`),
   getControllers: () => request<Array<Record<string, unknown>>>("/controllers"),
   createControllerRequest: (id: string) =>
     request<{ request_id: string; status: string; kit: Record<string, unknown> }>(
@@ -170,17 +169,11 @@ export const api = {
   getNewsletterResults: () =>
     request<{ has_results: boolean; checked: number; hits: Array<{ sender: string; sender_name: string; sender_domain: string; one_click: boolean; subject: string }>; errors: string[] }>("/scan/newsletters/results"),
   getNewsletterStatus: () => request<{ running: boolean; progress: number; total: number; error: string | null; email: string }>("/scan/newsletters/status"),
-  getScanHistory: () =>
-    request<{
-      results: Array<{ id: number; source: string; broker_id: string; found_data: unknown; scanned_at: string | null; actioned: boolean }>;
-      total: number;
-    }>("/scan/history"),
   getImapStatus: () => request<{ configured: boolean; host?: string; port?: number; username?: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean }>("/settings/imap"),
   saveImap: (imap: { host: string; port: number; username: string; password: string; folder?: string; poll_interval_minutes?: number; starttls?: boolean }) =>
     request("/settings/imap", { method: "POST", body: JSON.stringify({ imap }) }),
   deleteImap: () => request("/settings/imap", { method: "DELETE" }),
   testImap: () => request<{ status: string; folders: string[] }>("/settings/imap/test", { method: "POST" }),
-  getImapPollerStatus: () => request<{ enabled: boolean; last_check: string | null; matched_count: number; unmatched_count: number; poll_interval_minutes: number | null; last_error: string | null }>("/settings/imap/status"),
   getSmtpStatus: () => request<{ configured: boolean; host?: string; port?: number; username?: string }>("/settings/smtp"),
   saveSmtp: (smtp: { host: string; port: number; username: string; password: string }) =>
     request("/settings/smtp", { method: "POST", body: JSON.stringify({ smtp }) }),
@@ -188,8 +181,6 @@ export const api = {
   saveProfile: (profile: { full_name: string; previous_names?: string[]; emails: string[]; phones: string[]; usernames?: string[]; date_of_birth?: string; addresses?: Array<{ street: string; city: string; postal_code: string; country: string }> }) =>
     request("/settings/profile", { method: "POST", body: JSON.stringify({ profile }) }),
   testSmtp: () => request<{ status: string; message: string }>("/settings/test-smtp", { method: "POST" }),
-  getAuditTrail: () =>
-    request<{ generated_at: string; total_requests: number; trail: Array<Record<string, unknown>> }>("/requests/export/audit-trail"),
   getExposureReport: () =>
     request<{
       generated_at: string;
@@ -203,10 +194,6 @@ export const api = {
     request<{ configured: boolean; url: string | null }>("/settings/notifications"),
   testNotification: () =>
     request<{ status: string }>("/settings/notifications/test", { method: "POST" }),
-  exportBackup: (password: string) =>
-    request<Record<string, unknown>>("/settings/backup/export", { method: "POST", body: JSON.stringify({ password }) }),
-  importBackup: (data: Record<string, unknown>) =>
-    request<{ status: string; message: string }>("/settings/backup/import", { method: "POST", body: JSON.stringify(data) }),
   importCsv: (csv: string) =>
     request<{ imported: number; skipped: number; errors: string[] }>("/settings/import-csv", { method: "POST", body: JSON.stringify({ csv }) }),
 };

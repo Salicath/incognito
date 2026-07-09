@@ -129,7 +129,7 @@ def check_time_locked_expiries(db, registry: TimeLockedRegistry) -> TimeLockedCh
         label = entry.name if entry else state.entry_id
         who = f" ({state.institution})" if state.institution else ""
         notify(
-            EventType.REQUEST_OVERDUE,
+            EventType.RETENTION_LAPSED,
             f"Statutory retention lapsed: {label}{who}",
             "The retention period blocking erasure has matured — send the "
             "Art. 17 now (kit on the Statutory page).",

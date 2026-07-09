@@ -108,7 +108,7 @@ def create_statutory_router(
                 label = entry.name
                 who = f" ({state.institution})" if state.institution else ""
                 notify(
-                    EventType.REQUEST_OVERDUE,
+                    EventType.RETENTION_LAPSED,
                     f"Statutory retention already lapsed: {label}{who}",
                     "The retention period blocking erasure has already matured — "
                     "send the Art. 17 now (kit on the Statutory page).",

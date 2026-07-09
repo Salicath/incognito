@@ -645,9 +645,11 @@ def rescan():
 
         # Granted delistings: bare name queries (the broker scan is site:-scoped
         # and would never see a delisted news article resurface)
-        from backend.core.rescan import verify_delisted_urls
+        from backend.core.rescan import ddg_region_for_country, verify_delisted_urls
 
-        resurfaced = asyncio.run(verify_delisted_urls(db, profile))
+        resurfaced = asyncio.run(verify_delisted_urls(
+            db, profile, region=ddg_region_for_country(config.user_country),
+        ))
         if resurfaced:
             console.print(
                 f"\n[bold red]WARNING: {len(resurfaced)} delisted URL(s) "

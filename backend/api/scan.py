@@ -211,8 +211,6 @@ def create_scan_router(
                             "broker_name": h.service,
                             "email": report.email,
                             "url": h.url,
-                            "email_recovery": h.email_recovery,
-                            "phone_recovery": h.phone_recovery,
                         }
                         for h in report.hits
                     ]
@@ -831,7 +829,11 @@ def create_scan_router(
         session_store.validate(session)
         report = _breach_state.get("report")
         if report is None:
-            return {"has_results": False, "breaches": [], "email": "", "error": None}
+            # total_breaches is non-optional in the client contract
+            return {
+                "has_results": False, "breaches": [], "email": "",
+                "total_breaches": 0, "error": None,
+            }
         return {
             "has_results": True,
             "email": report.email,

@@ -23,22 +23,10 @@ remain, ranked. Each is anchored to a file so the next maintainer can pick one u
 
 ## Low severity
 
-- **`time_locked` fire notification reuses `EventType.REQUEST_OVERDUE`**
-  (`core/time_locked.py`) — webhook/ntfy consumers see a "request_overdue" warning
-  for a "retention lapsed, send now" prompt. Add a dedicated event type.
-- **`verify_delisted_urls` hardcodes `region="dk-da"`** (`core/rescan.py`), ignoring
-  `INCOGNITO_USER_COUNTRY`. A GB/DE user's RTBF filter is market-scoped (C-507/17),
-  so DK region is wrong for them. Needs a country→`kl` map (DK→dk-da, GB→uk-en, ...).
-- **Modal a11y** (`Controllers.tsx`, `Statutory.tsx`) — the filing-kit overlays are
-  plain fixed `div`s with no `role="dialog"`/`aria-modal`/focus trap/Esc close.
-  Legally significant "I filed it" actions live in them.
-- **`EmailThread.tsx` is unreadable in dark mode** — `bg-blue-50`/`bg-green-50` have
-  no dark variants while the text switches to light shades (light-on-light).
-- **Dead code**: `AccountHit.email_recovery`/`phone_recovery` (always null, holehe
-  legacy), and unused `api/client.ts` methods (`exportBackup`, `importBackup`,
-  `getBroker`, `getScanHistory`, `getImapPollerStatus`, `getAuditTrail` — Settings
-  re-implements backup with raw `fetch`). `BreachResults.total_breaches` is typed
-  required but omitted in the no-report branch.
+_(none outstanding — the Phase 5 read-through list is cleared.)_
+
+New findings should be appended here with a file anchor and a concrete
+failure scenario, the same way the read-through recorded them.
 
 ## Fixed in this pass (for reference)
 
@@ -52,4 +40,8 @@ address capture (SetupWizard + Settings fields, preserve-on-save);
 `escalation_after_days` surfaced as kit guidance; scan-result dedup
 (dismissed exposures no longer resurrect each rescan); deep-scan results
 accumulate across all usernames; proxy-aware login rate limiting;
-optional `/api/metrics` bearer token; email header CR/LF sanitization.
+optional `/api/metrics` bearer token; email header CR/LF sanitization;
+dedicated `RETENTION_LAPSED` event; `verify_delisted_urls` region follows
+`INCOGNITO_USER_COUNTRY`; accessible `<Modal>` (role/aria/Esc/backdrop) for
+both filing kits; `EmailThread` dark mode; dead client methods and
+always-null `AccountHit` recovery fields removed; `total_breaches` contract.

@@ -144,6 +144,39 @@ jobs:
           print('All controller records valid')
           "
 
+      - name: Docs claim the real registry counts
+        run: |
+          python -c "
+          from pathlib import Path
+          import re, sys, yaml
+
+          brokers = 0
+          for f in sorted(Path('brokers').glob('*.yaml')):
+              if f.stem in ('schema','cpr_levers','controllers','time_locked','restriction_only'):
+                  continue
+              d = yaml.safe_load(f.read_text())
+              if d and isinstance(d, dict) and 'name' in d:
+                  brokers += 1
+          controllers = len(yaml.safe_load(Path('brokers/controllers.yaml').read_text())['controllers'])
+
+          errors = []
+          for doc in ('README.md', 'CLAUDE.md'):
+              text = Path(doc).read_text()
+              for claimed in re.findall(r'(\d+) (?:data )?brokers', text):
+                  if int(claimed) != brokers:
+                      errors.append(f'{doc}: claims {claimed} brokers, registry has {brokers}')
+              for claimed in re.findall(r'(\d+) controllers', text):
+                  if int(claimed) != controllers:
+                      errors.append(f'{doc}: claims {claimed} controllers, registry has {controllers}')
+
+          print(f'Registry: {brokers} brokers, {controllers} controllers')
+          if errors:
+              for e in errors:
+                  print(f'ERROR: {e}')
+              sys.exit(1)
+          print('Docs match the registries')
+          "
+
       - name: Validate statutory registries
         run: |
           python -c "

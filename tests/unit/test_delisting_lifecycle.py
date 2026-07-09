@@ -582,3 +582,15 @@ async def test_brave_delisting_gets_email_follow_up():
     assert result.follow_ups_sent == 1
     assert mock_send.await_args.kwargs["to_email"] == "privacy@brave.com"
     session.close()
+
+
+def test_ddg_region_follows_user_country():
+    """Delisting is market-scoped (C-507/17) — a GB user's RTBF filter applies
+    to the UK market, so re-verification must not query the DK region."""
+    from backend.core.rescan import ddg_region_for_country
+
+    assert ddg_region_for_country("DK") == "dk-da"
+    assert ddg_region_for_country("GB") == "uk-en"
+    assert ddg_region_for_country("de") == "de-de"      # case-insensitive
+    assert ddg_region_for_country("") == "dk-da"        # fallback
+    assert ddg_region_for_country("ZZ") == "dk-da"      # unknown -> fallback

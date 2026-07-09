@@ -27,6 +27,8 @@ class EventType(enum.StrEnum):
     FOLLOW_UP_COMPLETE = "follow_up_complete"
     LEVER_RENEWAL_DUE = "lever_renewal_due"
     LEVER_EXPIRED = "lever_expired"
+    # A statutory retention hold matured: not a warning, an action prompt
+    RETENTION_LAPSED = "retention_lapsed"
 
 
 # Map event types to Ntfy priorities and tags
@@ -40,6 +42,7 @@ _NTFY_META: dict[EventType, tuple[str, str]] = {
     EventType.FOLLOW_UP_COMPLETE: ("3", "calendar"),
     EventType.LEVER_RENEWAL_DUE: ("4", "calendar"),
     EventType.LEVER_EXPIRED: ("5", "hourglass"),
+    EventType.RETENTION_LAPSED: ("4", "unlock"),
 }
 
 
