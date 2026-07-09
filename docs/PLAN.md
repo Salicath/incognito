@@ -137,8 +137,12 @@ All eight tracks are built (Phases 1-4 complete, checkmarks above), every
 track has passed an adversarial post-review with fixes merged, the SearXNG
 sidecar shipped, the **Phase 5 gate read-through + research sweep ran
 2026-07-08**, and its entire findings list has since been worked down —
-`docs/known-issues.md` now has nothing outstanding. 497 tests, CI green,
-container publishing to `ghcr.io/salicath/incognito`.
+`docs/known-issues.md` now has nothing outstanding, and the complaint
+generator cites live legal authority (EDPB CEF-2025 + Reg (EU) 2025/2518).
+502 tests, CI green, container publishing to `ghcr.io/salicath/incognito`.
+
+**Everything actionable without Malte is done.** The two remaining items both
+need him: a purchase, or his real identifiers.
 
 CI also guards docs against registry drift: the broker/controller counts in
 README.md and CLAUDE.md are recomputed and must match (they had silently
@@ -151,10 +155,23 @@ drifted to 220 vs a real 228).
    See `docs/tracks/controller.md` — includes two corrections to widely-repeated
    secondary-source errors.
 2. HIBP paid-tier wiring + PimEyes manual-result-import flow (purchase-gated —
-   see `docs/money.md`).
+   see `docs/money.md`). **Needs Malte to buy.**
 3. Phase 5 completeness pass: run the full pipeline against Malte's own
    identifiers, iterate until self-search returns nothing actionable, then
    cut v1.0. **Needs Malte in the loop.**
+
+**Hard-won lessons — keep doing these:**
+- Legal text gets primary sources or it doesn't ship. Two research passes each
+  corrected claims that every secondary source repeats (bank "5y+1mo"; the
+  Reg 2025/2518 admissibility list is Art. 4 not Art. 3; its extension is
+  once/12mo, not 2mo).
+- Verified sources don't protect against wrong plumbing. The EDPB block was
+  first gated on `response_body`, which `mark_acknowledged` also sets — it
+  would have told a DPA that a merely-acknowledging controller "relies on an
+  exception under Art. 17(3)". Caught by re-reading my own diff, not by tests.
+- Prove a guard fires. Every new guard here was verified by breaking the thing
+  it guards (docs counts, EDPB gate, locale blocks). A guard you've only seen
+  pass tells you nothing.
 
 **Known infra flake:** the `container` CI job cancelled once at ~15 min
 (multi-arch QEMU); the same commit built and smoke-tested clean locally and
