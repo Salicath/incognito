@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import Modal from "../components/Modal";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -8,7 +9,6 @@ import {
   Loader2,
   Mail,
   ScrollText,
-  X,
 } from "lucide-react";
 
 interface ControllerRequest {
@@ -284,15 +284,7 @@ export default function Controllers() {
       </div>
 
       {kit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-lg">Filing kit — {kit.controller.name}</h2>
-              <button onClick={() => setKit(null)} aria-label="Close">
-                <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
-              </button>
-            </div>
-
+        <Modal title={`Filing kit — ${kit.controller.name}`} onClose={() => setKit(null)}>
             {kit.kit.send_from_account_email && (
               <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-sm flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -355,8 +347,7 @@ export default function Controllers() {
                 </span>
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -16,8 +16,6 @@ class AccountHit:
     service: str
     url: str
     exists: bool
-    email_recovery: str | None = None
-    phone_recovery: str | None = None
 
 
 @dataclass

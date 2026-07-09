@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import Modal from "../components/Modal";
 import {
   CheckCircle2,
   ClipboardCopy,
@@ -8,7 +9,6 @@ import {
   Hourglass,
   Loader2,
   ShieldOff,
-  X,
 } from "lucide-react";
 
 interface Hold {
@@ -303,14 +303,7 @@ export default function Statutory() {
       </div>
 
       {kit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-lg">Art. 17 — {kit.title}</h2>
-              <button onClick={() => setKit(null)} aria-label="Close">
-                <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
-              </button>
-            </div>
+        <Modal title={`Art. 17 — ${kit.title}`} onClose={() => setKit(null)}>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
               Send this to the institution's DPO from your own mailbox — the
               retention duty has matured, so cite it with confidence.
@@ -336,8 +329,7 @@ export default function Statutory() {
               {copied ? <CheckCircle2 className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
               {copied ? "Copied" : "Copy text"}
             </button>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

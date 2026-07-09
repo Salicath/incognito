@@ -31,6 +31,22 @@ class RescanReport:
     scan_date: str = ""
 
 
+# DuckDuckGo region ("kl") per residence country. Delisting is market-scoped
+# (CJEU C-507/17), so a GB user's RTBF filter applies to the UK market — asking
+# DDG with dk-da would check the wrong surface entirely.
+_DDG_REGION_BY_COUNTRY: dict[str, str] = {
+    "DK": "dk-da", "GB": "uk-en", "IE": "ie-en", "DE": "de-de", "FR": "fr-fr",
+    "NL": "nl-nl", "SE": "se-sv", "NO": "no-no", "FI": "fi-fi", "ES": "es-es",
+    "IT": "it-it", "PL": "pl-pl", "PT": "pt-pt", "BE": "be-nl", "AT": "at-de",
+    "CH": "ch-de", "CZ": "cz-cs",
+}
+
+
+def ddg_region_for_country(country: str) -> str:
+    """DDG `kl` region for a residence country; falls back to DK."""
+    return _DDG_REGION_BY_COUNTRY.get((country or "").upper(), "dk-da")
+
+
 def _normalize_url(url: str) -> str:
     """Scheme/www/trailing-slash-insensitive form for delisted-URL comparison."""
     u = url.strip().lower()

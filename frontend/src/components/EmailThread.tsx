@@ -20,8 +20,8 @@ export default function EmailThread({ emails }: { emails: EmailItem[] }) {
           key={email.id}
           className={`rounded-lg border p-4 ${
             email.direction === "outbound"
-              ? "border-blue-200 bg-blue-50"
-              : "border-green-200 bg-green-50"
+              ? "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/40"
+              : "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40"
           }`}
         >
           <div className="flex items-center gap-2 mb-2">

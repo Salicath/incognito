@@ -317,3 +317,22 @@ def test_restriction_only_endpoint(authenticated_client):
     sundhed = next(e for e in data if e["id"] == "sundhedsjournalen")
     assert sundhed["requires_mitid"] is True
     assert "Privatmarkering" in sundhed["mitigation"]
+
+
+def test_retention_lapsed_uses_its_own_event_type(tl_registry):
+    """A matured hold is an action prompt, not a 'request_overdue' warning."""
+    from backend.core.notifier import EventType
+
+    db = _session()
+    db.add(TimeLockedState(
+        entry_id="dk-bank-hvidvask",
+        trigger_date=datetime(2020, 1, 1, tzinfo=UTC),
+        fires_at=datetime.now(UTC) - timedelta(days=1),
+        status=TimeLockedStatus.ARMED,
+    ))
+    db.commit()
+
+    with patch("backend.core.time_locked.notify") as mock_notify:
+        check_time_locked_expiries(db, tl_registry)
+    assert mock_notify.call_args.args[0] is EventType.RETENTION_LAPSED
+    db.close()

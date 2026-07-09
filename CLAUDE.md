@@ -50,7 +50,7 @@ incognito report             # Privacy score and exposure report
 
 **Frontend** (`frontend/src/`):
 - `pages/` — Dashboard, Requests, RequestDetail, Brokers, Controllers, CprLevers, Statutory, Scan, Exposures, Settings, SetupWizard, Report
-- `components/` — Layout, StatusBadge, ProgressRing, EmailThread
+- `components/` — Layout, StatusBadge, ProgressRing, EmailThread, Modal (accessible dialog for filing kits)
 - `hooks/` — useAsyncTask (polling for scanners), useSettingsSection (settings state)
 - `api/client.ts` — Typed API client
 
@@ -83,7 +83,7 @@ Automatically detects broker responses to GDPR requests:
 ## Push Notifications
 
 Supports Ntfy, Gotify, and generic webhooks. Set `INCOGNITO_NOTIFY_URL` to enable.
-Events: reply received, request overdue, escalation sent, data reappeared, new exposure, blast complete, follow-up complete.
+Events: reply received, request overdue, escalation sent, data reappeared, new exposure, blast complete, follow-up complete, lever renewal due/expired, retention lapsed.
 Ntfy messages include priority levels and emoji tags. Notifications never crash the calling code.
 
 ## Security Model
