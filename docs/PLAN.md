@@ -29,8 +29,10 @@ Today: DDG + Holehe + HIBP.
 3. **user-scanner (kaifcodec)** — Holehe successor for email-based account existence.
 4. **GitHub Code Search API** — surfaces own email/phone in old `.env` commits, gists.
 5. **SearXNG sidecar** — self-hosted meta-search Quadlet; replaces DDG-only.
-6. **HIBP paid tier** — $3.95/mo, removes rate limits.
-7. **PimEyes one-time scan** — ~€30, fills face-search gap nothing OSS can.
+6. ~~**HIBP paid tier**~~ — rejected 2026-07-09; the affordable tier discloses
+   your plaintext email and buys nothing the free endpoints lack.
+7. ~~**PimEyes one-time scan**~~ — rejected 2026-07-09; searching *and* opting out
+   both require surrendering biometrics. Face search stays an honest gap.
 
 ## Registry rebuild
 
@@ -44,13 +46,24 @@ Default profile run today: 201 brokers, 55% US-irrelevant. Replace with ~80 EU-r
 
 Add `da` locale to `templates/locales/` (5 template types).
 
-## Money plan (~€15/mo + ~€30 one-time)
+## Money plan — REVISED 2026-07-09 (see `docs/money.md` for sources)
 
-- HIBP API $3.95/mo — buy
-- PimEyes one-time deep scan ~€30 — buy once at baseline
-- Brave Search API $5/1k — top up ad-hoc as SearXNG fallback
-- Optional: own-domain SMTP (~€3/mo) so Art. 17 doesn't leak `salicath@pm.me`
-- Skip: DeHashed, Constella, DomainTools, Onerep/DeleteMe
+Hard constraint: do not give photos or personal data to a company that keeps it.
+
+- ~~HIBP API $3.95/mo — buy~~ → **DON'T BUY.** The key is mandatory (401 without
+  it), not a rate-limit lift. Core 1 is $4.39/mo and sends your plaintext email;
+  k-anonymity and stealer logs are **Pro-only ($379/mo)**, and stealer logs are
+  domain-scoped so they are unreachable for a `pm.me` address at any price.
+- ~~PimEyes ~€30 one-time~~ → **DON'T BUY.** No €30 one-time exists (16,99 €
+  single search / 32,99 €/mo Open Plus). You upload your face before paying, and
+  the **opt-out itself demands a face + passport scan**. Entity is in Dubai; no
+  Art. 27 rep. Face search is now a documented gap, not a purchase.
+- Brave Search API — unneeded; SearXNG sidecar shipped.
+- **Own-domain / per-broker aliases (~€10/yr)** — the highest-value spend. Every
+  Art. 17 email currently leaks `salicath@pm.me` to 228 brokers. Proposal in
+  `docs/money.md`; **needs Malte's approval and one engineering check first.**
+- Skip: DeHashed, Constella, DomainTools, Onerep/DeleteMe (note: Proton's Dark
+  Web Monitoring is partly Constella-backed).
 
 ## Phases
 
@@ -154,8 +167,10 @@ drifted to 220 vs a real 228).
    admissibility/15-month lines (gated on cross-border + date ≥ 2027-04-02).
    See `docs/tracks/controller.md` — includes two corrections to widely-repeated
    secondary-source errors.
-2. HIBP paid-tier wiring + PimEyes manual-result-import flow (purchase-gated —
-   see `docs/money.md`). **Needs Malte to buy.**
+2. ~~HIBP paid-tier wiring + PimEyes import~~ → **both rejected after research
+   (2026-07-09)**; see `docs/money.md`. Replacement candidate: per-broker
+   SimpleLogin aliases so Art. 17 emails stop disclosing the real address.
+   **Needs Malte's approval + one engineering check (send-from-alias).**
 3. Phase 5 completeness pass: run the full pipeline against Malte's own
    identifiers, iterate until self-search returns nothing actionable, then
    cut v1.0. **Needs Malte in the loop.**
