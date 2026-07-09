@@ -30,6 +30,9 @@ class MatchTier(enum.StrEnum):
     # RTBF decisions are form-triggered mail (no threading, no REF echo):
     # matched by decision-sender domain + the tracked URL appearing in the body
     DELISTING_DECISION = "delisting_decision"
+    # Reply forwarded by SimpleLogin: the alias it was delivered to identifies
+    # the broker. High confidence — we minted the alias for exactly one broker.
+    ALIAS = "alias"
 
 
 @dataclass(frozen=True)
@@ -40,7 +43,24 @@ class MatchResult:
 
 def _extract_domain(email_address: str) -> str:
     """Extract domain from an email address."""
-    return email_address.rsplit("@", 1)[-1].lower()
+    addr = email_address.strip()
+    if "<" in addr and addr.endswith(">"):
+        addr = addr[addr.rfind("<") + 1:-1]
+    return addr.rsplit("@", 1)[-1].strip().lower()
+
+
+# A poller can run for weeks; leak signals are drained by the API, not unbounded.
+_MAX_LEAK_SIGNALS = 500
+
+
+def _domain_matches_broker(sender_domain: str, broker_id: str) -> bool:
+    """Is `sender_domain` plausibly the broker itself?
+
+    Broker ids are domain-derived ("spokeo-com" -> "spokeo.com"). Accept the
+    domain itself and any subdomain of it, so mail.spokeo.com is not a leak.
+    """
+    owner_domain = broker_id.replace("-", ".")
+    return sender_domain == owner_domain or sender_domain.endswith("." + owner_domain)
 
 
 def match_reply(
@@ -115,6 +135,8 @@ class ImapPoller:
         self.last_error: str | None = None
         self.matched_count = 0
         self.unmatched_count = 0
+        # aliases that received mail from someone other than their broker
+        self.leak_signals: list[dict] = []
 
     def _build_lookup_maps(self, db: Session):
         active_statuses = {RequestStatus.SENT, RequestStatus.OVERDUE, RequestStatus.ESCALATED}
@@ -124,6 +146,17 @@ class ImapPoller:
         ref_code_map: dict[str, str] = {}
         domain_request_map: dict[str, str] = {}
         delisting_open: list[dict] = []
+
+        # alias -> (broker_id, request_id). A SimpleLogin forward carries the
+        # broker's real address only when the user opted into the envelope
+        # headers, so the alias is the reliable hook.
+        from backend.db.models import BrokerAlias
+
+        alias_broker: dict[str, str] = {
+            a.alias_email.lower(): a.broker_id
+            for a in db.query(BrokerAlias).all()
+        }
+        alias_request_map: dict[str, str] = {}
 
         for req in requests:
             if req.message_id:
@@ -139,7 +172,16 @@ class ImapPoller:
                     "target_url": req.target_url or "",
                 })
 
-        return outbound_ids, ref_code_map, domain_request_map, delisting_open
+        for alias, broker_id in alias_broker.items():
+            for req in requests:
+                if req.broker_id == broker_id:
+                    alias_request_map[alias] = req.id
+                    break
+
+        return (
+            outbound_ids, ref_code_map, domain_request_map, delisting_open,
+            alias_request_map, alias_broker,
+        )
 
     @staticmethod
     def _match_delisting_decision(
@@ -169,14 +211,55 @@ class ImapPoller:
                 )
         return None
 
+    @staticmethod
+    def _record_leak(db, alias: str, broker_id: str, sender: str, msg) -> None:
+        """File a leak as an exposure so it lands in the triage inbox.
+
+        Keyed (source, broker_id, url=mailto:sender) so repeat spam from the
+        same sender refreshes one row rather than resurrecting a dismissal.
+        Never let a bookkeeping failure lose the reply we are mid-way through
+        processing.
+        """
+        from backend.core.rescan import save_scan_results
+
+        try:
+            new = save_scan_results(
+                db,
+                [{
+                    "broker_domain": broker_id,
+                    "url": f"mailto:{sender}",
+                    "title": f"{broker_id} leaked or sold your address",
+                    "snippet": (
+                        f"Alias {alias} was disclosed only to {broker_id}, but "
+                        f"received mail from {sender} "
+                        f"(subject: {(msg.subject or '')[:120]!r})."
+                    ),
+                }],
+                source="alias_leak",
+            )
+            if new:
+                from backend.core.notifier import EventType, notify
+
+                notify(
+                    EventType.NEW_EXPOSURE,
+                    f"{broker_id} leaked your address",
+                    f"Alias {alias} received mail from {sender}.",
+                )
+        except Exception as exc:  # noqa: BLE001 - never drop the reply over this
+            log.error("Failed to record alias leak for %s: %s", broker_id, exc)
+
     def process_message(self, msg, *, _lookup_maps=None) -> MatchResult | None:
         db = self._db_factory()
         try:
             if _lookup_maps is not None:
-                outbound_ids, ref_code_map, domain_request_map, delisting_open = _lookup_maps
+                (
+                    outbound_ids, ref_code_map, domain_request_map, delisting_open,
+                    alias_request_map, alias_broker,
+                ) = _lookup_maps
             else:
                 (
                     outbound_ids, ref_code_map, domain_request_map, delisting_open,
+                    alias_request_map, alias_broker,
                 ) = self._build_lookup_maps(db)
 
             in_reply_to = ""
@@ -198,16 +281,68 @@ class ImapPoller:
 
             body_text = msg.text or ""
 
+            # SimpleLogin forwards rewrite From: to an sl.co reverse-alias, which
+            # would defeat the domain-based tiers. Recover the real sender when
+            # the user enabled the envelope headers; always recover the alias.
+            from backend.core.alias import (
+                alias_from_headers,
+                original_sender_from_headers,
+            )
+
+            raw_headers = getattr(msg, "headers", None) or {}
+            delivered_alias = alias_from_headers(raw_headers)
+            real_sender = original_sender_from_headers(raw_headers)
+            effective_from = real_sender or from_addr
+
             result = match_reply(
                 in_reply_to=in_reply_to,
                 references=references,
                 subject=msg.subject or "",
-                from_address=from_addr,
+                from_address=effective_from,
                 outbound_message_ids=outbound_ids,
                 broker_domains=self._broker_domains,
                 ref_code_map=ref_code_map,
                 domain_request_map=domain_request_map,
             )
+
+            # Leak signal: mail reached an alias we minted for broker X, but the
+            # sender is demonstrably not X. Only broker X was ever told this
+            # address, so the alias itself is the evidence of a leak or resale.
+            #
+            # Requires `real_sender`. On a SimpleLogin forward the From: is
+            # rewritten to a reverse-alias at SimpleLogin's own domain, and the
+            # envelope-from header that recovers the true sender is opt-in
+            # upstream. Judging leakage off the rewritten From: would brand every
+            # ordinary broker reply as a resale. No real sender, no verdict.
+            is_leak = False
+            if real_sender and delivered_alias and delivered_alias in alias_broker:
+                owner = alias_broker[delivered_alias]
+                sender_domain = _extract_domain(real_sender)
+                if sender_domain and not _domain_matches_broker(sender_domain, owner):
+                    is_leak = True
+                    log.warning(
+                        "Alias %s (minted for %s) received mail from %s — "
+                        "possible leak or resale by %s",
+                        delivered_alias, owner, real_sender, owner,
+                    )
+                    if len(self.leak_signals) < _MAX_LEAK_SIGNALS:
+                        self.leak_signals.append(
+                            {"alias": delivered_alias, "broker_id": owner,
+                             "sender": real_sender}
+                        )
+                    self._record_leak(db, delivered_alias, owner, real_sender, msg)
+
+            # Alias tier: the alias was minted for exactly one broker, so it
+            # identifies the request even when the sender is unrecognisable.
+            # It does NOT prove the broker replied — a known-unrelated sender is
+            # a leak, not a reply, and must not be filed against the thread.
+            # Deliberately not an auto-ACK tier (see the ACK guard below): with
+            # the envelope headers off, spam to the alias is indistinguishable
+            # from a reply, and an auto-ACK would stop the Art. 12(3) clock.
+            if result is None and delivered_alias and not is_leak:
+                req_id = alias_request_map.get(delivered_alias)
+                if req_id:
+                    result = MatchResult(request_id=req_id, tier=MatchTier.ALIAS)
 
             if result is None and delisting_open:
                 result = self._match_delisting_decision(

@@ -42,6 +42,7 @@ const sourceColors: Record<string, string> = {
   holehe: accountBadge,
   wayback: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   github: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
+  alias_leak: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 };
 
 const dispositionMeta: Record<string, { label: string; className: string }> = {

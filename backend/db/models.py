@@ -153,6 +153,31 @@ class TimeLockedState(Base):
     )
 
 
+class BrokerAlias(Base):
+    """A per-recipient sending identity (SimpleLogin).
+
+    reverse_alias_address is where we actually SMTP: SimpleLogin rewrites mail
+    sent there so the broker sees `alias_email` as the sender. Replies come back
+    tagged with X-SimpleLogin-Envelope-To: <alias_email>, which is how the IMAP
+    poller maps them home. See docs/tracks/alias.md.
+    """
+
+    __tablename__ = "broker_alias"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    broker_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    alias_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    alias_email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    reverse_alias_address: Mapped[str] = mapped_column(String, nullable=False)
+    contact_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    disabled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class ScanResult(Base):
     __tablename__ = "scan_results"
 

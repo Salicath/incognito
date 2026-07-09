@@ -84,7 +84,7 @@ def create_controllers_router(
         Email-viable controllers get the request sent immediately; form-only
         ones enter MANUAL_ACTION_NEEDED and the user files the returned kit.
         """
-        key, _salt = session_store.validate(session)
+        key, salt = session_store.validate(session)
         controller = controller_registry.get(controller_id)
         if controller is None:
             raise HTTPException(status_code=404, detail="Controller not found")
@@ -139,9 +139,28 @@ def create_controllers_router(
                 }
 
             assert smtp is not None  # guarded before request creation
+
+            # Two carve-outs from aliasing:
+            #  - send_from_account_email (Reddit): SimpleLogin rewrites the
+            #    sender to the alias, which is exactly the address the platform
+            #    refuses to accept.
+            #  - cc_emails: a reverse-alias delivers to its one contact only, so
+            #    the CCs would either be dropped or served from the real mailbox.
+            from backend.core.alias_resolver import resolve_recipient
+            from backend.core.secrets import read_secret
+
+            sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
+            allow_alias = not (
+                controller.send_from_account_email or controller.cc_emails
+            )
+            smtp_to, alias_email = await resolve_recipient(
+                db, sl_key, controller.id, controller.privacy_email,
+                allow_alias=allow_alias,
+            )
+
             sender = EmailSender(smtp)
             result = await sender.send(
-                to_email=controller.privacy_email,
+                to_email=smtp_to,
                 rendered_text=kit["request_text"],
                 request_id=req.id,
                 cc=controller.cc_emails or None,
@@ -159,7 +178,7 @@ def create_controllers_router(
                     request_id=req.id,
                     message_id=req.message_id,
                     direction=EmailDirection.OUTBOUND,
-                    from_address=smtp.username,
+                    from_address=alias_email or smtp.username,
                     to_address=controller.privacy_email,
                     subject=f"GDPR Erasure Request [REF-{req.id[:8].upper()}]",
                     body_text=kit["request_text"],

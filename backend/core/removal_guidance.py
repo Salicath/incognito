@@ -163,6 +163,29 @@ def _newsletter(data: dict) -> dict:
     return {"title": f"Unsubscribe from {sender}", "steps": steps, "links": links}
 
 
+def _alias_leak(data: dict) -> dict:
+    broker = data.get("broker_domain") or "the broker"
+    sender = (data.get("url") or "").removeprefix("mailto:") or "an unrelated sender"
+    return {
+        "title": f"{broker} disclosed your address",
+        "steps": [
+            f"This alias was given to {broker} and to nobody else, yet {sender} "
+            "used it. Either the broker shared/sold it, or it was breached.",
+            f"Send {broker} an Art. 15(1)(c) access request: a controller must "
+            "disclose the recipients or categories of recipients it shared your "
+            "data with. Their answer is the evidence for everything below.",
+            f"Send {sender} an Art. 17 erasure request plus an Art. 21 objection "
+            "to direct marketing, and ask under Art. 14(2)(f) where they got it.",
+            "If the broker cannot account for the disclosure, this is a documented "
+            "Art. 5(1)(f) / Art. 32 failure — grounds for an Art. 77 complaint to "
+            "your supervisory authority. The alias is dated, single-recipient proof.",
+            "Disable the alias in SimpleLogin to cut off the spam without losing "
+            "the evidence trail.",
+        ],
+        "links": [],
+    }
+
+
 _HANDLERS = {
     "github": _github,
     "wayback": _wayback,
@@ -171,6 +194,7 @@ _HANDLERS = {
     "maigret": _account,
     "holehe": _account,  # legacy rows
     "duckduckgo": _websearch,
+    "alias_leak": _alias_leak,
 }
 
 

@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (497 tests, 228 brokers, 16 controllers, 23 DPAs)
+# Run tests (526 tests, 228 brokers, 16 controllers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -64,6 +64,7 @@ incognito report             # Privacy score and exposure report
 - Controller track (`core/controller.py`, `brokers/controllers.yaml`, `docs/tracks/controller.md`): opt-in tech-giant erasure — 16 hand-verified platforms, never blasted (separate `ControllerRegistry`; `RegistryUnion` feeds shared machinery). Email-viable platforms send a controller-specific Art. 17 immediately; form-only ones enter MANUAL_ACTION_NEEDED with a filing kit and the user attests "I filed it" (→ SENT starts the Art. 12(3) clock). Complaints route to the residence SA via `dpa.get_dpa_for_request` (`INCOGNITO_USER_COUNTRY`, default DK; GB→ICO), with the lead SA named in the complaint text.
 - Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps. Account hits (user-scanner/Maigret) are resolved against the vendored JustDelete.me dataset (`core/account_registry.py`, `data/justdeleteme_sites.json`) to surface the exact deletion URL + difficulty; `difficulty: impossible` routes toward the `legally_impossible` disposition. Newsletter hits carry an unsubscribe action (`POST /api/scan/exposures/{id}/unsubscribe`): RFC 8058 one-click POST via `core/unsubscribe.py` (SSRF-guarded, HTTPS-only, no redirects), or a mailto send via the SMTP sender. Any URL exposure carries a delisting kit (`GET /api/scan/exposures/{id}/delisting-kit`, `core/delisting.py`): per-engine RTBF deep-links (Google/Bing forms + Brave email) plus a drafted, locale-aware Art. 17 justification — filing is manual (ID-gated forms), but the lifecycle is tracked (`docs/tracks/delisting.md`): "I filed it" creates a `(URL, engine)` request (`Request.target_url`, `DelistingRegistry` pseudo-targets in the `RegistryUnion`) with the Art. 12(3) clock; decision emails match via `ImapPoller._match_delisting_decision` (Google URL-in-body → auto-ACK, Bing attach-only); escalation routes to the residence SA (Google = Art. 55 national case vs Google LLC); the weekly rescan flags resurfaced delisted URLs.
 - Statutory tracks (`core/time_locked.py`, `core/restriction_only.py`, `brokers/{time_locked,restriction_only}.yaml`, `docs/tracks/{time_locked,restriction_only}.md`): time_locked arms per-institution retention holds (bank +5y exact, bogføring FY+5y+1d, insurer 3y/10y, telco 3y, employer 5y) and the `follow-up` job fires an assist-only Art. 17 kit (da template) when the duty matures; restriction_only serves 9 honest "legally undeletable + what you CAN do" cards. Both on the Statutory page via `api/statutory.py`.
+- Alias track (`core/alias.py`, `core/alias_resolver.py`, `docs/tracks/alias.md`): opt-in per-recipient SimpleLogin aliases so no broker learns the real mailbox. Off unless a `simplelogin` vault secret is set; any SimpleLogin failure falls back to the real recipient. Send goes to the contact's `reverse_alias_address`; replies match via `X-SimpleLogin-Envelope-To` (new `MatchTier.ALIAS`, deliberately **not** an auto-ACK tier). Mail to alias X from a sender that is provably not X is filed as an `alias_leak` exposure — leak detection needs SimpleLogin's opt-in `include_header_email_header`. Carve-outs: `send_from_account_email` (Reddit) and any controller with `cc_emails` (GitHub, Discord).
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
@@ -136,6 +137,7 @@ pytest tests/unit/test_delisting.py -v        # Search-engine delisting (RTBF) a
 pytest tests/unit/test_statutory.py -v        # time_locked + restriction_only tracks
 pytest tests/unit/test_searxng.py -v          # SearXNG sidecar scanner backend
 pytest tests/unit/test_delisting_lifecycle.py -v  # Delisting lifecycle (tracking, IMAP decisions, complaint)
+pytest tests/unit/test_alias.py -v            # Alias track (SimpleLogin, ALIAS tier, leak signal)
 ```
 
 ## Dependencies

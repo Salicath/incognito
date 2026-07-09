@@ -53,6 +53,7 @@ export default function Settings() {
   const imap = useSettingsSection<ImapStatus>();
   const hibp = useSettingsSection<HibpStatus>();
   const githubTok = useSettingsSection<GithubStatus>();
+  const simpleLogin = useSettingsSection<GithubStatus>();
 
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
@@ -68,6 +69,8 @@ export default function Settings() {
 
   const [githubTokenInput, setGithubTokenInput] = useState("");
   const [githubDeleting, setGithubDeleting] = useState(false);
+  const [simpleLoginInput, setSimpleLoginInput] = useState("");
+  const [simpleLoginDeleting, setSimpleLoginDeleting] = useState(false);
 
   const [notifyStatus, setNotifyStatus] = useState<{ configured: boolean; url: string | null } | null>(null);
   const [notifyTesting, setNotifyTesting] = useState(false);
@@ -100,7 +103,7 @@ export default function Settings() {
 
   async function loadData() {
     try {
-      const [smtpData, info, prof, hibpData, imapData, notifyData, githubData] = await Promise.all([
+      const [smtpData, info, prof, hibpData, imapData, notifyData, githubData, slData] = await Promise.all([
         api.getSmtpStatus(),
         api.getAppInfo(),
         api.getProfile(),
@@ -108,12 +111,14 @@ export default function Settings() {
         api.getImapStatus(),
         api.getNotificationStatus(),
         api.getGithubTokenStatus(),
+        api.getSimpleLoginStatus(),
       ]);
       smtp.setStatus(smtpData);
       setAppInfo(info);
       setProfile(prof);
       hibp.setStatus(hibpData);
       githubTok.setStatus(githubData);
+      simpleLogin.setStatus(slData);
       imap.setStatus(imapData);
       setNotifyStatus(notifyData);
       if (imapData.configured) {
@@ -149,6 +154,30 @@ export default function Settings() {
       setHibpKeyInput("");
       loadData();
     });
+  }
+
+  async function handleSaveSimpleLoginKey() {
+    await simpleLogin.withSaving(async () => {
+      await api.saveSimpleLoginKey(simpleLoginInput.trim());
+      simpleLogin.setMessage({ type: "success", text: "API key saved." });
+      simpleLogin.setShowForm(false);
+      setSimpleLoginInput("");
+      simpleLogin.setStatus(await api.getSimpleLoginStatus());
+    });
+  }
+
+  async function handleDeleteSimpleLoginKey() {
+    setSimpleLoginDeleting(true);
+    simpleLogin.setMessage({ type: "", text: "" });
+    try {
+      await api.deleteSimpleLoginKey();
+      simpleLogin.setMessage({ type: "success", text: "API key removed. Existing aliases keep working." });
+      simpleLogin.setStatus(await api.getSimpleLoginStatus());
+    } catch (e) {
+      simpleLogin.setMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
+    } finally {
+      setSimpleLoginDeleting(false);
+    }
   }
 
   async function handleSaveGithubToken() {
@@ -571,7 +600,7 @@ export default function Settings() {
                 <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
                   className="text-indigo-600 underline">
                   haveibeenpwned.com/API/Key
-                </a>. The key is stored encrypted in your vault.
+                </a>. The key is stored encrypted in your vault. Note: HIBP&rsquo;s affordable tier has no k-anonymity search, so every breach check sends your plaintext email address to HIBP.
               </p>
               <div className="flex gap-2">
                 <button onClick={handleSaveHibpKey} disabled={hibp.saving || !hibpKeyInput.trim()}
@@ -670,6 +699,95 @@ export default function Settings() {
           )}
 
           <SettingsMessage message={githubTok.message} />
+        </div>
+      </div>
+
+      {/* SimpleLogin aliases */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <Mail className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <h2 className="font-semibold">SimpleLogin aliases (sender privacy)</h2>
+        </div>
+        <div className="p-5">
+          {simpleLogin.status && !simpleLogin.status.configured && !simpleLogin.showForm && (
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                Every erasure request currently sends your real address to the broker. With a{" "}
+                <a href="https://app.simplelogin.io/developer/api_key" target="_blank" rel="noopener noreferrer"
+                  className="text-indigo-600 underline hover:text-indigo-800">
+                  SimpleLogin API key
+                </a>{" "}
+                each broker gets its own alias instead — so if that address later shows up in
+                spam, you know exactly who leaked it.
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Requires a paid SimpleLogin plan (included with Proton Unlimited). Brokers that
+                require mail from your account address, and controllers we must CC, are sent
+                normally. Leak detection additionally needs <code>include_header_email_header</code>{" "}
+                enabled in SimpleLogin settings.
+              </p>
+              <button onClick={() => simpleLogin.setShowForm(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                Add API Key
+              </button>
+            </div>
+          )}
+
+          {simpleLogin.status && simpleLogin.status.configured && !simpleLogin.showForm && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-700 font-medium">Aliasing enabled</span>
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                <p><span className="font-medium">Key:</span> {simpleLogin.status.key_preview}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => simpleLogin.setShowForm(true)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                  Update
+                </button>
+                <button onClick={handleDeleteSimpleLoginKey} disabled={simpleLoginDeleting}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition disabled:opacity-50">
+                  {simpleLoginDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Remove Key
+                </button>
+              </div>
+            </div>
+          )}
+
+          {simpleLogin.showForm && (
+            <div className="space-y-3">
+              <input
+                type="password"
+                placeholder="Paste your SimpleLogin API key here"
+                value={simpleLoginInput}
+                onChange={(e) => setSimpleLoginInput(e.target.value)}
+                className={inputClass}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Create one at{" "}
+                <a href="https://app.simplelogin.io/developer/api_key" target="_blank" rel="noopener noreferrer"
+                  className="text-indigo-600 underline">
+                  app.simplelogin.io
+                </a>. Stored encrypted in your vault. Removing it stops new aliases from being
+                minted; aliases already in use keep routing replies.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={handleSaveSimpleLoginKey} disabled={simpleLogin.saving || !simpleLoginInput.trim()}
+                  className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50">
+                  {simpleLogin.saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Save
+                </button>
+                <button onClick={() => { simpleLogin.setShowForm(false); setSimpleLoginInput(""); simpleLogin.setMessage({ type: "", text: "" }); }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          <SettingsMessage message={simpleLogin.message} />
         </div>
       </div>
 

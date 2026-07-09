@@ -124,7 +124,7 @@ def create_blast_router(
     @r.post("/send-all")
     async def send_all_pending(session: str | None = Cookie(default=None)) -> dict:
         """Send all pending (created) requests via email."""
-        key, _salt = session_store.validate(session)
+        key, salt = session_store.validate(session)
         profile, smtp, _ = vault.load_with_key(key)
 
         if smtp is None:
@@ -135,9 +135,14 @@ def create_blast_router(
 
         from pathlib import Path
 
+        from backend.core.alias_resolver import resolve_recipient
+        from backend.core.secrets import read_secret
         from backend.db.models import EmailDirection
         from backend.db.models import EmailMessage as EmailMessageModel
         from backend.senders.email import EmailSender
+
+        # Absent a key, resolve_recipient is a no-op and we send as before.
+        sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
         repo_templates = Path(__file__).parent.parent.parent / "templates"
         templates_dir = config.data_dir / "templates"
         if not templates_dir.exists():
@@ -222,8 +227,15 @@ def create_blast_router(
                         broker_name=broker.name,
                     )
 
+                    # With aliasing on, we SMTP to the broker's reverse-alias and
+                    # SimpleLogin rewrites the sender, so the broker never learns
+                    # the real mailbox. Falls back to dpo_email on any failure.
+                    smtp_to, alias_email = await resolve_recipient(
+                        db, sl_key, req.broker_id, broker.dpo_email,
+                    )
+
                     result = await sender.send(
-                        to_email=broker.dpo_email,
+                        to_email=smtp_to,
                         rendered_text=rendered,
                         request_id=req.id,
                     )
@@ -237,7 +249,7 @@ def create_blast_router(
                             request_id=req.id,
                             message_id=req.message_id,
                             direction=EmailDirection.OUTBOUND,
-                            from_address=smtp.username,
+                            from_address=alias_email or smtp.username,
                             to_address=broker.dpo_email,
                             subject=f"GDPR Request [REF-{req.id[:8].upper()}]",
                             body_text=rendered,
@@ -251,6 +263,7 @@ def create_blast_router(
                             "broker_name": broker.name,
                             "status": "sent",
                             "email": broker.dpo_email,
+                            "sent_as": alias_email,
                         })
                     else:
                         failed += 1
