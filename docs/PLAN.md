@@ -168,10 +168,17 @@ drifted to 220 vs a real 228).
    See `docs/tracks/controller.md` — includes two corrections to widely-repeated
    secondary-source errors.
 2. ~~HIBP paid-tier wiring + PimEyes import~~ → **both rejected after research
-   (2026-07-09)**; see `docs/money.md`. Replacement candidate: per-broker
-   SimpleLogin aliases so Art. 17 emails stop disclosing the real address.
-   **Needs Malte's approval + one engineering check (send-from-alias).**
-3. Phase 5 completeness pass: run the full pipeline against Malte's own
+   (2026-07-09)**; see `docs/money.md`. Replaced by the **alias track**, shipped
+   2026-07-09 (PR #13, `docs/tracks/alias.md`): per-broker SimpleLogin aliases,
+   so Art. 17 emails no longer disclose the real mailbox, and inbound spam
+   becomes evidence of which broker leaked it.
+3. Alias track follow-ups (none blocking):
+   - Surface the leak signal in the UI beyond the Exposure row (dashboard badge).
+   - "Disable this alias" button — `SimpleLoginClient.disable_alias` is written
+     and tested but not reachable from the frontend.
+   - Reconsider the `cc_emails` carve-out if SimpleLogin's multi-contact
+     behaviour can be verified: GitHub and Discord are currently un-aliased.
+4. Phase 5 completeness pass: run the full pipeline against Malte's own
    identifiers, iterate until self-search returns nothing actionable, then
    cut v1.0. **Needs Malte in the loop.**
 
@@ -180,6 +187,10 @@ drifted to 220 vs a real 228).
   corrected claims that every secondary source repeats (bank "5y+1mo"; the
   Reg 2025/2518 admissibility list is Art. 4 not Art. 3; its extension is
   once/12mo, not 2mo).
+- A signal that fires on every input is not a signal. Leak detection was first
+  judged off the forwarded `From:`, which SimpleLogin rewrites — it would have
+  branded every ordinary broker reply as a resale. Ask what the *default*
+  upstream config produces, not what the happy path produces.
 - Verified sources don't protect against wrong plumbing. The EDPB block was
   first gated on `response_body`, which `mark_acknowledged` also sets — it
   would have told a DPA that a merely-acknowledging controller "relies on an
