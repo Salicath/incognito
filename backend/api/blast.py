@@ -435,8 +435,22 @@ def create_blast_router(
                 }
 
             # EDPB CEF-2025 rebuttal ammunition, but only when the controller
-            # actually refused — citing it against silence would be a non-sequitur.
-            edpb_cef = req.status == RequestStatus.REFUSED or bool(req.response_body)
+            # actually REFUSED. Never key this on response_body: a mere
+            # acknowledgement sets it too (mark_acknowledged / the IMAP poller),
+            # and the block asserts the controller "relies on an exception under
+            # Article 17(3)" — a false statement of fact in an Art. 77 complaint.
+            # REFUSED -> ESCALATED loses the status, so check the event history.
+            from backend.db.models import RequestEvent as _RequestEvent
+
+            edpb_cef = req.status == RequestStatus.REFUSED or (
+                db.query(_RequestEvent)
+                .filter(
+                    _RequestEvent.request_id == req.id,
+                    _RequestEvent.event_type == RequestStatus.REFUSED.value,
+                )
+                .count()
+                > 0
+            )
 
             # Reg (EU) 2025/2518's admissibility + 15-month rules apply ONLY to
             # cross-border processing (Art. 4(1)) and ONLY to complaints lodged

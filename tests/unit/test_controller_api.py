@@ -258,3 +258,38 @@ def test_procedural_regulation_line_is_date_and_scope_gated(authenticated_client
     text = resp.json()["complaint_text"]
     assert "2025/2518" in text
     assert "15 måneder" in text
+
+
+def test_edpb_block_absent_when_controller_only_acknowledged(authenticated_client):
+    """An acknowledgement sets response_body too. Keying the EDPB block on it
+    would make the complaint assert the controller 'relies on an exception
+    under Art. 17(3)' when they merely replied 'we received your request' —
+    a false statement of fact in an Art. 77 filing."""
+    created = authenticated_client.post("/api/controllers/meta-com/request").json()
+    rid = created["request_id"]
+    authenticated_client.post(f"/api/requests/{rid}/transition", json={"action": "mark_sent"})
+    authenticated_client.post(
+        f"/api/requests/{rid}/transition",
+        json={"action": "mark_acknowledged", "details": "We have received your request."},
+    )
+    # then they go silent and it escalates
+    authenticated_client.post(
+        f"/api/requests/{rid}/transition", json={"action": "mark_completed"}
+    )
+
+    # rebuild an escalated-after-acknowledgement path via a second controller
+    created2 = authenticated_client.post("/api/controllers/x-com/request").json()
+    rid2 = created2["request_id"]
+    authenticated_client.post(f"/api/requests/{rid2}/transition", json={"action": "mark_sent"})
+    authenticated_client.post(
+        f"/api/requests/{rid2}/transition",
+        json={"action": "mark_acknowledged", "details": "Received, we are looking into it."},
+    )
+    authenticated_client.post(
+        f"/api/requests/{rid2}/transition", json={"action": "mark_manual_action_needed"}
+    )
+
+    resp = authenticated_client.post(f"/api/blast/generate-complaint/{rid2}")
+    text = resp.json()["complaint_text"]
+    assert "10. februar 2026" not in text   # no EDPB rebuttal
+    assert "artikel 17, stk. 3" not in text  # no "relies on an exception" claim
