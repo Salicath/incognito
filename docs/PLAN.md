@@ -131,24 +131,34 @@ Add `da` locale to `templates/locales/` (5 template types).
 
 **v2 (out of scope here)** — multi-profile / family-shared instance
 
-## Handoff — state as of 2026-07-06
+## Handoff — state as of 2026-07-09
 
 All eight tracks are built (Phases 1-4 complete, checkmarks above), every
 track has passed an adversarial post-review with fixes merged, the SearXNG
-sidecar shipped, and the **Phase 5 gate read-through + research sweep ran
-2026-07-08** (findings fixed; see `docs/known-issues.md` for what was
-consciously deferred). 483 tests, CI green, container publishing to
-`ghcr.io/salicath/incognito`.
+sidecar shipped, the **Phase 5 gate read-through + research sweep ran
+2026-07-08**, and its entire findings list has since been worked down —
+`docs/known-issues.md` now has nothing outstanding. 497 tests, CI green,
+container publishing to `ghcr.io/salicath/incognito`.
+
+CI also guards docs against registry drift: the broker/controller counts in
+README.md and CLAUDE.md are recomputed and must match (they had silently
+drifted to 220 vs a real 228).
 
 **Next work items, in order:**
-1. HIBP paid-tier wiring + PimEyes manual-result-import flow (purchase-gated —
+1. Align the complaint generator to Reg (EU) 2025/2518's fixed admissibility
+   elements, and fold the EDPB CEF-2025 erasure findings into the escalation /
+   refusal-rebuttal templates. Legally locked in for 2027-04-02; needs no
+   purchase and no user input. (Research it first — do not guess at legal text.)
+2. HIBP paid-tier wiring + PimEyes manual-result-import flow (purchase-gated —
    see `docs/money.md`).
-2. Work down `docs/known-issues.md` (escalation_after_days dead field,
-   web-rescan cosmetics, /api/metrics auth, proxy rate-limit, address-capture
-   UI, a11y).
 3. Phase 5 completeness pass: run the full pipeline against Malte's own
    identifiers, iterate until self-search returns nothing actionable, then
-   cut v1.0.
+   cut v1.0. **Needs Malte in the loop.**
+
+**Known infra flake:** the `container` CI job cancelled once at ~15 min
+(multi-arch QEMU); the same commit built and smoke-tested clean locally and
+passed on re-run. If it recurs, add `timeout-minutes` so it fails loudly
+rather than mysteriously — don't assume the code is at fault.
 
 **Phase 5 gate outcome (2026-07-08 sweep):**
    - Research re-verified all 16 controllers + delisting + landscape. Registry
