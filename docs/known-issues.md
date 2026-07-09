@@ -20,12 +20,6 @@ remain, ranked. Each is anchored to a file so the next maintainer can pick one u
   rescan does. The scheduled timer runs the CLI, so real monitoring works; the web
   view just doesn't re-verify delisted URLs live. Wiring it means calling the async
   helper from the sync GET (asyncio.run) — acceptable but adds latency.
-- **Deep-scan results show only the last username** (`api/scan.py` `_run_deep_scan`).
-  `_deep_state["report"]` is overwritten per username; earlier usernames' hits/errors
-  are dropped. Accumulate across the loop.
-- **`save_scan_results` has no dedup** (`core/rescan.py`). Every weekly rescan
-  re-inserts hits, so a dismissed exposure reappears as a fresh `needs_triage` row.
-  Carry disposition forward by (source, url) or dedup on insert.
 
 ## Low severity
 
@@ -66,4 +60,6 @@ Requests `?status=` filter; Brokers/DelistingKit error handling; HIBP "plain tex
 copy; imap status `last_error`; maigret `--folderoutput`; arm-past-expiry
 notification; Settings destructive-action confirms; CprLevers shared defer note;
 address capture (SetupWizard + Settings fields, preserve-on-save);
-`escalation_after_days` surfaced as kit guidance.
+`escalation_after_days` surfaced as kit guidance; scan-result dedup
+(dismissed exposures no longer resurrect each rescan); deep-scan results
+accumulate across all usernames.

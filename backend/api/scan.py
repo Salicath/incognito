@@ -538,7 +538,9 @@ def create_scan_router(
             "email": ", ".join(_github_state.get("identifiers", [])),
         }
 
-    # Maigret deep username-enumeration scan state
+    # Maigret deep username-enumeration scan state. hits/checked/errors
+    # accumulate across usernames — a per-username overwrite would silently
+    # drop every username's results but the last.
     _deep_state: dict = {
         "report": None,
         "running": False,
@@ -547,6 +549,9 @@ def create_scan_router(
         "total": 0,
         "error": None,
         "usernames": [],
+        "hits": [],
+        "checked": 0,
+        "errors": [],
     }
     _deep_lock = asyncio.Lock()
 
@@ -557,6 +562,9 @@ def create_scan_router(
             for uname in usernames:
                 report = await check_maigret(uname)
                 _deep_state["report"] = report
+                _deep_state["hits"].extend(report.hits)
+                _deep_state["checked"] += report.checked
+                _deep_state["errors"].extend(report.errors)
                 if report.errors:
                     _deep_state["error"] = report.errors[0]
                 if db_session_factory and report.hits:
@@ -612,6 +620,11 @@ def create_scan_router(
             _deep_state["progress"] = 0
             _deep_state["error"] = None
             _deep_state["usernames"] = targets
+            # fresh run — drop the previous run's accumulated results
+            _deep_state["report"] = None
+            _deep_state["hits"] = []
+            _deep_state["checked"] = 0
+            _deep_state["errors"] = []
 
         background_tasks.add_task(_run_deep_scan, targets)
         return {"status": "started", "usernames": targets}
@@ -619,18 +632,17 @@ def create_scan_router(
     @r.get("/deep-scan/results")
     def get_deep_scan_results(session: str | None = Cookie(default=None)):
         session_store.validate(session)
-        report = _deep_state.get("report")
-        if report is None:
+        if _deep_state.get("report") is None:
             return {"hits": [], "checked": 0, "has_results": False, "usernames": []}
         return {
             "has_results": True,
             "usernames": _deep_state.get("usernames", []),
-            "checked": report.checked,
+            "checked": _deep_state["checked"],
             "hits": [
                 {"service": h.service, "url": h.url, "username": h.username, "tags": h.tags}
-                for h in report.hits
+                for h in _deep_state["hits"]
             ],
-            "errors": report.errors,
+            "errors": _deep_state["errors"],
         }
 
     @r.get("/deep-scan/status")

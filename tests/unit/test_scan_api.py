@@ -328,3 +328,28 @@ def test_deep_scan_start_and_status(client):
     assert results.status_code == 200
     assert results.json()["has_results"] is True
     assert any(h["service"] == "Reddit" for h in results.json()["hits"])
+
+
+def test_deep_scan_accumulates_all_usernames(client):
+    """Every username's hits survive — not just the last one's."""
+    import backend.scanner.maigret_scanner as ms
+
+    async def fake_check(username, **kwargs):
+        return ms.MaigretReport(
+            username=username,
+            hits=[ms.MaigretHit(
+                service=f"Svc-{username}", url=f"https://x/{username}", username=username,
+            )],
+            checked=5,
+            errors=[f"err-{username}"],
+        )
+
+    with patch.object(ms, "check_maigret", new=fake_check):
+        resp = client.post("/api/scan/deep-scan/start?usernames=alice,bob")
+        assert resp.status_code == 200
+
+    body = client.get("/api/scan/deep-scan/results").json()
+    services = {h["service"] for h in body["hits"]}
+    assert services == {"Svc-alice", "Svc-bob"}
+    assert body["checked"] == 10           # summed, not overwritten
+    assert set(body["errors"]) == {"err-alice", "err-bob"}
