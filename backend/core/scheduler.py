@@ -42,6 +42,7 @@ async def run_follow_ups(
     renderer: TemplateRenderer,
     gdpr_deadline_days: int = 30,
     escalation_days: int = 7,
+    simplelogin_key: str | None = None,
 ) -> FollowUpResult:
     """
     Check all requests and handle overdue/escalation logic.
@@ -65,6 +66,8 @@ async def run_follow_ups(
 
     # Step 2: Send follow-ups for OVERDUE requests that haven't had a follow-up yet
     if smtp is not None:
+        from backend.core.alias_resolver import resolve_recipient
+
         sender = EmailSender(smtp)
 
         all_overdue = (
@@ -107,8 +110,15 @@ async def run_follow_ups(
                             req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown"
                         ),
                     )
+                    # A thread aliased at blast time must be chased through
+                    # the same alias. Reuse-only: no row means the original
+                    # went from the real mailbox — never mint mid-thread.
+                    smtp_to, alias_email = await resolve_recipient(
+                        session, simplelogin_key, req.broker_id,
+                        broker.dpo_email, mint=False,
+                    )
                     send_result = await sender.send(
-                        to_email=broker.dpo_email, rendered_text=rendered,
+                        to_email=smtp_to, rendered_text=rendered,
                         request_id=req.id,
                     )
 
@@ -117,7 +127,7 @@ async def run_follow_ups(
                             request_id=req.id,
                             message_id=f"<{uuid.uuid4()}@incognito.local>",
                             direction=EmailDirection.OUTBOUND,
-                            from_address=smtp.username,
+                            from_address=alias_email or smtp.username,
                             to_address=broker.dpo_email,
                             subject=f"Follow-Up [REF-{req.id[:8].upper()}]",
                             body_text=rendered,
@@ -160,8 +170,12 @@ async def run_follow_ups(
                                 req.sent_at.strftime("%Y-%m-%d") if req.sent_at else "unknown"
                             ),
                         )
+                        smtp_to, alias_email = await resolve_recipient(
+                            session, simplelogin_key, req.broker_id,
+                            broker.dpo_email, mint=False,
+                        )
                         send_result = await sender.send(
-                            to_email=broker.dpo_email, rendered_text=rendered,
+                            to_email=smtp_to, rendered_text=rendered,
                             request_id=req.id,
                         )
 
@@ -170,7 +184,7 @@ async def run_follow_ups(
                                 request_id=req.id,
                                 message_id=f"<{uuid.uuid4()}@incognito.local>",
                                 direction=EmailDirection.OUTBOUND,
-                                from_address=smtp.username,
+                                from_address=alias_email or smtp.username,
                                 to_address=broker.dpo_email,
                                 subject=f"Escalation Warning [REF-{req.id[:8].upper()}]",
                                 body_text=rendered,

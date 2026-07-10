@@ -97,11 +97,32 @@ So 5 of the 8 email-viable controllers are aliased. The three exceptions are
 deliberate: a partly-aliased send is worse than an honest un-aliased one, because
 it leaks the real address *and* claims not to.
 
+## Chases reuse the identity, never mint one
+
+Follow-ups and escalation warnings (`core/scheduler.py`) resolve the recipient
+in **reuse-only mode** (`resolve_recipient(..., mint=False)`): an existing live
+alias is reused, so the chase arrives from the same sender as the original
+request. No alias row — a pre-alias thread, a carve-out platform, a delisting
+engine the user filed with from their own mail client, or a blast-time
+SimpleLogin fallback — means the chase goes from the real mailbox, exactly like
+the original did. Minting mid-thread would switch identity on the recipient and
+orphan the conversation, and for an already-leaked thread it buys nothing.
+
+A **disabled** alias (`disabled_at` set) is treated as absent everywhere: chases
+skip it, and a fresh send for that broker re-mints — updating the existing row
+in place, because `broker_id` is UNIQUE and a second INSERT would poison the
+blast session.
+
 ## Failure mode
 
 Any SimpleLogin error (bad key, free plan, quota, network) falls back to sending
 to the real recipient from the real mailbox, logged at WARNING. An erasure request
 that goes out from the real mailbox beats one that never goes out.
+
+If the alias mints but the `broker_alias` row fails to persist, the session is
+rolled back (a dirty session would fail every later broker in the blast) and the
+send still goes through the alias — only reuse and ALIAS-tier reply matching
+degrade; Message-ID threading still routes the reply home.
 
 ## Storage
 

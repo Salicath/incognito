@@ -179,6 +179,119 @@ async def test_httpx_error_also_falls_back():
 
 
 # ---------------------------------------------------------------------------
+# Resolver — reuse-only mode (chases must never switch identity mid-thread)
+# ---------------------------------------------------------------------------
+
+
+async def test_reuse_only_returns_real_recipient_when_no_alias_exists():
+    """No alias row means the original send went from the real mailbox
+    (pre-alias request, carve-out, or SimpleLogin fallback). A chase must not
+    mint a fresh identity mid-thread."""
+    db = _session()
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        to, alias = await resolve_recipient(
+            db, "key", "spokeo-com", "dpo@spokeo.com", mint=False,
+        )
+    assert (to, alias) == ("dpo@spokeo.com", None)
+    assert db.query(BrokerAlias).count() == 0
+    sl_cls.assert_not_called()
+    db.close()
+
+
+async def test_reuse_only_uses_the_existing_alias():
+    db = _session()
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@sl.co",
+    ))
+    db.commit()
+    to, alias = await resolve_recipient(
+        db, "key", "spokeo-com", "dpo@spokeo.com", mint=False,
+    )
+    assert (to, alias) == ("reply+x@sl.co", "abc@aleeas.com")
+    db.close()
+
+
+async def test_reuse_only_ignores_a_disabled_alias():
+    db = _session()
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@sl.co", disabled_at=datetime.now(UTC),
+    ))
+    db.commit()
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        to, alias = await resolve_recipient(
+            db, "key", "spokeo-com", "dpo@spokeo.com", mint=False,
+        )
+    assert (to, alias) == ("dpo@spokeo.com", None)
+    sl_cls.assert_not_called()
+    db.close()
+
+
+# ---------------------------------------------------------------------------
+# Resolver — re-minting over a disabled row (UNIQUE broker_id)
+# ---------------------------------------------------------------------------
+
+
+async def test_disabled_alias_is_reminted_in_place_not_duplicated():
+    """A disabled row still owns the UNIQUE(broker_id) slot. Re-minting must
+    update it in place — a second INSERT raises IntegrityError and the dirty
+    session then poisons every subsequent broker in the blast."""
+    db = _session()
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="old@aleeas.com",
+        reverse_alias_address="reply+old@sl.co", contact_id=41,
+        disabled_at=datetime.now(UTC),
+    ))
+    db.commit()
+
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        inst = sl_cls.return_value
+        inst.create_alias = AsyncMock(return_value=(8, "new@aleeas.com"))
+        inst.create_reverse_alias = AsyncMock(return_value=(42, "reply+new@sl.co"))
+        to, alias = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+
+    assert (to, alias) == ("reply+new@sl.co", "new@aleeas.com")
+    rows = db.query(BrokerAlias).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.alias_id == 8
+    assert row.alias_email == "new@aleeas.com"
+    assert row.reverse_alias_address == "reply+new@sl.co"
+    assert row.contact_id == 42
+    assert row.disabled_at is None
+    db.close()
+
+
+async def test_persist_failure_rolls_back_and_still_sends_via_the_alias():
+    """A DB failure after a successful mint must neither poison the session
+    for the rest of the blast nor leak the real mailbox — the alias exists
+    upstream, so use it unpersisted."""
+    from sqlalchemy.exc import OperationalError
+
+    db = _session()
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        inst = sl_cls.return_value
+        inst.create_alias = AsyncMock(return_value=(7, "abc@aleeas.com"))
+        inst.create_reverse_alias = AsyncMock(return_value=(42, "reply+x@sl.co"))
+        with patch.object(
+            db, "commit",
+            side_effect=OperationalError("stmt", None, Exception("db locked")),
+        ):
+            to, alias = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+        assert (to, alias) == ("reply+x@sl.co", "abc@aleeas.com")
+
+        # The session survives: the next broker in the blast still resolves.
+        inst.create_alias = AsyncMock(return_value=(9, "def@aleeas.com"))
+        inst.create_reverse_alias = AsyncMock(return_value=(43, "reply+y@sl.co"))
+        to2, alias2 = await resolve_recipient(db, "key", "krak-dk", "dpo@krak.dk")
+
+    assert (to2, alias2) == ("reply+y@sl.co", "def@aleeas.com")
+    assert db.query(BrokerAlias).count() == 1
+    db.close()
+
+
+# ---------------------------------------------------------------------------
 # IMAP: ALIAS match tier + leak signal
 # ---------------------------------------------------------------------------
 

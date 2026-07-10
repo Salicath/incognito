@@ -51,6 +51,12 @@ const dispositionMeta: Record<string, { label: string; className: string }> = {
   legally_impossible: { label: "Can't delete", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
 };
 
+// Alias-leak rows carry mailto: URLs (the spammer's address, kept as the dedup
+// key). Opening one would compose mail from the real mailbox — the exact
+// disclosure the alias track prevents — and a delisting kit for an email
+// address is junk legal process. http(s) only, for both.
+const isHttpUrl = (u: string) => /^https?:\/\//i.test(u);
+
 // Pull the most useful secondary line out of the source-specific found_data.
 function detailLine(e: Exposure): string {
   const d = e.data;
@@ -332,7 +338,7 @@ export default function Exposures() {
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 italic">“{e.note}”</p>
                         )}
                       </div>
-                      {e.url && (
+                      {isHttpUrl(e.url) && (
                         <a href={e.url} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0">
                           <ExternalLink className="w-3 h-3" /> Open
@@ -371,7 +377,7 @@ export default function Exposures() {
                         </div>
                       </details>
                     )}
-                    {e.url && <DelistingKit exposureId={e.id} />}
+                    {isHttpUrl(e.url) && <DelistingKit exposureId={e.id} />}
 
                     {/* Action bar */}
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">

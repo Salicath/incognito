@@ -387,6 +387,123 @@ async def test_stores_outbound_email_message():
     assert email.body_text  # non-empty rendered template
 
 
+# ---------------------------------------------------------------------------
+# Alias reuse — chases must use the same sending identity as the original send
+# ---------------------------------------------------------------------------
+
+
+def _seed_alias(session: Session, broker_id: str) -> None:
+    from backend.db.models import BrokerAlias
+
+    session.add(BrokerAlias(
+        broker_id=broker_id,
+        alias_id=7,
+        alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@simplelogin.co",
+    ))
+    session.commit()
+
+
+@pytest.mark.asyncio
+async def test_follow_up_reuses_the_broker_alias():
+    """A thread aliased at blast time must be chased through the same alias —
+    brokers routinely ignore the first email, so a real-mailbox follow-up
+    would leak the address on the common path."""
+    session = make_session()
+    broker = make_broker()
+    registry = BrokerRegistry([broker])
+    req = _create_overdue_request(session, broker.id)
+    _seed_alias(session, broker.id)
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ) as mock_send:
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+            simplelogin_key="sl-key",
+        )
+
+    assert result.follow_ups_sent == 1
+    assert mock_send.call_args.kwargs["to_email"] == "reply+x@simplelogin.co"
+    email = session.query(EmailMessage).filter_by(request_id=req.id).one()
+    assert email.from_address == "abc@aleeas.com"   # what the broker sees
+    assert email.to_address == broker.dpo_email     # the logical recipient
+
+
+@pytest.mark.asyncio
+async def test_escalation_reuses_the_broker_alias():
+    session = make_session()
+    broker = make_broker()
+    registry = BrokerRegistry([broker])
+    req = _create_overdue_request(session, broker.id)
+    _seed_alias(session, broker.id)
+
+    ev = RequestEvent(request_id=req.id, event_type="follow_up_sent", details="x")
+    session.add(ev)
+    session.commit()
+    ev.created_at = datetime.now(UTC) - timedelta(days=8)
+    session.commit()
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ) as mock_send:
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+            escalation_days=7,
+            simplelogin_key="sl-key",
+        )
+
+    assert result.escalations_sent == 1
+    assert mock_send.call_args.kwargs["to_email"] == "reply+x@simplelogin.co"
+    email = session.query(EmailMessage).filter_by(request_id=req.id).one()
+    assert email.from_address == "abc@aleeas.com"
+
+
+@pytest.mark.asyncio
+async def test_follow_up_never_mints_an_alias_mid_thread():
+    """No alias row = the original went out from the real mailbox (pre-alias
+    request, carve-out, or SimpleLogin fallback). Switching identity on the
+    chase would orphan the thread — send from the real mailbox, mint nothing.
+    This also keeps delisting chases (user-filed from their own mail client)
+    and the Reddit/GitHub/Discord carve-outs on their original identity."""
+    session = make_session()
+    broker = make_broker()
+    registry = BrokerRegistry([broker])
+    _create_overdue_request(session, broker.id)
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ) as mock_send:
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+            simplelogin_key="sl-key",
+        )
+
+    from backend.db.models import BrokerAlias
+
+    assert result.follow_ups_sent == 1
+    assert mock_send.call_args.kwargs["to_email"] == broker.dpo_email
+    assert session.query(BrokerAlias).count() == 0
+
+
 @pytest.mark.asyncio
 async def test_collects_errors_without_stopping():
     """Send failure on first request doesn't prevent second request from being attempted."""

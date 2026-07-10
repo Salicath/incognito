@@ -172,8 +172,23 @@ drifted to 220 vs a real 228).
    2026-07-09 (PR #13, `docs/tracks/alias.md`): per-broker SimpleLogin aliases,
    so Art. 17 emails no longer disclose the real mailbox, and inbound spam
    becomes evidence of which broker leaked it.
-3. **Alias track post-merge review (2026-07-10) — six confirmed findings.
-   Fix 3.1 before relying on the feature; it defeats the core promise.**
+3. ✅ **All six findings fixed 2026-07-10** (branch `alias-track-fixes`; each
+   re-verified against the tree by a fresh agent before fixing, TDD, 537 tests).
+   Three corrections to the prescribed fixes, found during verification:
+   - 3.1 must be **reuse-only**: `resolve_recipient` grew `mint=False` and the
+     scheduler uses it. Routing chases through the minting path as prescribed
+     would have switched identity mid-thread for pre-alias requests, minted an
+     alias for `delisting-brave` (the user filed from their own mail client),
+     and tripped the disabled-row IntegrityError.
+   - 3.4's prescribed gate missed the endpoint that matters most: POST
+     `/exposures/{id}/delisting-request` creates the tracked request and starts
+     the clock — it now rejects non-http URLs too (as does the GET, and both
+     frontend sites via one `isHttpUrl` predicate).
+   - 3.2's "rollback in the resolver's except" was dead code as written (that
+     except never sees the commit) — a new `except SQLAlchemyError` around the
+     persist rolls back and still sends via the minted alias (returning the real
+     recipient would leak the mailbox to fix a bookkeeping failure).
+   Original findings, for the record:
    1. (major) `core/scheduler.py:110` and `:163` — follow-ups and escalation
       warnings send to `broker.dpo_email` from the real mailbox, bypassing the
       alias on the very thread that was aliased at blast time. Brokers routinely
@@ -218,7 +233,10 @@ drifted to 220 vs a real 228).
 4. Alias track follow-ups (non-bug):
    - Surface the leak signal in the UI beyond the Exposure row (dashboard badge).
    - "Disable this alias" button — `SimpleLoginClient.disable_alias` is written
-     and tested but not reachable from the frontend. **Blocked on 3.2.**
+     and tested but not reachable from the frontend. ~~Blocked on 3.2~~ —
+     unblocked 2026-07-10 (re-mint updates the row in place; chases treat a
+     disabled alias as absent and fall back to the real mailbox — decide whether
+     that fallback matches the user's intent when wiring the button).
    - Reconsider the `cc_emails` carve-out if SimpleLogin's multi-contact
      behaviour can be verified: GitHub and Discord are currently un-aliased.
 5. Phase 5 completeness pass: run the full pipeline against Malte's own

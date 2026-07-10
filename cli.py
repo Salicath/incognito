@@ -260,7 +260,11 @@ def follow_up(
                     print(msg, file=sys.stderr)
                     raise typer.Exit(code=1)
 
-            profile, smtp, _ = vault.load(password)
+            key, salt = vault.derive_key_from_file(password)
+            profile, smtp, _ = vault.load_with_key(key)
+
+            from backend.core.secrets import read_secret
+            sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
 
             templates_dir = Path(__file__).parent / "templates"
             if not templates_dir.exists():
@@ -283,6 +287,7 @@ def follow_up(
                 broker_registry=broker_registry,
                 renderer=renderer,
                 gdpr_deadline_days=config.gdpr_deadline_days,
+                simplelogin_key=sl_key,
             ))
 
             if result.newly_overdue:

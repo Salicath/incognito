@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.core.alias import AliasError, SimpleLoginClient
 from backend.db.models import BrokerAlias
@@ -28,12 +29,18 @@ async def resolve_recipient(
     recipient: str,
     *,
     allow_alias: bool = True,
+    mint: bool = True,
 ) -> tuple[str, str | None]:
     """Return (smtp_to_address, alias_email_or_None).
 
     Falls back to the real recipient on any SimpleLogin failure — an erasure
     request going out from the real mailbox is far better than one not going
     out at all.
+
+    `mint=False` is reuse-only, for follow-ups/escalations: a chase must use
+    the same sending identity as the original send. Minting mid-thread would
+    switch identity on the broker (or on a delisting engine the user filed
+    with from their own mail client) and orphan the conversation.
     """
     if not api_key or not allow_alias:
         return recipient, None
@@ -43,6 +50,8 @@ async def resolve_recipient(
     )
     if existing is not None and existing.disabled_at is None:
         return existing.reverse_alias_address, existing.alias_email
+    if not mint:
+        return recipient, None
 
     client = SimpleLoginClient(api_key)
     try:
@@ -60,13 +69,33 @@ async def resolve_recipient(
         )
         return recipient, None
 
-    db.add(BrokerAlias(
-        broker_id=broker_id,
-        alias_id=alias_id,
-        alias_email=alias_email,
-        reverse_alias_address=reverse,
-        contact_id=contact_id or None,
-    ))
-    db.commit()
+    try:
+        if existing is not None:
+            # A disabled row still owns the UNIQUE(broker_id) slot — take it
+            # over in place; a second INSERT would raise IntegrityError.
+            existing.alias_id = alias_id
+            existing.alias_email = alias_email
+            existing.reverse_alias_address = reverse
+            existing.contact_id = contact_id or None
+            existing.disabled_at = None
+        else:
+            db.add(BrokerAlias(
+                broker_id=broker_id,
+                alias_id=alias_id,
+                alias_email=alias_email,
+                reverse_alias_address=reverse,
+                contact_id=contact_id or None,
+            ))
+        db.commit()
+    except SQLAlchemyError as exc:
+        # A dirty session here would poison every later broker in the blast.
+        # The alias itself was minted fine, so still send through it — only
+        # reuse and ALIAS-tier reply matching degrade for this broker.
+        db.rollback()
+        log.warning(
+            "Could not persist alias %s for %s (%s) — using it unpersisted",
+            alias_email, broker_id, exc,
+        )
+        return reverse, alias_email
     log.info("Minted alias %s for %s", alias_email, broker_id)
     return reverse, alias_email
