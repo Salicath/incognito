@@ -147,6 +147,10 @@ export const api = {
     request<{ request_id: string; broker_id: string; created: boolean; disposition: string }>(`/scan/exposures/${id}/create-request`, {
       method: "POST",
     }),
+  disableAliasForExposure: (id: number) =>
+    request<{ status: string; alias_email: string }>(`/scan/exposures/${id}/disable-alias`, {
+      method: "POST",
+    }),
   unsubscribeExposure: (id: number) =>
     request<{ ok: boolean; detail: string; disposition: string | null }>(`/scan/exposures/${id}/unsubscribe`, {
       method: "POST",

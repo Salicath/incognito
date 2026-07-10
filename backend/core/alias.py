@@ -21,7 +21,10 @@ SIMPLELOGIN_API = "https://app.simplelogin.io"
 
 # Headers SimpleLogin stamps on forwarded mail. Envelope-To is unconditional;
 # Envelope-From only when the user enables include_header_email_header, so it is
-# enrichment, never a dependency.
+# enrichment, never a dependency. Envelope-From carries the SMTP MAIL FROM,
+# which SimpleLogin SPF-checks at receipt — far harder to forge than the
+# message From: header, so it is what security decisions key on. (The spoofable
+# Original-From header is deliberately not consumed.)
 HDR_ENVELOPE_TO = "x-simplelogin-envelope-to"
 HDR_ENVELOPE_FROM = "x-simplelogin-envelope-from"
 HDR_TYPE = "x-simplelogin-type"
@@ -107,10 +110,12 @@ def alias_from_headers(headers: dict) -> str | None:
 
 
 def original_sender_from_headers(headers: dict) -> str | None:
-    """The real sender behind a SimpleLogin forward — best effort.
+    """The SMTP MAIL FROM behind a SimpleLogin forward — best effort.
 
     Only present when the user enabled `include_header_email_header`. Callers
-    must tolerate None rather than treating its absence as "no sender".
+    must tolerate None rather than treating its absence as "no sender". For
+    ESP-sent mail this is the ESP's bounce domain, not the broker's — which is
+    why a mismatch is treated as an *unexpected sender* to triage, not proof.
     """
     if not headers:
         return None

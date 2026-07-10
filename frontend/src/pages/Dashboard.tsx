@@ -19,6 +19,7 @@ interface Stats {
   unread_replies: number;
   exposures_found: number;
   exposures_actioned: number;
+  alias_leaks_pending: number;
 }
 
 export default function Dashboard() {
@@ -43,7 +44,7 @@ export default function Dashboard() {
         total: 0, broker_count: 0, created: 0, sent: 0, acknowledged: 0,
         completed: 0, refused: 0, overdue: 0, escalated: 0,
         manual_action_needed: 0, unread_replies: 0,
-        exposures_found: 0, exposures_actioned: 0,
+        exposures_found: 0, exposures_actioned: 0, alias_leaks_pending: 0,
       }));
     api.getRequests()
       .then((r) => setRecentRequests(r.slice(0, 10)))
@@ -374,6 +375,28 @@ export default function Dashboard() {
                 {stats.unread_replies} new {stats.unread_replies === 1 ? "reply" : "replies"} from brokers
               </p>
               <p className="text-green-700 text-sm">Click to review broker responses</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alias leaks: a broker (probably) disclosed the address — evidence */}
+      {stats.alias_leaks_pending > 0 && (
+        <div
+          className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between cursor-pointer hover:bg-red-100 transition"
+          onClick={() => navigate("/exposures")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <Inbox className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="font-medium text-red-900">
+                {stats.alias_leaks_pending} alias leak{stats.alias_leaks_pending === 1 ? "" : "s"} awaiting triage
+              </p>
+              <p className="text-red-700 text-sm">
+                An alias received mail from someone other than its broker — dated, single-recipient evidence
+              </p>
             </div>
           </div>
         </div>

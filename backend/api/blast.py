@@ -233,6 +233,16 @@ def create_blast_router(
                     smtp_to, alias_email = await resolve_recipient(
                         db, sl_key, req.broker_id, broker.dpo_email,
                     )
+                    if smtp_to is None:
+                        # Alias deliberately disabled (leak cut-off) — don't
+                        # re-contact via a fresh alias or the real mailbox.
+                        results.append({
+                            "broker_id": req.broker_id,
+                            "broker_name": broker.name,
+                            "status": "skipped",
+                            "reason": "alias disabled — re-enable to contact",
+                        })
+                        continue
 
                     result = await sender.send(
                         to_email=smtp_to,

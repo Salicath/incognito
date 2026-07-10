@@ -137,6 +137,7 @@ def _seed_alias_row(config, broker_id):
         db.add(BrokerAlias(
             broker_id=broker_id, alias_id=7, alias_email="abc@aleeas.com",
             reverse_alias_address="reply+x@simplelogin.co",
+            recipient=f"dpo@{broker_id.removesuffix('-com')}.com",
         ))
         db.commit()
     finally:

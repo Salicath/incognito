@@ -75,6 +75,16 @@ def create_requests_router(
             )
             counts["exposures_found"] = exposures_found
             counts["exposures_actioned"] = exposures_actioned
+            # Alias leaks get their own badge: an untriaged one means a broker
+            # (probably) disclosed the address — time-sensitive evidence.
+            counts["alias_leaks_pending"] = (
+                db.query(ScanResult)
+                .filter(
+                    ScanResult.source == "alias_leak",
+                    ScanResult.disposition.is_(None),
+                )
+                .count()
+            )
             return counts
         finally:
             db.close()

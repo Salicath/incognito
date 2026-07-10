@@ -165,9 +165,15 @@ def _newsletter(data: dict) -> dict:
 
 def _alias_leak(data: dict) -> dict:
     broker = data.get("broker_domain") or "the broker"
-    sender = (data.get("url") or "").removeprefix("mailto:") or "an unrelated sender"
+    sender = (
+        data.get("sender")
+        or (data.get("url") or "").removeprefix("mailto:")
+        or "an unrelated sender"
+    )
     return {
-        "title": f"{broker} disclosed your address",
+        # Triage language: the alias proves an unexpected sender, and the
+        # Art. 15(1)(c) answer below turns it into (or rules out) culpability.
+        "title": f"Unexpected sender on the {broker} alias",
         "steps": [
             f"This alias was given to {broker} and to nobody else, yet {sender} "
             "used it. Either the broker shared/sold it, or it was breached.",

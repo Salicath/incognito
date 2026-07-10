@@ -199,3 +199,49 @@ def test_init_db_idempotent_migrations(tmp_path):
     # Second call should be a no-op
     session_factory = init_db(db_path)
     assert session_factory is not None
+
+
+def test_alias_leak_key_migration_rewrites_to_domain(tmp_path):
+    """b3c5e7f9a012 rewrites old full-sender leak keys to the domain form so a
+    dismissed leak isn't resurrected by the first post-upgrade poll."""
+    import json
+
+    from alembic import command
+
+    from backend.db.session import _get_alembic_cfg, get_engine
+
+    db_path = tmp_path / "test.db"
+    engine = get_engine(db_path)
+    Base.metadata.create_all(engine)
+    # Stamp just before the leak-key migration, then seed an old-format row.
+    with engine.connect() as conn:
+        conn.execute(text(
+            "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"
+        ))
+        conn.execute(text("INSERT INTO alembic_version VALUES ('a91b3e5c7d20')"))
+        conn.execute(
+            text(
+                "INSERT INTO scan_results "
+                "(source, broker_id, found_data, scanned_at, actioned) "
+                "VALUES ('alias_leak', 'spokeo-com', :d, '2026-07-01 00:00:00', 1)"
+            ),
+            {"d": json.dumps({
+                "broker_domain": "spokeo-com",
+                "url": "mailto:spam@evil.com",
+                "title": "spokeo-com leaked or sold your address",
+            })},
+        )
+        conn.commit()
+    engine.dispose()
+
+    command.upgrade(_get_alembic_cfg(db_path), "head")
+
+    engine = get_engine(db_path)
+    with engine.connect() as conn:
+        data = json.loads(conn.execute(
+            text("SELECT found_data FROM scan_results WHERE source='alias_leak'")
+        ).scalar())
+    assert data["url"] == "mailto:evil.com"
+    assert data["sender"] == "spam@evil.com"
+    assert "leaked or sold" not in data["title"]
+    engine.dispose()

@@ -30,8 +30,13 @@ async def resolve_recipient(
     *,
     allow_alias: bool = True,
     mint: bool = True,
-) -> tuple[str, str | None]:
+) -> tuple[str | None, str | None]:
     """Return (smtp_to_address, alias_email_or_None).
+
+    Returns **(None, None) to mean "do not send"** — the broker's alias was
+    deliberately disabled (a leak cut-off). Contacting it via the real mailbox
+    would hand a proven-leaky recipient the very address the alias hid, and
+    silently re-minting would revert the user's decision. Callers must skip.
 
     Falls back to the real recipient on any SimpleLogin failure — an erasure
     request going out from the real mailbox is far better than one not going
@@ -52,7 +57,54 @@ async def resolve_recipient(
     existing = (
         db.query(BrokerAlias).filter(BrokerAlias.broker_id == broker_id).first()
     )
-    if existing is not None and existing.disabled_at is None:
+    if existing is not None and existing.disabled_at is not None:
+        if mint:
+            # A NEW send must not resurrect a deliberately disabled alias —
+            # that would silently revert the user's cut-off. Skip.
+            return None, None
+        # A chase (mint=False) only reaches here for a thread NOT sent through
+        # this alias: the scheduler suppresses genuinely-aliased threads per
+        # request (their outbound recorded the alias as sender) before calling
+        # us. So fall back to the real recipient for the real-mailbox thread.
+        return recipient, None
+    if existing is not None:
+        if existing.recipient is None:
+            # Pre-column row: assume the existing contact is current and heal
+            # the record with zero network I/O. A blanket API call here would
+            # fire on EVERY legacy alias on the first post-migration blast.
+            try:
+                existing.recipient = recipient
+                db.commit()
+            except SQLAlchemyError:
+                db.rollback()
+        elif mint and api_key and existing.recipient != recipient:
+            # The reverse-alias is bound to the contact address it was minted
+            # for. When the registry's dpo_email moves (brokers update), add a
+            # contact for the new address on the SAME alias — identity
+            # preserved, mail reaches the current address. Contact creation is
+            # idempotent upstream (200 + existed=true).
+            client = SimpleLoginClient(api_key)
+            try:
+                async with httpx.AsyncClient() as http:
+                    contact_id, reverse = await client.create_reverse_alias(
+                        http, existing.alias_id, recipient
+                    )
+            except (AliasError, httpx.HTTPError) as exc:
+                # The stored reverse still reaches the OLD address, which
+                # beats not sending at all.
+                log.warning(
+                    "Contact update failed for %s (%s) — using the stored "
+                    "reverse-alias", broker_id, exc,
+                )
+                return existing.reverse_alias_address, existing.alias_email
+            try:
+                existing.contact_id = contact_id or None
+                existing.reverse_alias_address = reverse
+                existing.recipient = recipient
+                db.commit()
+            except SQLAlchemyError:
+                db.rollback()
+            return reverse, existing.alias_email
         return existing.reverse_alias_address, existing.alias_email
     if not api_key or not mint:
         return recipient, None
@@ -74,22 +126,16 @@ async def resolve_recipient(
         return recipient, None
 
     try:
-        if existing is not None:
-            # A disabled row still owns the UNIQUE(broker_id) slot — take it
-            # over in place; a second INSERT would raise IntegrityError.
-            existing.alias_id = alias_id
-            existing.alias_email = alias_email
-            existing.reverse_alias_address = reverse
-            existing.contact_id = contact_id or None
-            existing.disabled_at = None
-        else:
-            db.add(BrokerAlias(
-                broker_id=broker_id,
-                alias_id=alias_id,
-                alias_email=alias_email,
-                reverse_alias_address=reverse,
-                contact_id=contact_id or None,
-            ))
+        # existing is always None here: enabled rows returned above, disabled
+        # rows returned the skip sentinel — so this is a fresh INSERT.
+        db.add(BrokerAlias(
+            broker_id=broker_id,
+            alias_id=alias_id,
+            alias_email=alias_email,
+            reverse_alias_address=reverse,
+            contact_id=contact_id or None,
+            recipient=recipient,
+        ))
         db.commit()
     except SQLAlchemyError as exc:
         # A dirty session here would poison every later broker in the blast.
