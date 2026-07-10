@@ -426,7 +426,6 @@ async def test_follow_up_reuses_the_broker_alias():
             smtp=make_smtp(),
             broker_registry=registry,
             renderer=make_renderer(),
-            simplelogin_key="sl-key",
         )
 
     assert result.follow_ups_sent == 1
@@ -462,7 +461,6 @@ async def test_escalation_reuses_the_broker_alias():
             broker_registry=registry,
             renderer=make_renderer(),
             escalation_days=7,
-            simplelogin_key="sl-key",
         )
 
     assert result.escalations_sent == 1
@@ -494,7 +492,6 @@ async def test_follow_up_never_mints_an_alias_mid_thread():
             smtp=make_smtp(),
             broker_registry=registry,
             renderer=make_renderer(),
-            simplelogin_key="sl-key",
         )
 
     from backend.db.models import BrokerAlias
@@ -502,6 +499,56 @@ async def test_follow_up_never_mints_an_alias_mid_thread():
     assert result.follow_ups_sent == 1
     assert mock_send.call_args.kwargs["to_email"] == broker.dpo_email
     assert session.query(BrokerAlias).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_commit_failure_on_one_broker_does_not_poison_the_rest():
+    """One session serves the whole run. A failed commit must be rolled back
+    in the except, or broker A's pending records ride along into broker B's
+    commit (and a genuinely failed flush poisons every later iteration)."""
+    from sqlalchemy.exc import OperationalError
+
+    session = make_session()
+    broker_a = make_broker(name="Broker A", domain="broker-a.com")
+    broker_b = make_broker(name="Broker B", domain="broker-b.com")
+    registry = BrokerRegistry([broker_a, broker_b])
+
+    _create_overdue_request(session, broker_a.id)
+    _create_overdue_request(session, broker_b.id)
+
+    real_commit = session.commit
+    calls = {"n": 0}
+
+    def flaky_commit():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise OperationalError("stmt", None, Exception("db locked"))
+        real_commit()
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ), patch.object(session, "commit", side_effect=flaky_commit):
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+        )
+
+    assert result.follow_ups_sent == 1
+    assert len(result.errors) == 1
+
+    # Broker A's rolled-back records must not have ridden along with B's commit.
+    emails = session.query(EmailMessage).all()
+    assert len(emails) == 1
+    events = [
+        e for e in session.query(RequestEvent).all()
+        if e.event_type == "follow_up_sent"
+    ]
+    assert len(events) == 1
 
 
 @pytest.mark.asyncio

@@ -157,22 +157,30 @@ def reply_matching_sets(
     broker_registry: BrokerRegistry,
     controller_registry: ControllerRegistry,
     delisting_registry=None,
-) -> tuple[set[str], set[str]]:
-    """Single source for the IMAP poller's (broker_domains, tier3_exclude).
+) -> tuple[set[str], set[str], dict[str, str]]:
+    """Single source for the IMAP poller's (broker_domains, tier3_exclude,
+    id_domains).
 
     Both the web server and the check-replies CLI build these; constructing
     them in two places already caused the two entry points to enforce
     different matching invariants once.
+
+    `id_domains` maps every entry id to its REAL domain — the leak check must
+    not reconstruct the domain from the slug id (data-axle.com slugifies to
+    "data-axle-com", which would reverse to "data.axle.com").
     """
     domains = {b.domain.lower() for b in broker_registry.brokers}
+    id_domains = {b.id: b.domain.lower() for b in broker_registry.brokers}
     for c in controller_registry.controllers:
         domains.add(c.domain.lower())
         domains.update(d.lower() for d in c.extra_domains)
+        id_domains[c.id] = c.domain.lower()
     exclude = {c.id for c in controller_registry.controllers}
     if delisting_registry is not None:
         domains.update(t.domain.lower() for t in delisting_registry.targets)
         exclude.update(t.id for t in delisting_registry.targets)
-    return domains, exclude
+        id_domains.update({t.id: t.domain.lower() for t in delisting_registry.targets})
+    return domains, exclude, id_domains
 
 
 def account_email_ok(controller: Controller, profile: Profile, smtp: SmtpConfig) -> bool:

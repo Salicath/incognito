@@ -130,10 +130,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     app.state.imap_poller = None
     from backend.core.controller import reply_matching_sets
-    broker_domain_set, tier3_exclude = reply_matching_sets(
+    broker_domain_set, tier3_exclude, id_domains = reply_matching_sets(
         broker_registry, controller_registry, delisting_registry,
     )
     app.state.broker_domains = broker_domain_set
+    app.state.imap_id_domains = id_domains
     # Controllers and search engines send routine mail from their domains —
     # restrict their reply matching to Message-ID threading and REF-code echo
     # (no domain-only tier)

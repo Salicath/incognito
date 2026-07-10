@@ -260,11 +260,7 @@ def follow_up(
                     print(msg, file=sys.stderr)
                     raise typer.Exit(code=1)
 
-            key, salt = vault.derive_key_from_file(password)
-            profile, smtp, _ = vault.load_with_key(key)
-
-            from backend.core.secrets import read_secret
-            sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
+            profile, smtp, _ = vault.load(password)
 
             templates_dir = Path(__file__).parent / "templates"
             if not templates_dir.exists():
@@ -287,7 +283,6 @@ def follow_up(
                 broker_registry=broker_registry,
                 renderer=renderer,
                 gdpr_deadline_days=config.gdpr_deadline_days,
-                simplelogin_key=sl_key,
             ))
 
             if result.newly_overdue:
@@ -712,7 +707,7 @@ def check_replies():
     from backend.core.delisting import DelistingRegistry
 
     session_factory = init_db(config.db_path)
-    broker_domains, tier3_exclude = reply_matching_sets(
+    broker_domains, tier3_exclude, id_domains = reply_matching_sets(
         _load_broker_registry(config),
         _load_controller_registry(config),
         DelistingRegistry(),
@@ -723,6 +718,7 @@ def check_replies():
         db_session_factory=session_factory,
         broker_domains=broker_domains,
         tier3_exclude=tier3_exclude,
+        broker_id_domains=id_domains,
     )
 
     console.print(

@@ -42,7 +42,6 @@ async def run_follow_ups(
     renderer: TemplateRenderer,
     gdpr_deadline_days: int = 30,
     escalation_days: int = 7,
-    simplelogin_key: str | None = None,
 ) -> FollowUpResult:
     """
     Check all requests and handle overdue/escalation logic.
@@ -62,6 +61,9 @@ async def run_follow_ups(
             mgr.mark_overdue(req.id)
             result.newly_overdue += 1
         except Exception as e:
+            # One session serves the whole run — a dirty state here would
+            # fail every request after this one.
+            session.rollback()
             result.errors.append(f"Failed to mark {req.broker_id} as overdue: {e}")
 
     # Step 2: Send follow-ups for OVERDUE requests that haven't had a follow-up yet
@@ -113,8 +115,10 @@ async def run_follow_ups(
                     # A thread aliased at blast time must be chased through
                     # the same alias. Reuse-only: no row means the original
                     # went from the real mailbox — never mint mid-thread.
+                    # Reuse is a DB lookup, so no API key is needed (or
+                    # wanted: chases must work even after the key is removed).
                     smtp_to, alias_email = await resolve_recipient(
-                        session, simplelogin_key, req.broker_id,
+                        session, None, req.broker_id,
                         broker.dpo_email, mint=False,
                     )
                     send_result = await sender.send(
@@ -146,6 +150,7 @@ async def run_follow_ups(
                             f"Failed to send follow-up to {broker.name}: {send_result.message}"
                         )
                 except Exception as e:
+                    session.rollback()
                     result.errors.append(
                         f"Error sending follow-up to {broker.name}: {e}"
                     )
@@ -171,7 +176,7 @@ async def run_follow_ups(
                             ),
                         )
                         smtp_to, alias_email = await resolve_recipient(
-                            session, simplelogin_key, req.broker_id,
+                            session, None, req.broker_id,
                             broker.dpo_email, mint=False,
                         )
                         send_result = await sender.send(
@@ -205,6 +210,7 @@ async def run_follow_ups(
                                 f"{send_result.message}"
                             )
                     except Exception as e:
+                        session.rollback()
                         result.errors.append(
                             f"Error sending escalation to {broker.name}: {e}"
                         )
@@ -256,6 +262,7 @@ async def run_follow_ups(
                 "page.",
             )
         except Exception as e:
+            session.rollback()
             result.errors.append(f"Failed to escalate {req.broker_id}: {e}")
 
     return result

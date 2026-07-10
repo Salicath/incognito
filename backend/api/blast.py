@@ -280,6 +280,9 @@ def create_blast_router(
                              broker.dpo_email, delay, config.rate_limit_per_hour)
                     await asyncio.sleep(delay)
                 except Exception as e:
+                    # One session serves the whole blast — roll back or this
+                    # broker's dirty state fails every broker after it.
+                    db.rollback()
                     log.error("Error processing broker %s: %s", req.broker_id, e)
                     failed += 1
                     results.append({
@@ -314,14 +317,8 @@ def create_blast_router(
     @r.post("/follow-up")
     async def run_follow_up(session: str | None = Cookie(default=None)) -> dict:
         """Check deadlines and send follow-ups/escalations."""
-        key, salt = session_store.validate(session)
+        key, _salt = session_store.validate(session)
         profile, smtp, _ = vault.load_with_key(key)
-
-        from backend.core.secrets import read_secret
-
-        # Chases must reuse the blast-time alias, or the follow-up leaks the
-        # real mailbox on the very thread that was aliased.
-        sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
 
         from pathlib import Path
 
@@ -361,7 +358,6 @@ def create_blast_router(
                 broker_registry=lookup_registry,
                 renderer=renderer,
                 gdpr_deadline_days=config.gdpr_deadline_days,
-                simplelogin_key=sl_key,
             )
             renewals = check_lever_renewals(
                 db, CprLeverRegistry.load(_brokers_file("cpr_levers.yaml")),

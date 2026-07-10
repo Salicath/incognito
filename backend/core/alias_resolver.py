@@ -41,8 +41,12 @@ async def resolve_recipient(
     the same sending identity as the original send. Minting mid-thread would
     switch identity on the broker (or on a delisting engine the user filed
     with from their own mail client) and orphan the conversation.
+
+    Reuse needs no API key: sending TO a reverse-alias is plain SMTP, and
+    SimpleLogin keeps forwarding regardless of what keys we hold. Removing
+    the key must stop new minting, not switch identity on live threads.
     """
-    if not api_key or not allow_alias:
+    if not allow_alias:
         return recipient, None
 
     existing = (
@@ -50,7 +54,7 @@ async def resolve_recipient(
     )
     if existing is not None and existing.disabled_at is None:
         return existing.reverse_alias_address, existing.alias_email
-    if not mint:
+    if not api_key or not mint:
         return recipient, None
 
     client = SimpleLoginClient(api_key)
@@ -89,9 +93,16 @@ async def resolve_recipient(
         db.commit()
     except SQLAlchemyError as exc:
         # A dirty session here would poison every later broker in the blast.
-        # The alias itself was minted fine, so still send through it — only
-        # reuse and ALIAS-tier reply matching degrade for this broker.
         db.rollback()
+        # UNIQUE violation usually means a concurrent resolve won the race —
+        # adopt its identity so all sends and future reuse agree on ONE alias.
+        winner = (
+            db.query(BrokerAlias).filter(BrokerAlias.broker_id == broker_id).first()
+        )
+        if winner is not None and winner.disabled_at is None:
+            return winner.reverse_alias_address, winner.alias_email
+        # Genuine persistence failure: the alias exists upstream, so still
+        # send through it — only reuse and ALIAS-tier matching degrade.
         log.warning(
             "Could not persist alias %s for %s (%s) — using it unpersisted",
             alias_email, broker_id, exc,

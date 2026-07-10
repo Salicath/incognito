@@ -269,11 +269,12 @@ def test_reply_matching_sets_cover_all_tracks():
         __import__("pathlib").Path(__file__).parent.parent.parent
         / "brokers" / "controllers.yaml"
     )
-    domains, exclude = reply_matching_sets(
+    domains, exclude, id_domains = reply_matching_sets(
         BrokerRegistry([]), controllers, DelistingRegistry(),
     )
     assert {"brave.com", "bing.com", "google.com", "snap.com"} <= domains
     assert "delisting-google" in exclude and "meta-com" in exclude
+    assert id_domains["delisting-google"] == "google.com"
 
 
 # ---------------------------------------------------------------------------

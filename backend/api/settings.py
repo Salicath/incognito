@@ -223,10 +223,12 @@ def create_settings_router(
 
         broker_domains = getattr(request.app.state, "broker_domains", set())
         tier3_exclude = getattr(request.app.state, "imap_tier3_exclude", set())
+        id_domains = getattr(request.app.state, "imap_id_domains", {})
         db_factory = getattr(request.app.state, "db_session_factory", None)
         if db_factory:
             poller = ImapPoller(
                 body.imap, db_factory, broker_domains, tier3_exclude=tier3_exclude,
+                broker_id_domains=id_domains,
             )
             request.app.state.imap_poller = poller
             poller.start()

@@ -1183,9 +1183,10 @@ def create_scan_router(
                 raise HTTPException(status_code=404, detail="Exposure not found")
             data = _safe_json(row.found_data)
             url = (data.get("url") if isinstance(data, dict) else None) or ""
-            if not url.startswith(("http://", "https://")):
+            if not url.lower().startswith(("http://", "https://")):
                 # alias-leak rows carry mailto: URLs — an RTBF filing for an
-                # email address is junk legal process.
+                # email address is junk legal process. Case-insensitive to
+                # match the frontend's isHttpUrl gate.
                 raise HTTPException(
                     status_code=400, detail="Exposure has no http(s) URL to delist"
                 )
@@ -1247,7 +1248,7 @@ def create_scan_router(
                 raise HTTPException(status_code=404, detail="Exposure not found")
             data = _safe_json(row.found_data)
             url = (data.get("url") if isinstance(data, dict) else None) or ""
-            if not url.startswith(("http://", "https://")):
+            if not url.lower().startswith(("http://", "https://")):
                 # This endpoint creates the tracked request and starts the
                 # Art. 12(3) clock — reject non-http targets even from a
                 # stale or direct client, not just in the frontend gate.
