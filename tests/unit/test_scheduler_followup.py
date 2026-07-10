@@ -387,6 +387,170 @@ async def test_stores_outbound_email_message():
     assert email.body_text  # non-empty rendered template
 
 
+# ---------------------------------------------------------------------------
+# Alias reuse — chases must use the same sending identity as the original send
+# ---------------------------------------------------------------------------
+
+
+def _seed_alias(session: Session, broker_id: str) -> None:
+    from backend.db.models import BrokerAlias
+
+    session.add(BrokerAlias(
+        broker_id=broker_id,
+        alias_id=7,
+        alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@simplelogin.co",
+    ))
+    session.commit()
+
+
+@pytest.mark.asyncio
+async def test_follow_up_reuses_the_broker_alias():
+    """A thread aliased at blast time must be chased through the same alias —
+    brokers routinely ignore the first email, so a real-mailbox follow-up
+    would leak the address on the common path."""
+    session = make_session()
+    broker = make_broker()
+    registry = BrokerRegistry([broker])
+    req = _create_overdue_request(session, broker.id)
+    _seed_alias(session, broker.id)
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ) as mock_send:
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+        )
+
+    assert result.follow_ups_sent == 1
+    assert mock_send.call_args.kwargs["to_email"] == "reply+x@simplelogin.co"
+    email = session.query(EmailMessage).filter_by(request_id=req.id).one()
+    assert email.from_address == "abc@aleeas.com"   # what the broker sees
+    assert email.to_address == broker.dpo_email     # the logical recipient
+
+
+@pytest.mark.asyncio
+async def test_escalation_reuses_the_broker_alias():
+    session = make_session()
+    broker = make_broker()
+    registry = BrokerRegistry([broker])
+    req = _create_overdue_request(session, broker.id)
+    _seed_alias(session, broker.id)
+
+    ev = RequestEvent(request_id=req.id, event_type="follow_up_sent", details="x")
+    session.add(ev)
+    session.commit()
+    ev.created_at = datetime.now(UTC) - timedelta(days=8)
+    session.commit()
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ) as mock_send:
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+            escalation_days=7,
+        )
+
+    assert result.escalations_sent == 1
+    assert mock_send.call_args.kwargs["to_email"] == "reply+x@simplelogin.co"
+    email = session.query(EmailMessage).filter_by(request_id=req.id).one()
+    assert email.from_address == "abc@aleeas.com"
+
+
+@pytest.mark.asyncio
+async def test_follow_up_never_mints_an_alias_mid_thread():
+    """No alias row = the original went out from the real mailbox (pre-alias
+    request, carve-out, or SimpleLogin fallback). Switching identity on the
+    chase would orphan the thread — send from the real mailbox, mint nothing.
+    This also keeps delisting chases (user-filed from their own mail client)
+    and the Reddit/GitHub/Discord carve-outs on their original identity."""
+    session = make_session()
+    broker = make_broker()
+    registry = BrokerRegistry([broker])
+    _create_overdue_request(session, broker.id)
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ) as mock_send:
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+        )
+
+    from backend.db.models import BrokerAlias
+
+    assert result.follow_ups_sent == 1
+    assert mock_send.call_args.kwargs["to_email"] == broker.dpo_email
+    assert session.query(BrokerAlias).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_commit_failure_on_one_broker_does_not_poison_the_rest():
+    """One session serves the whole run. A failed commit must be rolled back
+    in the except, or broker A's pending records ride along into broker B's
+    commit (and a genuinely failed flush poisons every later iteration)."""
+    from sqlalchemy.exc import OperationalError
+
+    session = make_session()
+    broker_a = make_broker(name="Broker A", domain="broker-a.com")
+    broker_b = make_broker(name="Broker B", domain="broker-b.com")
+    registry = BrokerRegistry([broker_a, broker_b])
+
+    _create_overdue_request(session, broker_a.id)
+    _create_overdue_request(session, broker_b.id)
+
+    real_commit = session.commit
+    calls = {"n": 0}
+
+    def flaky_commit():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise OperationalError("stmt", None, Exception("db locked"))
+        real_commit()
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ), patch.object(session, "commit", side_effect=flaky_commit):
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+        )
+
+    assert result.follow_ups_sent == 1
+    assert len(result.errors) == 1
+
+    # Broker A's rolled-back records must not have ridden along with B's commit.
+    emails = session.query(EmailMessage).all()
+    assert len(emails) == 1
+    events = [
+        e for e in session.query(RequestEvent).all()
+        if e.event_type == "follow_up_sent"
+    ]
+    assert len(events) == 1
+
+
 @pytest.mark.asyncio
 async def test_collects_errors_without_stopping():
     """Send failure on first request doesn't prevent second request from being attempted."""

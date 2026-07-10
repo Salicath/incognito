@@ -167,6 +167,7 @@ export default function Settings() {
   }
 
   async function handleDeleteSimpleLoginKey() {
+    if (!window.confirm("Remove the stored SimpleLogin API key? Future sends will come from your real mailbox.")) return;
     setSimpleLoginDeleting(true);
     simpleLogin.setMessage({ type: "", text: "" });
     try {

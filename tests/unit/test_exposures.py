@@ -129,6 +129,55 @@ def test_delisting_kit_400_when_no_url(client, config):
     assert resp.status_code == 400
 
 
+def test_alias_leak_guidance_survives_a_broker_match(client, config):
+    """Leak rows carry the registry broker's id, so the broker matches — but
+    the actionable path for a leak is the Art. 15(1)(c) ladder, not the no-op
+    "create erasure request" (that request is already SENT)."""
+    eid = _seed(config, "alias_leak", {
+        "broker_domain": "broker0-com",
+        "url": "mailto:promo@casino-spam.ru",
+    })
+    data = client.get("/api/scan/exposures").json()
+    row = next(e for e in data["exposures"] if e["id"] == eid)
+    assert row["matched_broker"] is not None      # the broker IS matched
+    assert row["guidance"] is not None            # and guidance still renders
+    assert "disclosed your address" in row["guidance"]["title"]
+
+
+def test_delisting_kit_rejects_a_mailto_url(client, config):
+    """Alias-leak rows carry mailto: URLs — an RTBF filing for an email
+    address is junk legal process."""
+    eid = _seed(config, "alias_leak", {
+        "broker_domain": "broker0-com",
+        "url": "mailto:promo@casino-spam.ru",
+    })
+    resp = client.get(f"/api/scan/exposures/{eid}/delisting-kit")
+    assert resp.status_code == 400
+
+
+def test_delisting_request_rejects_a_mailto_url(client, config):
+    """The POST is what actually creates the tracked request and starts the
+    Art. 12(3) clock — it must reject a non-http target even from a stale or
+    direct client, not just rely on the frontend gate."""
+    from backend.db.models import Request
+    from backend.db.session import init_db
+
+    eid = _seed(config, "alias_leak", {
+        "broker_domain": "broker0-com",
+        "url": "mailto:promo@casino-spam.ru",
+    })
+    resp = client.post(
+        f"/api/scan/exposures/{eid}/delisting-request", json={"engine": "google"},
+    )
+    assert resp.status_code == 400
+
+    db = init_db(config.db_path)()
+    try:
+        assert db.query(Request).count() == 0
+    finally:
+        db.close()
+
+
 def test_unsubscribe_bare_link_is_manual(client, config):
     eid = _seed(config, "newsletter:x.example", {
         "broker_name": "X", "sender_domain": "x.example",

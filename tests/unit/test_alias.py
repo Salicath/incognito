@@ -179,6 +179,171 @@ async def test_httpx_error_also_falls_back():
 
 
 # ---------------------------------------------------------------------------
+# Resolver — reuse-only mode (chases must never switch identity mid-thread)
+# ---------------------------------------------------------------------------
+
+
+async def test_reuse_only_returns_real_recipient_when_no_alias_exists():
+    """No alias row means the original send went from the real mailbox
+    (pre-alias request, carve-out, or SimpleLogin fallback). A chase must not
+    mint a fresh identity mid-thread."""
+    db = _session()
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        to, alias = await resolve_recipient(
+            db, "key", "spokeo-com", "dpo@spokeo.com", mint=False,
+        )
+    assert (to, alias) == ("dpo@spokeo.com", None)
+    assert db.query(BrokerAlias).count() == 0
+    sl_cls.assert_not_called()
+    db.close()
+
+
+async def test_reuse_only_uses_the_existing_alias():
+    db = _session()
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@sl.co",
+    ))
+    db.commit()
+    to, alias = await resolve_recipient(
+        db, "key", "spokeo-com", "dpo@spokeo.com", mint=False,
+    )
+    assert (to, alias) == ("reply+x@sl.co", "abc@aleeas.com")
+    db.close()
+
+
+async def test_reuse_only_ignores_a_disabled_alias():
+    db = _session()
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@sl.co", disabled_at=datetime.now(UTC),
+    ))
+    db.commit()
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        to, alias = await resolve_recipient(
+            db, "key", "spokeo-com", "dpo@spokeo.com", mint=False,
+        )
+    assert (to, alias) == ("dpo@spokeo.com", None)
+    sl_cls.assert_not_called()
+    db.close()
+
+
+async def test_existing_alias_is_reused_even_without_the_api_key():
+    """Removing the SimpleLogin key must not switch identity on live threads:
+    Settings promises "existing aliases keep working", and a chase from the
+    real mailbox on an aliased thread is the exact leak fix 3.1 removed.
+    Reuse is a DB lookup — it needs no API at all."""
+    db = _session()
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@sl.co",
+    ))
+    db.commit()
+
+    to, alias = await resolve_recipient(db, None, "spokeo-com", "dpo@spokeo.com")
+    assert (to, alias) == ("reply+x@sl.co", "abc@aleeas.com")
+    to, alias = await resolve_recipient(
+        db, None, "spokeo-com", "dpo@spokeo.com", mint=False,
+    )
+    assert (to, alias) == ("reply+x@sl.co", "abc@aleeas.com")
+    db.close()
+
+
+# ---------------------------------------------------------------------------
+# Resolver — re-minting over a disabled row (UNIQUE broker_id)
+# ---------------------------------------------------------------------------
+
+
+async def test_disabled_alias_is_reminted_in_place_not_duplicated():
+    """A disabled row still owns the UNIQUE(broker_id) slot. Re-minting must
+    update it in place — a second INSERT raises IntegrityError and the dirty
+    session then poisons every subsequent broker in the blast."""
+    db = _session()
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="old@aleeas.com",
+        reverse_alias_address="reply+old@sl.co", contact_id=41,
+        disabled_at=datetime.now(UTC),
+    ))
+    db.commit()
+
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        inst = sl_cls.return_value
+        inst.create_alias = AsyncMock(return_value=(8, "new@aleeas.com"))
+        inst.create_reverse_alias = AsyncMock(return_value=(42, "reply+new@sl.co"))
+        to, alias = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+
+    assert (to, alias) == ("reply+new@sl.co", "new@aleeas.com")
+    rows = db.query(BrokerAlias).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.alias_id == 8
+    assert row.alias_email == "new@aleeas.com"
+    assert row.reverse_alias_address == "reply+new@sl.co"
+    assert row.contact_id == 42
+    assert row.disabled_at is None
+    db.close()
+
+
+async def test_persist_failure_rolls_back_and_still_sends_via_the_alias():
+    """A DB failure after a successful mint must neither poison the session
+    for the rest of the blast nor leak the real mailbox — the alias exists
+    upstream, so use it unpersisted."""
+    from sqlalchemy.exc import OperationalError
+
+    db = _session()
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        inst = sl_cls.return_value
+        inst.create_alias = AsyncMock(return_value=(7, "abc@aleeas.com"))
+        inst.create_reverse_alias = AsyncMock(return_value=(42, "reply+x@sl.co"))
+        with patch.object(
+            db, "commit",
+            side_effect=OperationalError("stmt", None, Exception("db locked")),
+        ):
+            to, alias = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+        assert (to, alias) == ("reply+x@sl.co", "abc@aleeas.com")
+
+        # The session survives: the next broker in the blast still resolves.
+        inst.create_alias = AsyncMock(return_value=(9, "def@aleeas.com"))
+        inst.create_reverse_alias = AsyncMock(return_value=(43, "reply+y@sl.co"))
+        to2, alias2 = await resolve_recipient(db, "key", "krak-dk", "dpo@krak.dk")
+
+    assert (to2, alias2) == ("reply+y@sl.co", "def@aleeas.com")
+    assert db.query(BrokerAlias).count() == 1
+    db.close()
+
+
+async def test_persist_failure_returns_the_concurrent_winner():
+    """Two concurrent resolves for the same broker both mint; the loser's
+    commit hits UNIQUE(broker_id). It must adopt the winner's identity so
+    both sends and all future reuse agree on ONE alias for the broker."""
+    from sqlalchemy import insert
+    from sqlalchemy.exc import OperationalError
+
+    db = _session()
+    engine = db.get_bind()
+
+    def winner_lands_then_commit_fails():
+        with engine.begin() as conn:
+            conn.execute(insert(BrokerAlias).values(
+                broker_id="spokeo-com", alias_id=99,
+                alias_email="winner@aleeas.com",
+                reverse_alias_address="reply+winner@sl.co",
+                created_at=datetime.now(UTC),
+            ))
+        raise OperationalError("stmt", None, Exception("unique race"))
+
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        inst = sl_cls.return_value
+        inst.create_alias = AsyncMock(return_value=(7, "loser@aleeas.com"))
+        inst.create_reverse_alias = AsyncMock(return_value=(42, "reply+loser@sl.co"))
+        with patch.object(db, "commit", side_effect=winner_lands_then_commit_fails):
+            to, alias = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+
+    assert (to, alias) == ("reply+winner@sl.co", "winner@aleeas.com")
+    db.close()
+
+
+# ---------------------------------------------------------------------------
 # IMAP: ALIAS match tier + leak signal
 # ---------------------------------------------------------------------------
 
@@ -357,6 +522,133 @@ def test_lookalike_domain_is_still_a_leak():
     )
     poller.process_message(msg)
     assert len(poller.leak_signals) == 1
+
+
+def test_hyphenated_broker_domain_reply_is_not_a_leak():
+    """data-axle.com slugifies to "data-axle-com"; naive slug reversal compares
+    the sender against "data.axle.com" and brands the broker's own compliance
+    reply a leak — a false accusation wired into Art. 77 complaint material."""
+    from backend.core.imap import ImapConfig, ImapPoller
+
+    db_factory = _make_db()
+    db = db_factory()
+    db.add(Request(
+        id="req-axle-001", broker_id="data-axle-com",
+        request_type=RequestType.ERASURE, status=RequestStatus.SENT,
+        message_id="<req-axle-001@incognito.local>",
+        sent_at=datetime.now(UTC), deadline_at=datetime.now(UTC),
+    ))
+    db.add(BrokerAlias(
+        broker_id="data-axle-com", alias_id=8, alias_email="axl@aleeas.com",
+        reverse_alias_address="reply+axl@simplelogin.co",
+    ))
+    db.commit()
+    db.close()
+
+    poller = ImapPoller(
+        imap_config=ImapConfig(host="localhost", username="u", password="p"),
+        db_session_factory=db_factory,
+        broker_domains={"data-axle.com"},
+        broker_id_domains={"data-axle-com": "data-axle.com"},
+    )
+    msg = _msg(
+        {"in-reply-to": ("",), "references": ("",),
+         "x-simplelogin-envelope-to": ("axl@aleeas.com",),
+         "x-simplelogin-envelope-from": ("privacyteam@data-axle.com",)},
+        from_="reply+garbage@simplelogin.co",
+    )
+    poller.process_message(msg)
+    assert poller.leak_signals == []
+
+
+def test_threaded_ticketing_reply_is_not_branded_a_leak():
+    """The OneTrust/Zendesk class: brokers answer through DSAR-processor
+    domains. Only the broker's own mail pipeline can quote our full outbound
+    Message-ID (the subject REF code exposes just 8 of 32 hex chars), so a
+    reply that threads to it is the broker speaking — not a leak."""
+    from backend.core.imap import MatchTier
+
+    db_factory = _make_db()
+    poller = _poller_with_alias(db_factory)
+
+    msg = _msg(
+        {"in-reply-to": ("<req-alias-001@incognito.local>",), "references": ("",),
+         "x-simplelogin-envelope-to": ("abc@aleeas.com",),
+         "x-simplelogin-envelope-from": ("dsar-reply@zendesk.com",)},
+        from_="reply+garbage@simplelogin.co",
+    )
+    result = poller.process_message(msg)
+
+    assert poller.leak_signals == []
+    assert result is not None
+    assert result.tier == MatchTier.MESSAGE_ID
+    req = db_factory().get(Request, "req-alias-001")
+    assert req.status == RequestStatus.ACKNOWLEDGED   # the reply still ACKs
+
+
+def test_second_threaded_reply_after_ack_is_not_a_leak():
+    """The suppression must consult Message-IDs status-independently: after the
+    first reply auto-ACKs, the request leaves the active-status maps, and a
+    follow-up ticket email on the same thread must not be leak-branded."""
+    db_factory = _make_db()
+    poller = _poller_with_alias(db_factory)
+
+    db = db_factory()
+    req = db.get(Request, "req-alias-001")
+    req.status = RequestStatus.ACKNOWLEDGED
+    db.commit()
+    db.close()
+
+    msg = _msg(
+        {"in-reply-to": ("<req-alias-001@incognito.local>",), "references": ("",),
+         "x-simplelogin-envelope-to": ("abc@aleeas.com",),
+         "x-simplelogin-envelope-from": ("dsar-reply@zendesk.com",)},
+        from_="reply+garbage@simplelogin.co",
+    )
+    poller.process_message(msg)
+    assert poller.leak_signals == []
+
+
+def test_ref_code_reply_through_the_alias_still_auto_acknowledges():
+    """alias.md: recover the real sender from the envelope header when present.
+    Its load-bearing effect is tier-2: a fresh ticketing reply carrying our
+    [REF-XXXXXXXX] with a broker-domain envelope-from must auto-ACK even though
+    SimpleLogin rewrote the visible From: to a reverse-alias."""
+    from backend.core.imap import ImapConfig, ImapPoller, MatchTier
+
+    db_factory = _make_db()
+    db = db_factory()
+    db.add(Request(
+        id="abcd1234-5678-4abc-9def-0123456789ab", broker_id="spokeo-com",
+        request_type=RequestType.ERASURE, status=RequestStatus.SENT,
+        message_id="<abcd1234-5678-4abc-9def-0123456789ab@incognito.local>",
+        sent_at=datetime.now(UTC), deadline_at=datetime.now(UTC),
+    ))
+    db.add(BrokerAlias(
+        broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@simplelogin.co",
+    ))
+    db.commit()
+    db.close()
+
+    poller = ImapPoller(
+        imap_config=ImapConfig(host="localhost", username="u", password="p"),
+        db_session_factory=db_factory,
+        broker_domains={"spokeo.com"},
+    )
+    msg = _msg(
+        {"in-reply-to": ("",), "references": ("",),
+         "x-simplelogin-envelope-to": ("abc@aleeas.com",),
+         "x-simplelogin-envelope-from": ("dpo@spokeo.com",)},
+        from_="reply+garbage@simplelogin.co",
+        subject="Your request [REF-ABCD1234]",
+    )
+    result = poller.process_message(msg)
+
+    assert result is not None
+    assert result.tier == MatchTier.REFERENCE_CODE
+    req = db_factory().get(Request, "abcd1234-5678-4abc-9def-0123456789ab")
+    assert req.status == RequestStatus.ACKNOWLEDGED
 
 
 def test_leak_signals_are_bounded():

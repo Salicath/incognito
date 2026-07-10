@@ -707,7 +707,7 @@ def check_replies():
     from backend.core.delisting import DelistingRegistry
 
     session_factory = init_db(config.db_path)
-    broker_domains, tier3_exclude = reply_matching_sets(
+    broker_domains, tier3_exclude, id_domains = reply_matching_sets(
         _load_broker_registry(config),
         _load_controller_registry(config),
         DelistingRegistry(),
@@ -718,6 +718,7 @@ def check_replies():
         db_session_factory=session_factory,
         broker_domains=broker_domains,
         tier3_exclude=tier3_exclude,
+        broker_id_domains=id_domains,
     )
 
     console.print(

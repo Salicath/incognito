@@ -53,13 +53,14 @@ def _extract_domain(email_address: str) -> str:
 _MAX_LEAK_SIGNALS = 500
 
 
-def _domain_matches_broker(sender_domain: str, broker_id: str) -> bool:
+def _domain_matches_broker(sender_domain: str, owner_domain: str) -> bool:
     """Is `sender_domain` plausibly the broker itself?
 
-    Broker ids are domain-derived ("spokeo-com" -> "spokeo.com"). Accept the
-    domain itself and any subdomain of it, so mail.spokeo.com is not a leak.
+    Accept the domain and any subdomain of it, so mail.spokeo.com is not a
+    leak. `owner_domain` must be the broker's REAL domain — reconstructing it
+    from the slug id is wrong for hyphenated domains (data-axle.com slugifies
+    to "data-axle-com", which would reverse to "data.axle.com").
     """
-    owner_domain = broker_id.replace("-", ".")
     return sender_domain == owner_domain or sender_domain.endswith("." + owner_domain)
 
 
@@ -121,10 +122,14 @@ class ImapPoller:
         db_session_factory: sessionmaker,
         broker_domains: set[str],
         tier3_exclude: set[str] | None = None,
+        broker_id_domains: dict[str, str] | None = None,
     ):
         self._config = imap_config
         self._db_factory = db_session_factory
         self._broker_domains = broker_domains
+        # id -> real domain, for the leak check. Falls back to slug reversal
+        # when absent, which is only correct for hyphen-free domains.
+        self._broker_id_domains = broker_id_domains or {}
         # Request targets whose domains also send routine mail (controllers:
         # Netflix receipts, Amazon orders, ...) — domain-only matching would
         # file that noise onto the legal thread, so they get tiers 1-2 only.
@@ -158,6 +163,22 @@ class ImapPoller:
         }
         alias_request_map: dict[str, str] = {}
 
+        # Every outbound Message-ID we have EVER stamped, status-independent.
+        # The leak check consults this, not `outbound_ids`: after the first
+        # reply auto-ACKs, the request leaves the active-status maps, and a
+        # second ticketing reply on the same thread must not be leak-branded.
+        all_outbound_ids: set[str] = {
+            mid for (mid,) in db.query(Request.message_id)
+            .filter(Request.message_id.isnot(None))
+        }
+        all_outbound_ids.update(
+            mid for (mid,) in db.query(EmailMessage.message_id)
+            .filter(
+                EmailMessage.direction == EmailDirection.OUTBOUND,
+                EmailMessage.message_id.isnot(None),
+            )
+        )
+
         for req in requests:
             if req.message_id:
                 outbound_ids[req.message_id] = req.id
@@ -180,7 +201,7 @@ class ImapPoller:
 
         return (
             outbound_ids, ref_code_map, domain_request_map, delisting_open,
-            alias_request_map, alias_broker,
+            alias_request_map, alias_broker, all_outbound_ids,
         )
 
     @staticmethod
@@ -246,6 +267,8 @@ class ImapPoller:
                     f"Alias {alias} received mail from {sender}.",
                 )
         except Exception as exc:  # noqa: BLE001 - never drop the reply over this
+            # The caller keeps using this session — leave it clean.
+            db.rollback()
             log.error("Failed to record alias leak for %s: %s", broker_id, exc)
 
     def process_message(self, msg, *, _lookup_maps=None) -> MatchResult | None:
@@ -254,12 +277,12 @@ class ImapPoller:
             if _lookup_maps is not None:
                 (
                     outbound_ids, ref_code_map, domain_request_map, delisting_open,
-                    alias_request_map, alias_broker,
+                    alias_request_map, alias_broker, all_outbound_ids,
                 ) = _lookup_maps
             else:
                 (
                     outbound_ids, ref_code_map, domain_request_map, delisting_open,
-                    alias_request_map, alias_broker,
+                    alias_request_map, alias_broker, all_outbound_ids,
                 ) = self._build_lookup_maps(db)
 
             in_reply_to = ""
@@ -314,11 +337,29 @@ class ImapPoller:
             # envelope-from header that recovers the true sender is opt-in
             # upstream. Judging leakage off the rewritten From: would brand every
             # ordinary broker reply as a resale. No real sender, no verdict.
+            # Suppression: a message that threads to one of our own outbound
+            # Message-IDs is the broker speaking through whatever pipeline it
+            # uses (OneTrust, Zendesk, an ESP) — only the broker's mail system
+            # ever holds the full Message-ID UUID (the subject REF code
+            # exposes 8 of its 32 hex chars). Brand no leak on our own thread.
+            threads_to_us = bool(
+                (in_reply_to and in_reply_to.strip() in all_outbound_ids)
+                or any(r in all_outbound_ids for r in (references or "").split())
+            )
+
             is_leak = False
-            if real_sender and delivered_alias and delivered_alias in alias_broker:
+            if (
+                real_sender and delivered_alias
+                and delivered_alias in alias_broker and not threads_to_us
+            ):
                 owner = alias_broker[delivered_alias]
+                owner_domain = self._broker_id_domains.get(
+                    owner, owner.replace("-", ".")
+                )
                 sender_domain = _extract_domain(real_sender)
-                if sender_domain and not _domain_matches_broker(sender_domain, owner):
+                if sender_domain and not _domain_matches_broker(
+                    sender_domain, owner_domain,
+                ):
                     is_leak = True
                     log.warning(
                         "Alias %s (minted for %s) received mail from %s — "

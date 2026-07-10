@@ -1026,9 +1026,13 @@ def create_scan_router(
                 url = data.get("url", "") if isinstance(data, dict) else ""
                 broker = _match_broker(r_.broker_id, data)
                 # Matched brokers get the one-click Art. 17 path; everything else
-                # gets source-specific manual removal guidance instead.
+                # gets source-specific manual removal guidance instead. Alias
+                # leaks always get guidance: the leak row carries the registry
+                # broker's id, but "create erasure request" is a no-op there
+                # (that request is already SENT) — the actionable path is the
+                # Art. 15(1)(c) ladder.
                 guidance = None
-                if broker is None:
+                if broker is None or r_.source.split(":", 1)[0] == "alias_leak":
                     from backend.core.removal_guidance import guidance_for
                     guidance = guidance_for(r_.source, data)
                 exposures.append(
@@ -1179,8 +1183,13 @@ def create_scan_router(
                 raise HTTPException(status_code=404, detail="Exposure not found")
             data = _safe_json(row.found_data)
             url = (data.get("url") if isinstance(data, dict) else None) or ""
-            if not url:
-                raise HTTPException(status_code=400, detail="Exposure has no URL to delist")
+            if not url.lower().startswith(("http://", "https://")):
+                # alias-leak rows carry mailto: URLs — an RTBF filing for an
+                # email address is junk legal process. Case-insensitive to
+                # match the frontend's isHttpUrl gate.
+                raise HTTPException(
+                    status_code=400, detail="Exposure has no http(s) URL to delist"
+                )
 
             # Attach per-engine tracked-request status for this URL
             tracked: dict[str, dict] = {}
@@ -1239,8 +1248,13 @@ def create_scan_router(
                 raise HTTPException(status_code=404, detail="Exposure not found")
             data = _safe_json(row.found_data)
             url = (data.get("url") if isinstance(data, dict) else None) or ""
-            if not url:
-                raise HTTPException(status_code=400, detail="Exposure has no URL to delist")
+            if not url.lower().startswith(("http://", "https://")):
+                # This endpoint creates the tracked request and starts the
+                # Art. 12(3) clock — reject non-http targets even from a
+                # stale or direct client, not just in the frontend gate.
+                raise HTTPException(
+                    status_code=400, detail="Exposure has no http(s) URL to delist"
+                )
 
             broker_id = f"delisting-{engine.key}"
             existing = (

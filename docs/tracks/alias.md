@@ -74,7 +74,20 @@ verdict. Users who want leak detection must enable
 
 Sender-domain comparison accepts the broker's domain and its subdomains
 (`mail.spokeo.com` is not a leak) but not suffix lookalikes
-(`spokeo.com.evil.ru` is).
+(`spokeo.com.evil.ru` is). The broker's REAL domain comes from the registry
+(`reply_matching_sets` id→domain map) — reconstructing it from the slug id
+would brand every hyphenated-domain broker's own reply a leak
+(`data-axle.com` → `data-axle-com` → `data.axle.com`).
+
+**No leak verdict on our own thread:** a message that threads via
+In-Reply-To/References to one of our outbound Message-IDs is the broker
+speaking through whatever pipeline it uses (OneTrust, Zendesk, an ESP). Only
+the broker's mail system ever holds the full Message-ID UUID — the subject REF
+code exposes 8 of its 32 hex chars — so this cannot be spoofed by whoever
+bought the address. The Message-ID set is status-independent: a second
+ticketing reply arriving after the first one auto-ACKed must not be branded
+either. Unthreaded DSAR-portal mail (OneTrust's fresh-message flow) can still
+false-positive — that class is on the backlog (triage demotion, see PLAN.md).
 
 Confirmed leaks are filed into the **Exposure inbox** as `source="alias_leak"`,
 keyed `(source, broker_id, mailto:sender)` so repeat spam refreshes one row
@@ -97,11 +110,37 @@ So 5 of the 8 email-viable controllers are aliased. The three exceptions are
 deliberate: a partly-aliased send is worse than an honest un-aliased one, because
 it leaks the real address *and* claims not to.
 
+## Chases reuse the identity, never mint one
+
+Follow-ups and escalation warnings (`core/scheduler.py`) resolve the recipient
+in **reuse-only mode** (`resolve_recipient(..., mint=False)`): an existing live
+alias is reused, so the chase arrives from the same sender as the original
+request. No alias row — a pre-alias thread, a carve-out platform, a delisting
+engine the user filed with from their own mail client, or a blast-time
+SimpleLogin fallback — means the chase goes from the real mailbox, exactly like
+the original did. Minting mid-thread would switch identity on the recipient and
+orphan the conversation, and for an already-leaked thread it buys nothing.
+
+A **disabled** alias (`disabled_at` set) is treated as absent everywhere: chases
+skip it, and a fresh send for that broker re-mints — updating the existing row
+in place, because `broker_id` is UNIQUE and a second INSERT would poison the
+blast session.
+
+Reuse needs **no API key**: sending to a reverse-alias is plain SMTP, and
+SimpleLogin keeps forwarding regardless of what keys we hold. Removing the key
+stops new minting; live aliased threads keep their identity (this is also what
+the Settings page promises on key removal).
+
 ## Failure mode
 
 Any SimpleLogin error (bad key, free plan, quota, network) falls back to sending
 to the real recipient from the real mailbox, logged at WARNING. An erasure request
 that goes out from the real mailbox beats one that never goes out.
+
+If the alias mints but the `broker_alias` row fails to persist, the session is
+rolled back (a dirty session would fail every later broker in the blast) and the
+send still goes through the alias — only reuse and ALIAS-tier reply matching
+degrade; Message-ID threading still routes the reply home.
 
 ## Storage
 

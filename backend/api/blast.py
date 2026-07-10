@@ -280,6 +280,9 @@ def create_blast_router(
                              broker.dpo_email, delay, config.rate_limit_per_hour)
                     await asyncio.sleep(delay)
                 except Exception as e:
+                    # One session serves the whole blast — roll back or this
+                    # broker's dirty state fails every broker after it.
+                    db.rollback()
                     log.error("Error processing broker %s: %s", req.broker_id, e)
                     failed += 1
                     results.append({
