@@ -20,10 +20,14 @@ log = logging.getLogger("incognito.alias")
 SIMPLELOGIN_API = "https://app.simplelogin.io"
 
 # Headers SimpleLogin stamps on forwarded mail. Envelope-To is unconditional;
-# Envelope-From only when the user enables include_header_email_header, so it is
-# enrichment, never a dependency.
+# Envelope-From and Original-From only when the user enables
+# include_header_email_header, so they are enrichment, never a dependency.
+# Envelope-From carries the SMTP MAIL FROM (an ESP's bounce address for
+# ESP-sent mail); Original-From carries the author's From address (verified
+# against email_handler.py: contact.website_email, 2026-07-10).
 HDR_ENVELOPE_TO = "x-simplelogin-envelope-to"
 HDR_ENVELOPE_FROM = "x-simplelogin-envelope-from"
+HDR_ORIGINAL_FROM = "x-simplelogin-original-from"
 HDR_TYPE = "x-simplelogin-type"
 
 
@@ -106,15 +110,30 @@ def alias_from_headers(headers: dict) -> str | None:
     return value.strip().lower() if value else None
 
 
-def original_sender_from_headers(headers: dict) -> str | None:
-    """The real sender behind a SimpleLogin forward — best effort.
-
-    Only present when the user enabled `include_header_email_header`. Callers
-    must tolerate None rather than treating its absence as "no sender".
-    """
+def _optional_header(headers: dict, name: str) -> str | None:
     if not headers:
         return None
-    value = headers.get(HDR_ENVELOPE_FROM)
+    value = headers.get(name)
     if isinstance(value, (list, tuple)):
         value = value[0] if value else None
     return value.strip() if value else None
+
+
+def original_sender_from_headers(headers: dict) -> str | None:
+    """The SMTP MAIL FROM behind a SimpleLogin forward — best effort.
+
+    Only present when the user enabled `include_header_email_header`. Callers
+    must tolerate None rather than treating its absence as "no sender".
+    For ESP-sent mail this is the bounce domain, not the author — pair it
+    with `original_author_from_headers` before judging who wrote the mail.
+    """
+    return _optional_header(headers, HDR_ENVELOPE_FROM)
+
+
+def original_author_from_headers(headers: dict) -> str | None:
+    """The author's From address behind a SimpleLogin forward — best effort.
+
+    Same opt-in as Envelope-From. May carry a display name
+    ("Name <addr@x.com>"); callers should extract the address part.
+    """
+    return _optional_header(headers, HDR_ORIGINAL_FROM)

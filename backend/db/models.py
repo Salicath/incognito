@@ -170,6 +170,10 @@ class BrokerAlias(Base):
     alias_email: Mapped[str] = mapped_column(String, nullable=False, index=True)
     reverse_alias_address: Mapped[str] = mapped_column(String, nullable=False)
     contact_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The contact address the reverse-alias delivers to. When the registry's
+    # dpo_email moves away from this, the resolver adds a contact on the same
+    # alias. NULL on pre-column rows; healed on the first keyed send.
+    recipient: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

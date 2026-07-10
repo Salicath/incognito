@@ -1160,6 +1160,73 @@ def create_scan_router(
         finally:
             db.close()
 
+    @r.post("/exposures/{exposure_id}/disable-alias")
+    async def disable_alias_for_exposure(
+        exposure_id: int,
+        session: str | None = Cookie(default=None),
+    ):
+        """Disable the SimpleLogin alias behind an alias-leak exposure.
+
+        Cuts the broker (and whoever it disclosed the address to) off without
+        losing the evidence trail. Chases for that broker stop — the request
+        routes to the DPA-escalation path instead of the real mailbox.
+        """
+        key, salt = session_store.validate(session)
+        if db_session_factory is None or config is None:
+            raise HTTPException(status_code=503, detail="Database unavailable")
+
+        import httpx as _httpx
+
+        from backend.core.alias import AliasError, SimpleLoginClient
+        from backend.core.secrets import read_secret
+        from backend.db.models import BrokerAlias
+
+        sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
+        if not sl_key:
+            raise HTTPException(
+                status_code=400,
+                detail="SimpleLogin API key required to disable an alias",
+            )
+
+        db = db_session_factory()
+        try:
+            row = db.get(ScanResult, exposure_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="Exposure not found")
+            if row.source.split(":", 1)[0] != "alias_leak":
+                raise HTTPException(
+                    status_code=400, detail="Not an alias-leak exposure"
+                )
+            alias_row = (
+                db.query(BrokerAlias)
+                .filter(BrokerAlias.broker_id == row.broker_id)
+                .first()
+            )
+            if alias_row is None:
+                raise HTTPException(status_code=404, detail="No alias for this broker")
+            if alias_row.disabled_at is not None:
+                return {"status": "already_disabled", "alias_email": alias_row.alias_email}
+
+            client = SimpleLoginClient(sl_key)
+            try:
+                async with _httpx.AsyncClient() as http:
+                    await client.disable_alias(http, alias_row.alias_id)
+            except (AliasError, _httpx.HTTPError) as exc:
+                # The alias still forwards upstream — marking it disabled
+                # locally would stop chases while the spam continues.
+                log.warning("Disable alias failed for %s: %s", row.broker_id, exc)
+                raise HTTPException(
+                    status_code=502, detail="SimpleLogin refused the toggle"
+                ) from exc
+
+            from datetime import UTC as _UTC
+            from datetime import datetime as _datetime
+            alias_row.disabled_at = _datetime.now(_UTC)
+            db.commit()
+            return {"status": "disabled", "alias_email": alias_row.alias_email}
+        finally:
+            db.close()
+
     @r.get("/exposures/{exposure_id}/delisting-kit")
     def get_delisting_kit(
         exposure_id: int,

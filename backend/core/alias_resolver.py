@@ -53,6 +53,35 @@ async def resolve_recipient(
         db.query(BrokerAlias).filter(BrokerAlias.broker_id == broker_id).first()
     )
     if existing is not None and existing.disabled_at is None:
+        if mint and api_key and existing.recipient != recipient:
+            # The reverse-alias is bound to the contact address it was minted
+            # for. When the registry's dpo_email moves (brokers update), add a
+            # contact for the new address on the SAME alias — identity
+            # preserved, mail reaches the current address. Upstream contact
+            # creation is idempotent (200 + existed=true), which also heals
+            # pre-column rows whose recipient is NULL.
+            client = SimpleLoginClient(api_key)
+            try:
+                async with httpx.AsyncClient() as http:
+                    contact_id, reverse = await client.create_reverse_alias(
+                        http, existing.alias_id, recipient
+                    )
+            except (AliasError, httpx.HTTPError) as exc:
+                # The stored reverse still reaches the OLD address, which
+                # beats not sending at all.
+                log.warning(
+                    "Contact update failed for %s (%s) — using the stored "
+                    "reverse-alias", broker_id, exc,
+                )
+                return existing.reverse_alias_address, existing.alias_email
+            try:
+                existing.contact_id = contact_id or None
+                existing.reverse_alias_address = reverse
+                existing.recipient = recipient
+                db.commit()
+            except SQLAlchemyError:
+                db.rollback()
+            return reverse, existing.alias_email
         return existing.reverse_alias_address, existing.alias_email
     if not api_key or not mint:
         return recipient, None
@@ -81,6 +110,7 @@ async def resolve_recipient(
             existing.alias_email = alias_email
             existing.reverse_alias_address = reverse
             existing.contact_id = contact_id or None
+            existing.recipient = recipient
             existing.disabled_at = None
         else:
             db.add(BrokerAlias(
@@ -89,6 +119,7 @@ async def resolve_recipient(
                 alias_email=alias_email,
                 reverse_alias_address=reverse,
                 contact_id=contact_id or None,
+                recipient=recipient,
             ))
         db.commit()
     except SQLAlchemyError as exc:

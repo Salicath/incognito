@@ -502,6 +502,74 @@ async def test_follow_up_never_mints_an_alias_mid_thread():
 
 
 @pytest.mark.asyncio
+async def test_unknown_broker_is_reported_not_silently_skipped():
+    """A request whose broker left the registry can never be chased or
+    escalated automatically — it must surface as an error, not sit OVERDUE
+    forever with no signal."""
+    session = make_session()
+    registry = BrokerRegistry([make_broker()])
+    _create_overdue_request(session, "gone-from-registry-com")
+
+    result = await run_follow_ups(
+        session=session,
+        profile=make_profile(),
+        smtp=None,
+        broker_registry=registry,
+        renderer=make_renderer(),
+    )
+
+    assert len(result.errors) == 1
+    assert "gone-from-registry-com" in result.errors[0]
+
+
+@pytest.mark.asyncio
+async def test_disabled_alias_broker_is_never_chased_from_the_real_mailbox():
+    """Disabling an alias means cutting off contact with a broker that
+    (probably) leaked it. A chase from the real mailbox would hand the proven
+    bad actor exactly the address the alias hid — route the request to the
+    DPA-escalation path instead, like a form-only platform."""
+    from backend.db.models import BrokerAlias
+
+    session = make_session()
+    broker = make_broker()
+    registry = BrokerRegistry([broker])
+    req = _create_overdue_request(session, broker.id)
+    session.add(BrokerAlias(
+        broker_id=broker.id, alias_id=7, alias_email="abc@aleeas.com",
+        reverse_alias_address="reply+x@simplelogin.co",
+        disabled_at=datetime.now(UTC),
+    ))
+    # Backdate the overdue event past the escalation window.
+    overdue_ev = (
+        session.query(RequestEvent)
+        .filter_by(request_id=req.id, event_type="overdue")
+        .one()
+    )
+    overdue_ev.created_at = datetime.now(UTC) - timedelta(days=8)
+    session.commit()
+
+    with patch(
+        "backend.core.scheduler.EmailSender.send",
+        new_callable=AsyncMock,
+        return_value=_success_result(),
+    ) as mock_send, patch("backend.core.notifier.notify"):
+        result = await run_follow_ups(
+            session=session,
+            profile=make_profile(),
+            smtp=make_smtp(),
+            broker_registry=registry,
+            renderer=make_renderer(),
+            escalation_days=7,
+        )
+
+    mock_send.assert_not_called()               # no mail to OR about the broker
+    assert result.follow_ups_sent == 0
+    session.refresh(req)
+    assert req.status == RequestStatus.ESCALATED   # DPA path opens instead
+    assert result.escalated_no_email == 1
+
+
+@pytest.mark.asyncio
 async def test_commit_failure_on_one_broker_does_not_poison_the_rest():
     """One session serves the whole run. A failed commit must be rolled back
     in the except, or broker A's pending records ride along into broker B's

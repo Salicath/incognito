@@ -173,7 +173,7 @@ drifted to 220 vs a real 228).
    so Art. 17 emails no longer disclose the real mailbox, and inbound spam
    becomes evidence of which broker leaked it.
 3. ✅ **All six findings fixed 2026-07-10** (branch `alias-track-fixes`; each
-   re-verified against the tree by a fresh agent before fixing, TDD; suite now 547 tests).
+   re-verified against the tree by a fresh agent before fixing, TDD; suite then 547 tests).
    Three corrections to the prescribed fixes, found during verification:
    - 3.1 must be **reuse-only**: `resolve_recipient` grew `mint=False` and the
      scheduler uses it. Routing chases through the minting path as prescribed
@@ -245,42 +245,38 @@ drifted to 220 vs a real 228).
    - Case-aligned http gates; three new load-bearing guards (blast send-all
      alias wiring, follow-up route chase, REF-through-alias auto-ACK), each
      proven by mutation.
-4. **Alias track review backlog (2026-07-10, confirmed or credible but not
-   fixed — design-level, want their own pass):**
-   - (major) Alias reuse ignores a changed recipient: the reverse-alias is a
-     per-contact address bound to the dpo_email at mint time, so after
-     `brokers update` corrects a DPO address, mail keeps flowing to the old
-     one forever. Fix direction: store `recipient` on `broker_alias`, add a
-     new contact on the same alias when it changes (identity preserved).
-   - (major, nuanced) X-SimpleLogin-* headers are trusted without provenance.
-     Fabricating leak evidence against broker X needs X's alias (which only X
-     was told), and spoofing tier-2 auto-ACK needs the REF code (thread
-     participants only) — so exploitation mostly requires the leak/thread it
-     fakes. Still worth hardening when the poller grows.
-   - Leak verdict semantics, part 2 of the review's recommended direction:
-     recover the sender from X-SimpleLogin-Original-From as well as
-     -Envelope-From (kills the ESP bounce-domain MAIL FROM false-positive
-     class), and demote the automatic verdict from accusation ("leaked or
-     sold") to a needs-triage "unexpected sender on alias for X" card — the
-     user's confirmation, ideally after the Art. 15(1)(c) answer, produces the
-     complaint-grade language. Optional DSAR-processor allowlist (onetrust,
-     trustarc, zendesk, securiti, transcend, datagrail).
-   - (minor) VERP-style spam mints one exposure per message (dedup key is the
-     full sender address); leak_signals never drained by any API; ALIAS tier
-     picks an arbitrary request when a broker has several active; no
-     idempotency between commit and SEEN-flagging (crash re-files + re-notifies);
-     scheduler silently skips OVERDUE requests whose broker_id left the
-     registry (stuck OVERDUE forever, no error).
-5. Alias track follow-ups (non-bug):
-   - Surface the leak signal in the UI beyond the Exposure row (dashboard badge).
-   - "Disable this alias" button — `SimpleLoginClient.disable_alias` is written
-     and tested but not reachable from the frontend. ~~Blocked on 3.2~~ —
-     unblocked 2026-07-10 (re-mint updates the row in place; chases treat a
-     disabled alias as absent and fall back to the real mailbox — decide whether
-     that fallback matches the user's intent when wiring the button).
-   - Reconsider the `cc_emails` carve-out if SimpleLogin's multi-contact
-     behaviour can be verified: GitHub and Discord are currently un-aliased.
-6. Phase 5 completeness pass: run the full pipeline against Malte's own
+4. ✅ **Alias design pass shipped 2026-07-10** (branch `alias-design-pass`,
+   17 new tests, suite 564; SimpleLogin facts verified against the upstream
+   source before coding):
+   - ✅ Contact tracks the registry: `broker_alias.recipient` (migration
+     `a91b3e5c7d20`); a moved dpo_email gets a new contact on the SAME alias
+     (idempotent upstream: `200` + `existed=true`, which also heals
+     pre-column rows). Chases never touch the API mid-thread.
+   - ✅ Leak verdict part 2: sender recovered from X-SimpleLogin-Original-From
+     (the author) as well as -Envelope-From (SMTP MAIL FROM) — verdict only
+     when BOTH mismatch, killing the ESP bounce-domain false-positive class;
+     tier-2 matching prefers the author, so ESP-sent REF replies still ACK.
+     Wording demoted from "leaked or sold" to "Unexpected sender on the alias
+     for X" (triage, not accusation). VERP dedup by sender domain; in-poller
+     leak_signals dedup; ALIAS tier files onto the most recent active request.
+   - ✅ Disabled alias = no contact at all: chases route to the DPA-escalation
+     path (same as form-only platforms), never the real mailbox. "Disable this
+     alias" button on the leak card (SimpleLogin toggle first, local mark only
+     on success). Dashboard shows a red alias-leak badge
+     (`alias_leaks_pending` on /api/requests/stats).
+   - ✅ Scheduler reports OVERDUE requests whose broker left the registry
+     instead of skipping them silently forever.
+   - ❌ `cc_emails` carve-out stays — verified against the SimpleLogin source:
+     the reply path raises `NonReverseAliasInReplyPhase` for any To/Cc address
+     that is not a reverse-alias, so plain CCs through an aliased send fail
+     outright. Lifting it needs per-CC contacts plus a live-account test.
+   - Deferred (small, nuanced): X-SimpleLogin-* header provenance hardening
+     (fabricating evidence against X needs X's alias; spoofing tier-2 ACK
+     needs the REF code — exploitation mostly requires the leak/thread it
+     fakes); optional DSAR-processor allowlist (triage demotion made it
+     non-essential); SEEN-flag idempotency (crash between commit and flag
+     re-files + re-notifies once).
+5. Phase 5 completeness pass: run the full pipeline against Malte's own
    identifiers, iterate until self-search returns nothing actionable, then
    cut v1.0. **Needs Malte in the loop.**
 

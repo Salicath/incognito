@@ -141,7 +141,7 @@ def test_alias_leak_guidance_survives_a_broker_match(client, config):
     row = next(e for e in data["exposures"] if e["id"] == eid)
     assert row["matched_broker"] is not None      # the broker IS matched
     assert row["guidance"] is not None            # and guidance still renders
-    assert "disclosed your address" in row["guidance"]["title"]
+    assert "nexpected sender" in row["guidance"]["title"]
 
 
 def test_delisting_kit_rejects_a_mailto_url(client, config):
@@ -176,6 +176,108 @@ def test_delisting_request_rejects_a_mailto_url(client, config):
         assert db.query(Request).count() == 0
     finally:
         db.close()
+
+
+def _seed_alias_leak_with_alias_row(config):
+    """An alias_leak exposure plus the BrokerAlias row it points at."""
+    from datetime import UTC, datetime
+
+    from backend.db.models import BrokerAlias
+    from backend.db.session import init_db
+
+    eid = _seed(config, "alias_leak", {
+        "broker_domain": "broker0-com",
+        "sender": "promo@casino-spam.ru",
+        "url": "mailto:casino-spam.ru",
+    })
+    db = init_db(config.db_path)()
+    try:
+        db.add(BrokerAlias(
+            broker_id="broker0-com", alias_id=7, alias_email="abc@aleeas.com",
+            reverse_alias_address="reply+x@simplelogin.co",
+            created_at=datetime.now(UTC),
+        ))
+        db.commit()
+    finally:
+        db.close()
+    return eid
+
+
+def test_disable_alias_toggles_upstream_and_marks_the_row(client, config):
+    """The leak card's 'disable this alias' action: SimpleLogin toggle + local
+    disabled_at, so chases stop and the broker can never reach the user."""
+    from unittest.mock import AsyncMock, patch
+
+    from backend.db.models import BrokerAlias
+    from backend.db.session import init_db
+
+    client.post("/api/settings/simplelogin", json={"api_key": "sl-test-key"})
+    eid = _seed_alias_leak_with_alias_row(config)
+
+    with patch(
+        "backend.core.alias.SimpleLoginClient.disable_alias",
+        new_callable=AsyncMock,
+        return_value=True,
+    ) as mock_disable:
+        resp = client.post(f"/api/scan/exposures/{eid}/disable-alias")
+
+    assert resp.status_code == 200
+    assert resp.json()["alias_email"] == "abc@aleeas.com"
+    mock_disable.assert_awaited_once()
+
+    db = init_db(config.db_path)()
+    try:
+        row = db.query(BrokerAlias).filter_by(broker_id="broker0-com").one()
+        assert row.disabled_at is not None
+    finally:
+        db.close()
+
+
+def test_disable_alias_upstream_failure_does_not_mark_locally(client, config):
+    """If the SimpleLogin toggle fails, the alias still forwards — marking it
+    disabled locally would stop chases while the spam continues."""
+    from unittest.mock import AsyncMock, patch
+
+    from backend.core.alias import AliasError
+    from backend.db.models import BrokerAlias
+    from backend.db.session import init_db
+
+    client.post("/api/settings/simplelogin", json={"api_key": "sl-test-key"})
+    eid = _seed_alias_leak_with_alias_row(config)
+
+    with patch(
+        "backend.core.alias.SimpleLoginClient.disable_alias",
+        new_callable=AsyncMock,
+        side_effect=AliasError("upstream down"),
+    ):
+        resp = client.post(f"/api/scan/exposures/{eid}/disable-alias")
+
+    assert resp.status_code == 502
+    db = init_db(config.db_path)()
+    try:
+        row = db.query(BrokerAlias).filter_by(broker_id="broker0-com").one()
+        assert row.disabled_at is None
+    finally:
+        db.close()
+
+
+def test_disable_alias_rejects_non_leak_rows_and_missing_key(client, config):
+    eid = _seed(config, "duckduckgo", {"broker_name": "Blog", "url": "https://x.example/a"})
+    assert client.post(f"/api/scan/exposures/{eid}/disable-alias").status_code == 400
+
+    # alias_leak row but no stored SimpleLogin key -> can't toggle upstream
+    leak_eid = _seed_alias_leak_with_alias_row(config)
+    resp = client.post(f"/api/scan/exposures/{leak_eid}/disable-alias")
+    assert resp.status_code == 400
+
+
+def test_stats_count_pending_alias_leaks(client, config):
+    _seed(config, "alias_leak", {
+        "broker_domain": "broker0-com", "url": "mailto:spam.ru", "sender": "a@spam.ru",
+    })
+    _seed(config, "duckduckgo", {"broker_name": "Blog", "url": "https://x.example/a"})
+    stats = client.get("/api/requests/stats").json()
+    assert stats["alias_leaks_pending"] == 1
 
 
 def test_unsubscribe_bare_link_is_manual(client, config):

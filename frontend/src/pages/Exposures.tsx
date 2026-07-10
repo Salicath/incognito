@@ -250,6 +250,21 @@ export default function Exposures() {
     }
   }
 
+  async function disableAlias(id: number) {
+    if (!window.confirm(
+      "Disable this alias? The broker (and whoever it disclosed the address to) can never reach you again, and automated chases for it move to the DPA-complaint path."
+    )) return;
+    setBusy(id);
+    try {
+      await api.disableAliasForExposure(id);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to disable alias");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const visible = exposures.filter((e) =>
     filter === "all" ? true : filter === "needs_triage" ? e.disposition === null : e.disposition === filter
   );
@@ -396,6 +411,13 @@ export default function Exposures() {
                                 title={`Create an Art. 17 erasure request for ${e.matched_broker.name}`}
                                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50">
                                 {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} Create erasure request
+                              </button>
+                            )}
+                            {e.source === "alias_leak" && (
+                              <button onClick={() => disableAlias(e.id)} disabled={busy === e.id}
+                                title="Toggle the SimpleLogin alias off — the spam stops, the evidence stays"
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50">
+                                {busy === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Ban className="w-3 h-3" />} Disable this alias
                               </button>
                             )}
                             {e.source.startsWith("newsletter") && Boolean(e.data.one_click || e.data.unsub_mailto) && (
