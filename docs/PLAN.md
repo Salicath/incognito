@@ -172,13 +172,56 @@ drifted to 220 vs a real 228).
    2026-07-09 (PR #13, `docs/tracks/alias.md`): per-broker SimpleLogin aliases,
    so Art. 17 emails no longer disclose the real mailbox, and inbound spam
    becomes evidence of which broker leaked it.
-3. Alias track follow-ups (none blocking):
+3. **Alias track post-merge review (2026-07-10) — six confirmed findings.
+   Fix 3.1 before relying on the feature; it defeats the core promise.**
+   1. (major) `core/scheduler.py:110` and `:163` — follow-ups and escalation
+      warnings send to `broker.dpo_email` from the real mailbox, bypassing the
+      alias on the very thread that was aliased at blast time. Brokers routinely
+      ignore the first email, so the leak happens on the *common* path. Fix:
+      route both sends through `resolve_recipient` (the alias already exists per
+      broker — it will be reused, not re-minted).
+   2. (major, latent) `core/alias_resolver.py` — re-minting for a broker whose
+      alias row has `disabled_at` set violates the UNIQUE constraint on
+      `broker_alias.broker_id` (IntegrityError), and the dirty session then
+      poisons **every subsequent broker in the blast** (PendingRollbackError).
+      Reproduced this session. Unreachable today (nothing sets `disabled_at`),
+      but the planned "disable alias" button trips it — land that button only
+      together with this fix (update the row in place; `db.rollback()` in the
+      resolver's except).
+   3. (major) `api/scan.py` ~`:1031` — exposure guidance only renders
+      `if broker is None`, but alias-leak rows carry the registry broker's id,
+      so the `_alias_leak` guidance (Art. 15(1)(c) recipients disclosure etc.)
+      is unreachable on the dominant path; the row instead shows a no-op
+      "Create erasure request" (the request is already SENT). Fix: always
+      compute guidance when `source == "alias_leak"`.
+   4. (major) `Exposures.tsx:374` — `DelistingKit` is gated on truthy `e.url`;
+      alias-leak rows have `mailto:` URLs, so the card offers a Google/Bing RTBF
+      filing for an email address, and "I filed it" creates a real tracked
+      delisting request with the Art. 12(3) clock — junk legal process. Gate on
+      `e.url.startsWith("http")` in the frontend AND reject non-http in
+      `GET /exposures/{id}/delisting-kit`.
+   5. (minor) `Exposures.tsx:335` — the row's "Open" link on an alias-leak row
+      is `mailto:` → composes mail to the spammer from the real mailbox, the
+      exact disclosure the track prevents. Same http gate.
+   6. (minor) `Settings.tsx` — SimpleLogin "Remove Key" lacks the
+      `window.confirm` that the HIBP/GitHub/IMAP deletes all have; a misclick
+      silently reverts all future sends to the real mailbox.
+
+   **Coverage caveat:** the multi-agent review was killed by a session token
+   limit — only the frontend dimension completed (items 3–6, each hand-verified
+   afterwards). Items 1–2 came from a manual pass. imap-matching, resolver-db,
+   security, test-adequacy and evidence-semantics dimensions never ran —
+   re-run the review before v1.0. Known open question for evidence-semantics:
+   brokers replying via OneTrust/Zendesk/ESP domains with envelope-from enabled
+   would be branded leaks; consider suppressing the leak verdict when the same
+   message threads via In-Reply-To to our own Message-ID.
+4. Alias track follow-ups (non-bug):
    - Surface the leak signal in the UI beyond the Exposure row (dashboard badge).
    - "Disable this alias" button — `SimpleLoginClient.disable_alias` is written
-     and tested but not reachable from the frontend.
+     and tested but not reachable from the frontend. **Blocked on 3.2.**
    - Reconsider the `cc_emails` carve-out if SimpleLogin's multi-contact
      behaviour can be verified: GitHub and Discord are currently un-aliased.
-4. Phase 5 completeness pass: run the full pipeline against Malte's own
+5. Phase 5 completeness pass: run the full pipeline against Malte's own
    identifiers, iterate until self-search returns nothing actionable, then
    cut v1.0. **Needs Malte in the loop.**
 
