@@ -157,6 +157,12 @@ def create_controllers_router(
                 db, sl_key, controller.id, controller.privacy_email,
                 allow_alias=allow_alias,
             )
+            if smtp_to is None:
+                # Alias deliberately disabled (leak cut-off).
+                raise HTTPException(
+                    status_code=409,
+                    detail="This platform's alias is disabled — re-enable it to send",
+                )
 
             sender = EmailSender(smtp)
             result = await sender.send(

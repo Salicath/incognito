@@ -1210,7 +1210,16 @@ def create_scan_router(
             client = SimpleLoginClient(sl_key)
             try:
                 async with _httpx.AsyncClient() as http:
-                    await client.disable_alias(http, alias_row.alias_id)
+                    # SimpleLogin's endpoint is a /toggle, not an idempotent
+                    # disable: it returns whether the alias is NOW disabled.
+                    # If it came back enabled (already disabled upstream, or a
+                    # prior local commit failed), toggle once more to reach the
+                    # disabled state — never stamp disabled while it forwards.
+                    now_disabled = await client.disable_alias(http, alias_row.alias_id)
+                    if not now_disabled:
+                        now_disabled = await client.disable_alias(
+                            http, alias_row.alias_id
+                        )
             except (AliasError, _httpx.HTTPError) as exc:
                 # The alias still forwards upstream — marking it disabled
                 # locally would stop chases while the spam continues.
@@ -1219,9 +1228,20 @@ def create_scan_router(
                     status_code=502, detail="SimpleLogin refused the toggle"
                 ) from exc
 
+            if not now_disabled:
+                raise HTTPException(
+                    status_code=502,
+                    detail="SimpleLogin did not confirm the alias is disabled",
+                )
+
             from datetime import UTC as _UTC
             from datetime import datetime as _datetime
             alias_row.disabled_at = _datetime.now(_UTC)
+            # Resolve the exposure: the leak is handled, so the dashboard badge
+            # and needs_triage filter should stop flagging it.
+            row.disposition = "actioned"
+            row.actioned = True
+            row.note = f"Alias {alias_row.alias_email} disabled"
             db.commit()
             return {"status": "disabled", "alias_email": alias_row.alias_email}
         finally:

@@ -246,26 +246,39 @@ drifted to 220 vs a real 228).
      alias wiring, follow-up route chase, REF-through-alias auto-ACK), each
      proven by mutation.
 4. ✅ **Alias design pass shipped 2026-07-10** (branch `alias-design-pass`,
-   17 new tests, suite 564; SimpleLogin facts verified against the upstream
-   source before coding):
+   39 new tests, suite 572; SimpleLogin facts verified against the upstream
+   source before coding; a high-effort workflow code review then found 10
+   defects — several regressions in the first cut — all fixed before merge):
    - ✅ Contact tracks the registry: `broker_alias.recipient` (migration
      `a91b3e5c7d20`); a moved dpo_email gets a new contact on the SAME alias
-     (idempotent upstream: `200` + `existed=true`, which also heals
-     pre-column rows). Chases never touch the API mid-thread.
-   - ✅ Leak verdict part 2: sender recovered from X-SimpleLogin-Original-From
-     (the author) as well as -Envelope-From (SMTP MAIL FROM) — verdict only
-     when BOTH mismatch, killing the ESP bounce-domain false-positive class;
-     tier-2 matching prefers the author, so ESP-sent REF replies still ACK.
-     Wording demoted from "leaked or sold" to "Unexpected sender on the alias
-     for X" (triage, not accusation). VERP dedup by sender domain; in-poller
-     leak_signals dedup; ALIAS tier files onto the most recent active request.
-   - ✅ Disabled alias = no contact at all: chases route to the DPA-escalation
-     path (same as form-only platforms), never the real mailbox. "Disable this
-     alias" button on the leak card (SimpleLogin toggle first, local mark only
-     on success). Dashboard shows a red alias-leak badge
-     (`alias_leaks_pending` on /api/requests/stats).
-   - ✅ Scheduler reports OVERDUE requests whose broker left the registry
-     instead of skipping them silently forever.
+     (idempotent upstream: `200` + `existed=true`). NULL pre-column rows heal
+     with **zero network I/O** (assume-current) — the review caught that a
+     blanket contact call would fire on every legacy alias on the first
+     post-migration blast. Chases never touch the API mid-thread.
+   - ✅ Leak verdict keys on the **SPF-checked SMTP envelope only**, never the
+     spoofable `From:`/Original-From (the review showed an author-first cut let
+     a forged `From: dpo@broker.com` both suppress a real leak and forge a
+     tier-2 auto-ACK). Real domain from the registry id→domain map (slug
+     reversal branded hyphenated-domain brokers). No verdict on mail that
+     threads to our own outbound Message-IDs (status-independent set). Tier-3
+     domain matching is disabled for aliased mail, so a cross-broker leak isn't
+     also filed onto the other broker's legal thread. Wording is triage
+     ("Unexpected sender on the alias for X"), VERP-dedup by sender domain
+     (migration `b3c5e7f9a012` rewrites old full-address keys so dismissals
+     survive upgrade), in-poller signal dedup, ALIAS tier files onto the most
+     recent active request. Conservative bias: an unattributable ESP reply is a
+     visible triage card, not a silently dropped reply.
+   - ✅ Disabled alias: new sends **skip** (resolver returns `(None, None)` —
+     no silent resurrection, which the review flagged); chases are suppressed
+     **per request** (only threads actually sent through the alias), so an older
+     real-mailbox thread to the same broker still gets a normal follow-up. The
+     "Disable this alias" button toggles at SimpleLogin *first* and retries to
+     the confirmed-disabled state (the endpoint is a `/toggle`, not idempotent),
+     marks the row only on success, and resolves the leak exposure so the
+     dashboard badge (`alias_leaks_pending`) clears.
+   - ✅ Scheduler escalates OVERDUE orphan requests (broker gone from the
+     registry) to the DPA path **once** via the status transition, instead of
+     either skipping silently forever or re-emitting a daily error.
    - ❌ `cc_emails` carve-out stays — verified against the SimpleLogin source:
      the reply path raises `NonReverseAliasInReplyPhase` for any To/Cc address
      that is not a reverse-alias, so plain CCs through an aliased send fail

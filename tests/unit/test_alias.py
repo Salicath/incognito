@@ -212,7 +212,12 @@ async def test_reuse_only_uses_the_existing_alias():
     db.close()
 
 
-async def test_reuse_only_ignores_a_disabled_alias():
+async def test_disabled_alias_skips_new_sends_but_chases_go_to_real_recipient():
+    """A NEW send (mint) must not resurrect a disabled alias — it returns the
+    skip sentinel. A chase (mint=False) only reaches the resolver for a thread
+    NOT sent via this alias (the scheduler suppresses aliased threads per
+    request first), so it falls back to the real recipient. Neither path
+    touches SimpleLogin or clears disabled_at."""
     db = _session()
     db.add(BrokerAlias(
         broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
@@ -220,11 +225,14 @@ async def test_reuse_only_ignores_a_disabled_alias():
     ))
     db.commit()
     with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
-        to, alias = await resolve_recipient(
+        send = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+        chase = await resolve_recipient(
             db, "key", "spokeo-com", "dpo@spokeo.com", mint=False,
         )
-    assert (to, alias) == ("dpo@spokeo.com", None)
+    assert send == (None, None)                     # new send: skip
+    assert chase == ("dpo@spokeo.com", None)        # chase: real recipient
     sl_cls.assert_not_called()
+    assert db.query(BrokerAlias).one().disabled_at is not None
     db.close()
 
 
@@ -297,9 +305,11 @@ async def test_unchanged_recipient_makes_no_api_call():
     db.close()
 
 
-async def test_legacy_row_without_recipient_heals_on_first_keyed_send():
-    """Pre-column rows have recipient NULL. The first keyed send backfills via
-    the idempotent contact call; after that, reuse is API-free again."""
+async def test_legacy_row_without_recipient_heals_with_zero_network_io():
+    """Pre-column rows have recipient NULL. Healing must NOT call SimpleLogin —
+    a blanket contact call here fires on every legacy alias on the first
+    post-migration blast (200 aliases * 20s timeout). Assume the existing
+    contact is current and backfill the record for free."""
     db = _session()
     db.add(BrokerAlias(
         broker_id="spokeo-com", alias_id=7, alias_email="abc@aleeas.com",
@@ -308,14 +318,16 @@ async def test_legacy_row_without_recipient_heals_on_first_keyed_send():
     db.commit()
 
     with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
-        inst = sl_cls.return_value
-        inst.create_reverse_alias = AsyncMock(return_value=(42, "reply+x@sl.co"))
-        await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
-        assert inst.create_reverse_alias.await_count == 1
-        await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
-        assert inst.create_reverse_alias.await_count == 1   # healed, no 2nd call
+        to, alias = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
 
+    sl_cls.assert_not_called()                          # zero I/O
+    assert (to, alias) == ("reply+x@sl.co", "abc@aleeas.com")
     assert db.query(BrokerAlias).one().recipient == "dpo@spokeo.com"
+
+    # Healed: a later reuse is a pure lookup too.
+    with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
+        await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+    sl_cls.assert_not_called()
     db.close()
 
 
@@ -362,10 +374,10 @@ async def test_chases_never_update_contacts_even_when_the_recipient_changed():
 # ---------------------------------------------------------------------------
 
 
-async def test_disabled_alias_is_reminted_in_place_not_duplicated():
-    """A disabled row still owns the UNIQUE(broker_id) slot. Re-minting must
-    update it in place — a second INSERT raises IntegrityError and the dirty
-    session then poisons every subsequent broker in the blast."""
+async def test_disabled_alias_is_not_resurrected_by_a_send():
+    """A send for a broker whose alias was deliberately disabled must NOT mint
+    a fresh alias and clear disabled_at — that silently reverts the user's
+    cut-off. It returns the skip sentinel; the caller declines to contact."""
     db = _session()
     db.add(BrokerAlias(
         broker_id="spokeo-com", alias_id=7, alias_email="old@aleeas.com",
@@ -375,20 +387,13 @@ async def test_disabled_alias_is_reminted_in_place_not_duplicated():
     db.commit()
 
     with patch("backend.core.alias_resolver.SimpleLoginClient") as sl_cls:
-        inst = sl_cls.return_value
-        inst.create_alias = AsyncMock(return_value=(8, "new@aleeas.com"))
-        inst.create_reverse_alias = AsyncMock(return_value=(42, "reply+new@sl.co"))
-        to, alias = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
+        result = await resolve_recipient(db, "key", "spokeo-com", "dpo@spokeo.com")
 
-    assert (to, alias) == ("reply+new@sl.co", "new@aleeas.com")
-    rows = db.query(BrokerAlias).all()
-    assert len(rows) == 1
-    row = rows[0]
-    assert row.alias_id == 8
-    assert row.alias_email == "new@aleeas.com"
-    assert row.reverse_alias_address == "reply+new@sl.co"
-    assert row.contact_id == 42
-    assert row.disabled_at is None
+    assert result == (None, None)
+    sl_cls.assert_not_called()
+    row = db.query(BrokerAlias).one()
+    assert row.disabled_at is not None          # still disabled
+    assert row.alias_email == "old@aleeas.com"  # untouched
     db.close()
 
 
@@ -759,35 +764,97 @@ def test_ref_code_reply_through_the_alias_still_auto_acknowledges():
     assert req.status == RequestStatus.ACKNOWLEDGED
 
 
-def test_esp_sent_broker_reply_is_not_a_leak():
-    """Brokers answer through ESPs: MAIL FROM (Envelope-From) is the ESP's
-    bounce domain while the author (Original-From) is the broker. A verdict
-    off the bounce domain alone brands the broker's own reply a resale."""
+def test_esp_broker_reply_that_threads_is_not_a_leak():
+    """A genuine reply via an ESP has MAIL FROM at the ESP's bounce domain, so
+    the envelope alone can't vouch for it. What CAN: it threads to our own
+    outbound Message-ID (unspoofable). Threaded ESP mail is the broker, not a
+    leak — and it still auto-ACKs via tier-1."""
+    from backend.core.imap import MatchTier
+
+    db_factory = _make_db()
+    poller = _poller_with_alias(db_factory)
+
+    msg = _msg(
+        {"in-reply-to": ("<req-alias-001@incognito.local>",), "references": ("",),
+         "x-simplelogin-envelope-to": ("abc@aleeas.com",),
+         "x-simplelogin-envelope-from": ("bounce-77@sendgrid.net",)},
+        from_="reply+garbage@simplelogin.co",
+    )
+    result = poller.process_message(msg)
+
+    assert poller.leak_signals == []
+    assert result is not None and result.tier == MatchTier.MESSAGE_ID
+
+
+def test_unthreaded_esp_mail_is_flagged_not_auto_acknowledged():
+    """The security-conservative choice: an ESP-domain sender we can't attribute
+    (no threading) is treated as an unexpected sender to triage — NOT auto-ACKed
+    off a spoofable From: header or a low-entropy REF code, which would silently
+    stop the Art. 12(3) clock. A missed auto-file surfaces as a visible card,
+    not a silently dropped reply."""
     db_factory = _make_db()
     poller = _poller_with_alias(db_factory)
 
     msg = _msg(
         {"in-reply-to": ("",), "references": ("",),
          "x-simplelogin-envelope-to": ("abc@aleeas.com",),
-         "x-simplelogin-envelope-from": ("bounce-77@sendgrid.net",),
-         "x-simplelogin-original-from": ("dpo@spokeo.com",)},
+         "x-simplelogin-envelope-from": ("bounce-77@sendgrid.net",)},
+        from_="reply+garbage@simplelogin.co",
+        subject="Your request [REF-REQALIA0]",
+    )
+    with patch("backend.core.notifier.notify"):
+        result = poller.process_message(msg)
+
+    assert len(poller.leak_signals) == 1        # unexpected-sender triage
+    assert result is None                        # not filed onto the thread
+    req = db_factory().get(Request, "req-alias-001")
+    assert req.status == RequestStatus.SENT      # clock untouched
+
+
+def test_spoofed_author_at_broker_domain_does_not_suppress_a_leak():
+    """Regression guard for the review: the message From:/Original-From header
+    is attacker-controlled. A spammer who bought the alias sets From:
+    anything@spokeo.com while sending from their own server — the leak verdict
+    keys on the SPF-checked envelope, so the spoof cannot hide the leak."""
+    db_factory = _make_db()
+    poller = _poller_with_alias(db_factory)
+
+    msg = _msg(
+        {"in-reply-to": ("",), "references": ("",),
+         "x-simplelogin-envelope-to": ("abc@aleeas.com",),
+         "x-simplelogin-envelope-from": ("spammer@casino-spam.ru",),
+         "x-simplelogin-original-from": ("dpo@spokeo.com",)},   # forged
         from_="reply+garbage@simplelogin.co",
     )
-    poller.process_message(msg)
-    assert poller.leak_signals == []
+    with patch("backend.core.notifier.notify"):
+        result = poller.process_message(msg)
+
+    assert len(poller.leak_signals) == 1
+    assert poller.leak_signals[0]["sender"] == "spammer@casino-spam.ru"
+    assert result is None                        # not filed as broker reply
 
 
-def test_esp_reply_with_ref_code_still_auto_acknowledges():
-    """Tier-2 must judge the author, not the bounce address: a ticketing reply
-    carrying our [REF-…] from the broker via an ESP is a real acknowledgment."""
-    from backend.core.imap import ImapConfig, ImapPoller, MatchTier
+def test_cross_broker_spam_is_not_filed_onto_the_other_brokers_thread():
+    """Broker B buys A's list and spams the alias minted for A. B has its own
+    active request, so tier-3 domain matching WOULD file this onto B's legal
+    thread — pollution the user might attach to a DPA complaint. The alias is
+    the authority for aliased mail, so tier-3 is off: it's a leak against A and
+    nothing else."""
+    from backend.core.imap import ImapConfig, ImapPoller
+    from backend.db.models import EmailMessage as EmailMsg
 
     db_factory = _make_db()
     db = db_factory()
     db.add(Request(
-        id="abcd1234-5678-4abc-9def-0123456789ab", broker_id="spokeo-com",
+        id="req-broker-b-01", broker_id="brokerb-com",
         request_type=RequestType.ERASURE, status=RequestStatus.SENT,
-        message_id="<abcd1234-5678-4abc-9def-0123456789ab@incognito.local>",
+        message_id="<req-broker-b-01@incognito.local>",
+        sent_at=datetime.now(UTC), deadline_at=datetime.now(UTC),
+    ))
+    db.add(Request(
+        id="req-broker-a-01", broker_id="spokeo-com",
+        request_type=RequestType.ERASURE, status=RequestStatus.SENT,
+        message_id="<req-broker-a-01@incognito.local>",
         sent_at=datetime.now(UTC), deadline_at=datetime.now(UTC),
     ))
     db.add(BrokerAlias(
@@ -800,20 +867,22 @@ def test_esp_reply_with_ref_code_still_auto_acknowledges():
     poller = ImapPoller(
         imap_config=ImapConfig(host="localhost", username="u", password="p"),
         db_session_factory=db_factory,
-        broker_domains={"spokeo.com"},
+        broker_domains={"spokeo.com", "brokerb.com"},
+        broker_id_domains={"spokeo-com": "spokeo.com", "brokerb-com": "brokerb.com"},
     )
     msg = _msg(
         {"in-reply-to": ("",), "references": ("",),
          "x-simplelogin-envelope-to": ("abc@aleeas.com",),
-         "x-simplelogin-envelope-from": ("bounce-77@sendgrid.net",),
-         "x-simplelogin-original-from": ("dpo@spokeo.com",)},
+         "x-simplelogin-envelope-from": ("sales@brokerb.com",)},
         from_="reply+garbage@simplelogin.co",
-        subject="Your request [REF-ABCD1234]",
     )
-    result = poller.process_message(msg)
+    with patch("backend.core.notifier.notify"):
+        result = poller.process_message(msg)
 
-    assert result is not None
-    assert result.tier == MatchTier.REFERENCE_CODE
+    assert result is None                              # not filed anywhere
+    assert poller.leak_signals[0]["broker_id"] == "spokeo-com"
+    db = db_factory()
+    assert db.query(EmailMsg).filter_by(request_id="req-broker-b-01").count() == 0
 
 
 def test_leak_exposure_is_triage_not_an_accusation():
@@ -839,6 +908,46 @@ def test_leak_exposure_is_triage_not_an_accusation():
     assert "leaked or sold" not in data["title"]
     assert "nexpected sender" in data["title"]
     assert data["sender"] == "promo@casino-spam.ru"    # full evidence kept
+
+
+def test_migrated_leak_key_does_not_resurrect_a_dismissed_leak():
+    """The dedup key moved from mailto:<full-sender> to mailto:<domain>. A
+    pre-upgrade dismissed leak (keyed on the full address) must be rewritten to
+    the domain key by the migration, or the first post-upgrade poll re-mints it
+    as a fresh needs_triage row. Simulate the rewritten row and reprocess."""
+    import json as _json
+
+    from backend.db.models import ScanResult
+
+    db_factory = _make_db()
+    db = db_factory()
+    # A migrated row: url already rewritten to the domain form, disposition kept.
+    db.add(ScanResult(
+        source="alias_leak", broker_id="spokeo-com",
+        found_data=_json.dumps({
+            "broker_domain": "spokeo-com",
+            "url": "mailto:casino-spam.ru",
+            "sender": "bounce-1@casino-spam.ru",
+            "title": "Unexpected sender on the alias for spokeo-com",
+        }),
+        disposition="dismissed", actioned=True,
+    ))
+    db.commit()
+    db.close()
+
+    poller = _poller_with_alias(db_factory)
+    msg = _msg(
+        {"in-reply-to": ("",), "references": ("",),
+         "x-simplelogin-envelope-to": ("abc@aleeas.com",),
+         "x-simplelogin-envelope-from": ("bounce-2@casino-spam.ru",)},
+        from_="reply+garbage@simplelogin.co",
+    )
+    with patch("backend.core.notifier.notify"):
+        poller.process_message(msg)
+
+    rows = db_factory().query(ScanResult).filter_by(source="alias_leak").all()
+    assert len(rows) == 1                       # refreshed, not resurrected
+    assert rows[0].disposition == "dismissed"
 
 
 def test_verp_spam_dedupes_to_one_exposure_per_sender_domain():

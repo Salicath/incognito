@@ -233,6 +233,82 @@ def test_disable_alias_toggles_upstream_and_marks_the_row(client, config):
         db.close()
 
 
+def test_disable_alias_retries_when_toggle_reports_still_enabled(client, config):
+    """SimpleLogin's endpoint is a /toggle, not an idempotent disable. If the
+    alias was already disabled upstream, the first toggle ENABLES it (returns
+    False) — the endpoint must toggle back to reach the disabled state, not
+    blindly stamp disabled_at while it forwards."""
+    from unittest.mock import AsyncMock, patch
+
+    from backend.db.models import BrokerAlias
+    from backend.db.session import init_db
+
+    client.post("/api/settings/simplelogin", json={"api_key": "sl-test-key"})
+    eid = _seed_alias_leak_with_alias_row(config)
+
+    with patch(
+        "backend.core.alias.SimpleLoginClient.disable_alias",
+        new_callable=AsyncMock,
+        side_effect=[False, True],       # enabled it, then disabled it
+    ) as mock_disable:
+        resp = client.post(f"/api/scan/exposures/{eid}/disable-alias")
+
+    assert resp.status_code == 200
+    assert mock_disable.await_count == 2
+    db = init_db(config.db_path)()
+    try:
+        row = db.query(BrokerAlias).filter_by(broker_id="broker0-com").one()
+        assert row.disabled_at is not None
+    finally:
+        db.close()
+
+
+def test_disable_alias_that_cannot_reach_disabled_state_is_a_502(client, config):
+    from unittest.mock import AsyncMock, patch
+
+    from backend.db.models import BrokerAlias
+    from backend.db.session import init_db
+
+    client.post("/api/settings/simplelogin", json={"api_key": "sl-test-key"})
+    eid = _seed_alias_leak_with_alias_row(config)
+
+    with patch(
+        "backend.core.alias.SimpleLoginClient.disable_alias",
+        new_callable=AsyncMock,
+        return_value=False,              # never reaches disabled
+    ):
+        resp = client.post(f"/api/scan/exposures/{eid}/disable-alias")
+
+    assert resp.status_code == 502
+    db = init_db(config.db_path)()
+    try:
+        assert db.query(BrokerAlias).filter_by(broker_id="broker0-com").one().disabled_at is None
+    finally:
+        db.close()
+
+
+def test_disable_alias_actions_the_exposure(client, config):
+    """A successful disable resolves the leak — the dashboard badge and the
+    needs_triage filter must stop flagging it."""
+    from unittest.mock import AsyncMock, patch
+
+    client.post("/api/settings/simplelogin", json={"api_key": "sl-test-key"})
+    eid = _seed_alias_leak_with_alias_row(config)
+
+    with patch(
+        "backend.core.alias.SimpleLoginClient.disable_alias",
+        new_callable=AsyncMock, return_value=True,
+    ):
+        client.post(f"/api/scan/exposures/{eid}/disable-alias")
+
+    row = next(
+        e for e in client.get("/api/scan/exposures").json()["exposures"]
+        if e["id"] == eid
+    )
+    assert row["disposition"] == "actioned"
+    assert client.get("/api/requests/stats").json()["alias_leaks_pending"] == 0
+
+
 def test_disable_alias_upstream_failure_does_not_mark_locally(client, config):
     """If the SimpleLogin toggle fails, the alias still forwards — marking it
     disabled locally would stop chases while the spam continues."""

@@ -72,12 +72,18 @@ leakage from it would brand **every ordinary broker reply** as a resale. No
 real sender, no verdict. Users who want leak detection must enable
 `include_header_email_header` in SimpleLogin.
 
-Two opt-in headers, and the verdict needs BOTH to mismatch (verified against
-the SimpleLogin source 2026-07-10): `X-SimpleLogin-Envelope-From` is the SMTP
-MAIL FROM — for ESP-sent broker mail that is the ESP's bounce domain, not the
-broker — and `X-SimpleLogin-Original-From` is the author's From address.
-Matching prefers the author too, so an ESP-sent reply carrying our REF code
-still auto-acknowledges.
+**Only the SMTP envelope is trusted.** `X-SimpleLogin-Envelope-From` is the
+MAIL FROM, which SimpleLogin SPF-checks at receipt — far harder to forge than
+the message `From:`/`X-SimpleLogin-Original-From`, which is attacker-controlled.
+Every security decision (the leak verdict and the domain-validated match tiers)
+keys on the envelope; the author header is deliberately not consumed. A spammer
+who bought the alias and sets `From: dpo@broker.com` therefore cannot suppress
+the leak or forge a tier-2 auto-ACK — the envelope still points at their own
+server. The cost is a security-conservative bias: a genuine reply relayed by an
+ESP (envelope at the ESP's bounce domain) that does *not* thread to us is shown
+as an unexpected-sender card rather than auto-filed — a visible triage item,
+never a silently dropped reply. A vendored DSAR-processor allowlist would narrow
+that residual false-positive; it is on the backlog (PLAN.md).
 
 ### The verdict is triage, not an accusation
 
@@ -139,14 +145,21 @@ SimpleLogin fallback — means the chase goes from the real mailbox, exactly lik
 the original did. Minting mid-thread would switch identity on the recipient and
 orphan the conversation, and for an already-leaked thread it buys nothing.
 
-A **disabled** alias (`disabled_at` set — the "Disable this alias" action on a
-leak exposure toggles it upstream first, and only marks the row when SimpleLogin
-confirms) means the user cut off contact: chases for that broker do **not** fall
-back to the real mailbox — that would hand a proven-leaky recipient exactly the
-address the alias hid. The request takes the same path as a form-only platform:
-auto-escalate after the window, DPA complaint. A fresh send for that broker
-re-mints — updating the existing row in place, because `broker_id` is UNIQUE
-and a second INSERT would poison the blast session.
+A **disabled** alias (`disabled_at` set) means the user cut off a broker after a
+leak. The "Disable this alias" action on a leak card toggles it off at
+SimpleLogin *first* (the endpoint is a `/toggle`, not an idempotent disable, so
+it re-tries to the disabled state) and marks the row only when SimpleLogin
+confirms — never local-disabled-but-still-forwarding. Consequences:
+
+- **New sends skip.** A blast/opt-in send for a disabled broker returns the
+  resolver's skip sentinel `(None, None)` and is recorded skipped — a fresh
+  mint would silently resurrect the cut-off. Re-engaging is a deliberate future
+  re-enable, not an accidental side effect of a re-blast.
+- **Chases are suppressed per request, not per broker.** Only a thread actually
+  *sent through* the disabled alias (its outbound recorded the alias as sender)
+  is held back and escalated to the DPA path; an older real-mailbox thread to
+  the same broker still gets a normal follow-up. The disable resolves the leak
+  exposure (disposition `actioned`), clearing the dashboard badge.
 
 **The contact tracks the registry.** The reverse-alias is bound to the
 dpo_email it was minted for. When `brokers update` moves a DPO address, the
@@ -176,6 +189,11 @@ degrade; Message-ID threading still routes the reply home.
 `broker_alias` table (migrations `d1f4a7c02b98` + `a91b3e5c7d20`): `broker_id`
 (unique), `alias_id`, `alias_email`, `reverse_alias_address`, `contact_id`,
 `recipient`, `created_at`, `disabled_at`.
+
+Leak exposures live in `scan_results` (`source="alias_leak"`), keyed
+`(source, broker_id, mailto:<sender-domain>)`. Migration `b3c5e7f9a012`
+rewrites pre-existing rows from the old full-address key so a dismissed leak is
+not resurrected after upgrade.
 
 The SimpleLogin API key lives in the encrypted vault under the `simplelogin`
 secret name (same path as `hibp` / `github`).

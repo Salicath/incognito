@@ -70,23 +70,26 @@ async def run_follow_ups(
 
     # A disabled alias means the user cut off contact with that broker —
     # chasing from the real mailbox would hand it exactly the address the
-    # alias hid. Such requests take the no-email-channel path (step 3).
-    disabled_alias_ids = {
-        a.broker_id
+    # alias hid. Suppress the chase, but ONLY for requests whose thread was
+    # actually sent through that alias: an older thread to the same broker
+    # from the real mailbox (pre-alias) loses nothing from a normal chase.
+    # Aliased sends record the alias as the outbound from_address.
+    disabled_alias_emails = {
+        a.alias_email
         for a in session.query(BrokerAlias)
         .filter(BrokerAlias.disabled_at.isnot(None))
     }
-
-    # Orphaned requests (broker left the registry) can never be chased or
-    # escalated automatically — surface them instead of skipping forever.
-    for req in (
-        session.query(Request).filter(Request.status == RequestStatus.OVERDUE).all()
-    ):
-        if broker_registry.get(req.broker_id) is None:
-            result.errors.append(
-                f"Request {req.id[:8].upper()} references unknown broker "
-                f"{req.broker_id} — not in the registry; chase it manually"
+    suppressed_request_ids: set[str] = set()
+    if disabled_alias_emails:
+        suppressed_request_ids = {
+            rid
+            for (rid,) in session.query(EmailMessage.request_id)
+            .filter(
+                EmailMessage.direction == EmailDirection.OUTBOUND,
+                EmailMessage.from_address.in_(disabled_alias_emails),
             )
+            .distinct()
+        }
 
     # Step 2: Send follow-ups for OVERDUE requests that haven't had a follow-up yet
     if smtp is not None:
@@ -113,13 +116,13 @@ async def run_follow_ups(
 
         for req in all_overdue:
             broker = broker_registry.get(req.broker_id)
-            # Form-only controllers have no email address to chase, and
-            # disabled-alias brokers must not be contacted at all — both
-            # escalate via the DPA complaint instead. Unknown brokers were
-            # already reported above.
+            # Form-only controllers have no email address to chase, requests
+            # sent through a now-disabled alias must not be contacted at all,
+            # and orphaned brokers (gone from the registry) can't be chased —
+            # all take the escalation path in step 3.
             if (
                 broker is None or not broker.dpo_email
-                or req.broker_id in disabled_alias_ids
+                or req.id in suppressed_request_ids
             ):
                 continue
 
@@ -148,6 +151,8 @@ async def run_follow_ups(
                         session, None, req.broker_id,
                         broker.dpo_email, mint=False,
                     )
+                    if smtp_to is None:
+                        continue  # disabled alias — step 3 escalates it
                     send_result = await sender.send(
                         to_email=smtp_to, rendered_text=rendered,
                         request_id=req.id,
@@ -206,6 +211,8 @@ async def run_follow_ups(
                             session, None, req.broker_id,
                             broker.dpo_email, mint=False,
                         )
+                        if smtp_to is None:
+                            continue  # disabled alias — step 3 escalates it
                         send_result = await sender.send(
                             to_email=smtp_to, rendered_text=rendered,
                             request_id=req.id,
@@ -242,9 +249,12 @@ async def run_follow_ups(
                             f"Error sending escalation to {broker.name}: {e}"
                         )
 
-    # Step 3: Overdue entries with no email channel (form-only controllers)
-    # cannot be chased by mail — after the escalation window, move them to
-    # ESCALATED so the DPA-complaint path opens instead of stalling OVERDUE.
+    # Step 3: Overdue entries that can't be chased by mail — form-only
+    # controllers, requests whose alias was disabled, and orphans whose broker
+    # left the registry. After the escalation window, move them to ESCALATED
+    # so the DPA-complaint path opens instead of stalling OVERDUE forever. The
+    # status transition is what makes this fire ONCE per request: an escalated
+    # request drops out of this OVERDUE query on the next run.
     still_overdue = (
         session.query(Request)
         .filter(Request.status == RequestStatus.OVERDUE)
@@ -252,10 +262,13 @@ async def run_follow_ups(
     )
     for req in still_overdue:
         broker = broker_registry.get(req.broker_id)
-        if broker is None:
-            continue
-        if broker.dpo_email and req.broker_id not in disabled_alias_ids:
-            continue
+        has_channel = (
+            broker is not None
+            and broker.dpo_email
+            and req.id not in suppressed_request_ids
+        )
+        if has_channel:
+            continue  # step 2 chases it by mail
         overdue_ev = (
             session.query(RequestEvent)
             .filter(
@@ -269,11 +282,13 @@ async def run_follow_ups(
         overdue_at = _ensure_aware(overdue_ev.created_at)
         if (now - overdue_at).total_seconds() < escalation_days * 86400:
             continue
-        reason = (
-            f"Alias for {broker.name} is disabled — no direct contact"
-            if req.broker_id in disabled_alias_ids
-            else f"No email channel for {broker.name}"
-        )
+        broker_name = broker.name if broker is not None else req.broker_id
+        if broker is None:
+            reason = f"Broker {req.broker_id} is not in the registry"
+        elif req.id in suppressed_request_ids:
+            reason = f"Alias for {broker_name} is disabled — no direct contact"
+        else:
+            reason = f"No email channel for {broker_name}"
         try:
             mgr.mark_escalated(req.id)
             session.add(RequestEvent(
@@ -287,7 +302,7 @@ async def run_follow_ups(
             from backend.core.notifier import EventType, notify
             notify(
                 EventType.ESCALATION_SENT,
-                f"{broker.name}: escalate via DPA complaint",
+                f"{broker_name}: escalate via DPA complaint",
                 f"Request {req.id[:8].upper()} is overdue. {reason} — "
                 "generate the DPA complaint from the request page.",
             )
