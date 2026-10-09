@@ -184,11 +184,12 @@ def reply_matching_sets(
         domains.update(t.domain.lower() for t in delisting_registry.targets)
         exclude.update(t.id for t in delisting_registry.targets)
         id_domains.update({t.id: t.domain.lower() for t in delisting_registry.targets})
-    # Datenanfragen companies are ordinary consumer brands that send routine
-    # mail (orders, newsletters) — same tier 1-2 only treatment as controllers.
+    # Datenanfragen companies send routine mail, so no tier-3. Their domains
+    # stay OUT of `domains`: the snapshot includes freemail providers (web.de,
+    # yahoo.com), and tier 2 accepts any sender in that set — the poller checks
+    # a company REF match against that request's own domain instead.
     from backend.core.company_registry import company_registry
     for b in company_registry().brokers:
-        domains.add(b.domain.lower())
         exclude.add(b.id)
         id_domains.setdefault(b.id, b.domain.lower())
     return domains, exclude, id_domains

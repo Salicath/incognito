@@ -200,11 +200,20 @@ class ImapPoller:
             )
         )
 
+        from backend.core.company_registry import company_registry
+
+        # code -> (request id, the company's own domain); see match below
+        company_refs: dict[str, tuple[str, str]] = {}
         for req in requests:
             if req.message_id:
                 outbound_ids[req.message_id] = req.id
             ref_code = req.id.split("-")[0].upper()[:8]
-            ref_code_map[ref_code] = req.id
+            company = company_registry().get(req.broker_id)
+            # A registry broker/controller sharing the id wins (its domain is in the set)
+            if company is not None and company.domain.lower() not in self._broker_domains:
+                company_refs[ref_code] = (req.id, company.domain.lower())
+            else:
+                ref_code_map[ref_code] = req.id
             if req.broker_id not in self._tier3_exclude:
                 domain_request_map[req.broker_id.replace("-", ".")] = req.id
             if req.broker_id.startswith("delisting-"):
@@ -227,7 +236,7 @@ class ImapPoller:
 
         return (
             outbound_ids, ref_code_map, domain_request_map, delisting_open,
-            alias_request_map, alias_broker, all_outbound_ids,
+            alias_request_map, alias_broker, all_outbound_ids, company_refs,
         )
 
     @staticmethod
@@ -314,12 +323,12 @@ class ImapPoller:
             if _lookup_maps is not None:
                 (
                     outbound_ids, ref_code_map, domain_request_map, delisting_open,
-                    alias_request_map, alias_broker, all_outbound_ids,
+                    alias_request_map, alias_broker, all_outbound_ids, company_refs,
                 ) = _lookup_maps
             else:
                 (
                     outbound_ids, ref_code_map, domain_request_map, delisting_open,
-                    alias_request_map, alias_broker, all_outbound_ids,
+                    alias_request_map, alias_broker, all_outbound_ids, company_refs,
                 ) = self._build_lookup_maps(db)
 
             in_reply_to = ""
@@ -380,6 +389,14 @@ class ImapPoller:
                 ref_code_map=ref_code_map,
                 domain_request_map=None if aliased else domain_request_map,
             )
+
+            # Company REF tier: the code must come from THAT company's domain —
+            # a global domain set would let any freemail user forge an ACK.
+            if result is None and company_refs:
+                m = _REF_PATTERN.search(msg.subject or "")
+                hit = company_refs.get(m.group(1)) if m else None
+                if hit and _domain_matches_broker(_extract_domain(effective_from), hit[1]):
+                    result = MatchResult(request_id=hit[0], tier=MatchTier.REFERENCE_CODE)
 
             # Leak signal: mail reached an alias we minted for broker X, but the
             # SMTP sender is demonstrably not X. Only broker X was ever told

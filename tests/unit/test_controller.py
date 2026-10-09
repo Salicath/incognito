@@ -302,7 +302,7 @@ def test_imap_tier3_excludes_controllers(registry):
         broker_domains={"some.broker.com", "netflix.com"},
         tier3_exclude={c.id for c in registry.controllers},
     )
-    _ids, ref_map, domain_map, _delisting, _aliases, _ab, _all_out = (
+    _ids, ref_map, domain_map, _delisting, _aliases, _ab, _all_out, _co = (
         poller._build_lookup_maps(session)
     )
     assert "some.broker.com" in domain_map

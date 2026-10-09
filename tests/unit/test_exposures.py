@@ -571,3 +571,6 @@ def test_company_lookup_strips_subdomains_and_misses_unknowns():
     assert lookup_company("telenor.dk").language == "da"
     assert lookup_company("no-such-company.invalid") is None
     assert lookup_company(None) is None
+    # shared host: a tenant subdomain must not resolve to the platform
+    assert lookup_company("someone.zalando.de", exact=True) is None
+    assert lookup_company("zalando.de", exact=True).name == "Zalando SE"

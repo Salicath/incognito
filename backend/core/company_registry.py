@@ -55,10 +55,16 @@ def company_registry() -> BrokerRegistry:
     return BrokerRegistry(list(brokers.values()))
 
 
-def lookup_company(url_or_domain: str | None) -> Broker | None:
-    """The company owning this URL/domain, stripping subdomains (mail.zalando.de)."""
+def lookup_company(url_or_domain: str | None, *, exact: bool = False) -> Broker | None:
+    """The company owning this URL/domain, stripping subdomains (mail.zalando.de).
+
+    `exact`: no stripping — on a shared host (someone.wordpress.com) the parent
+    domain is the platform, not the controller of the page.
+    """
     host = _host_from_url(url_or_domain) if url_or_domain else None
     reg = company_registry()
+    if exact:
+        return reg.get(re.sub(r"[^a-z0-9]+", "-", host).strip("-")) if host else None
     while host and "." in host:
         hit = reg.get(re.sub(r"[^a-z0-9]+", "-", host).strip("-"))
         if hit:

@@ -1003,8 +1003,11 @@ def create_scan_router(
             and source.split(":", 1)[0] in company_sources
         ):
             from backend.core.company_registry import lookup_company
+            # A web hit's host may be a tenant of a shared platform — match it exactly.
+            # Newsletter senders and account hits name the controller's own domain.
+            exact = source.startswith("duckduckgo")
             for candidate in (data.get("sender_domain"), domain, data.get("url")):
-                hit = lookup_company(candidate)
+                hit = lookup_company(candidate, exact=exact)
                 if hit:
                     break
         return hit

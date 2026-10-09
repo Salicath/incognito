@@ -293,3 +293,41 @@ def test_poller_processes_matched_reply():
 
     db.close()
     db2.close()
+
+
+def test_company_ref_code_only_accepted_from_that_companys_domain():
+    """The Datenanfragen snapshot contains freemail domains (web.de, yahoo.com).
+    A REF code in a subject is visible to anyone the mail was forwarded to, so a
+    company request must only be ACKed by the company's own domain."""
+    from backend.core.broker import BrokerRegistry
+    from backend.core.company_registry import lookup_company
+    from backend.core.controller import ControllerRegistry, reply_matching_sets
+
+    zalando = lookup_company("zalando.de")
+    domains, exclude, id_domains = reply_matching_sets(BrokerRegistry([]), ControllerRegistry([]))
+    assert "web.de" not in domains and "zalando.de" not in domains
+
+    db_factory = _make_db()
+    db = db_factory()
+    db.add(Request(
+        id="abcd1234-company", broker_id=zalando.id, request_type=RequestType.ERASURE,
+        status=RequestStatus.SENT, sent_at=datetime.now(UTC), deadline_at=datetime.now(UTC),
+    ))
+    db.commit()
+    db.close()
+    poller = ImapPoller(
+        imap_config=ImapConfig(host="localhost", username="u", password="p"),
+        db_session_factory=db_factory, broker_domains=domains,
+        tier3_exclude=exclude, broker_id_domains=id_domains,
+    )
+
+    def msg(sender):
+        m = MagicMock()
+        m.headers = {}
+        m.subject = "Re: [REF-ABCD1234]"
+        m.from_, m.to, m.text, m.date, m.uid = sender, ("me@x.dk",), "ok", None, "1"
+        return m
+
+    assert poller.process_message(msg("attacker@web.de")) is None
+    result = poller.process_message(msg("datenschutz@service.zalando.de"))
+    assert result is not None and result.request_id == "abcd1234-company"
