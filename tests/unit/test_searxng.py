@@ -56,6 +56,21 @@ async def test_403_explains_json_format():
         await search_searxng("q", client, "http://127.0.0.1:8888")
 
 
+async def test_all_engines_suspended_is_an_error_not_an_empty_result():
+    """Every engine blocked -> 200 + empty list; must not read as "no data"."""
+    client = FakeClient(FakeResp(payload={
+        "results": [],
+        "unresponsive_engines": [["google cse", "Suspended: too many requests"]],
+    }))
+    with pytest.raises(RuntimeError, match="no engine answered"):
+        await search_searxng("q", client, "http://127.0.0.1:8888")
+
+
+async def test_empty_result_with_healthy_engines_is_genuinely_empty():
+    client = FakeClient(FakeResp(payload={"results": [], "unresponsive_engines": []}))
+    assert await search_searxng("q", client, "http://127.0.0.1:8888") == []
+
+
 async def test_errors_wrapped():
     class Boom:
         async def get(self, *a, **k):

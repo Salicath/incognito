@@ -35,6 +35,15 @@ async def search_searxng(
             )
         resp.raise_for_status()
         data = resp.json()
+        blocked = data.get("unresponsive_engines") or []
+        if not data.get("results") and blocked:
+            # SearXNG answers 200 with an empty list when every engine is
+            # suspended — that is "couldn't search", not "no exposure".
+            raise RuntimeError(
+                "SearXNG: no engine answered ("
+                + ", ".join(f"{e[0]}: {e[1]}" for e in blocked if len(e) == 2)
+                + ")"
+            )
         return [
             {
                 "url": r.get("url", ""),

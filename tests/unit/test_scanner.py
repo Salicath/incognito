@@ -76,7 +76,7 @@ def test_scan_hit_model():
 async def test_scan_stops_when_search_engine_blocks(profile):
     """DDG 403s every query once an IP is flagged — stop early and say so,
     instead of 229 silent failures that render as "no data found"."""
-    brokers = [(f"b{i}.com", f"B{i}") for i in range(20)]
+    brokers = [(f"b{i}.com", f"B{i}") for i in range(100)]
     failing = AsyncMock(side_effect=RuntimeError("DuckDuckGo search failed: HTTPStatusError"))
     with (
         patch("backend.scanner.duckduckgo._search_ddg", failing),
@@ -87,3 +87,22 @@ async def test_scan_stops_when_search_engine_blocks(profile):
     assert failing.await_count == 5
     assert "blocking this IP" in report.errors[-1]
     assert report.hits == []
+
+
+@pytest.mark.asyncio
+async def test_batched_query_attributes_hit_to_the_right_broker(profile):
+    """Several brokers share one OR-query; a hit belongs to the site it is on."""
+    brokers = [("krak.dk", "Krak"), ("118.dk", "118"), ("spokeo.com", "Spokeo")]
+    search = AsyncMock(side_effect=[
+        [{"url": "https://www.118.dk/person/test-user", "title": "t", "snippet": "s"}],
+        [],  # email query
+    ])
+    with (
+        patch("backend.scanner.duckduckgo._search_ddg", search),
+        patch("backend.scanner.duckduckgo.asyncio.sleep", new_callable=AsyncMock),
+    ):
+        report = await scan_profile(profile, brokers)
+
+    first_query = search.await_args_list[0].args[0]
+    assert first_query == '"Test User" (site:krak.dk OR site:118.dk OR site:spokeo.com)'
+    assert [(h.broker_domain, h.broker_name) for h in report.hits] == [("118.dk", "118")]

@@ -27,6 +27,7 @@ class ScanReport:
 
 
 _MAX_CONSECUTIVE_FAILURES = 5
+_SITES_PER_QUERY = 8
 
 
 async def _search_ddg(
@@ -105,21 +106,23 @@ async def scan_profile(
     """
     report = ScanReport()
 
-    # Build queries: name + each broker domain
-    queries = []
-    for domain, broker_name in broker_domains:
-        # Search for exact name match on the broker's site
-        queries.append((f'"{profile.full_name}" site:{domain}', domain, broker_name))
+    # Name + several broker sites per query: one query per broker (229 from a
+    # home IP) gets every engine to block or CAPTCHA us partway through.
+    queries: list[tuple[str, list[tuple[str, str]]]] = []
+    for i in range(0, len(broker_domains), _SITES_PER_QUERY):
+        batch = broker_domains[i:i + _SITES_PER_QUERY]
+        sites = " OR ".join(f"site:{d}" for d, _ in batch)
+        queries.append((f'"{profile.full_name}" ({sites})', batch))
 
     # Also search for email addresses (not site-specific, broader scan)
     for email in profile.emails:
-        queries.append((f'"{email}"', "*", "General"))
+        queries.append((f'"{email}"', [("*", "General")]))
 
     total = len(queries)
 
     consecutive_failures = 0
     async with httpx.AsyncClient() as client:
-        for i, (query, domain, broker_name) in enumerate(queries):
+        for i, (query, targets) in enumerate(queries):
             try:
                 if searxng_url:
                     from backend.scanner.searxng import search_searxng
@@ -145,19 +148,21 @@ async def scan_profile(
             report.checked += 1
 
             for result in results:
-                # Site-specific queries: every result is a hit. General
-                # (bare-email) queries: accept every result too — the email
+                url = result.get("url", "")
+                # Attribute the hit to the batch's broker whose site it is on.
+                # General (bare-email) queries accept every result — the email
                 # appearing anywhere is itself the exposure.
-                if domain == "*" or domain in result.get("url", ""):
+                match = next(((d, n) for d, n in targets if d == "*" or d in url), None)
+                if match:
+                    domain, broker_name = match
                     report.hits.append(ScanHit(
-                        broker_domain=domain if domain != "*" else _extract_domain(result["url"]),
+                        broker_domain=domain if domain != "*" else _extract_domain(url),
                         broker_name=(
-                            broker_name if broker_name != "General"
-                            else _extract_domain(result["url"])
+                            broker_name if broker_name != "General" else _extract_domain(url)
                         ),
                         query=query,
                         snippet=result.get("snippet", "")[:200],
-                        url=result.get("url", ""),
+                        url=url,
                     ))
 
             if on_progress:
