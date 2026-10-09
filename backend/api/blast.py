@@ -1,7 +1,8 @@
+import asyncio
 import logging
 from datetime import date as _date  # module-level so the 2027 gate is testable
 
-from fastapi import APIRouter, Cookie, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
 from pydantic import BaseModel
 
 from backend.api.deps import SessionStore
@@ -129,40 +130,58 @@ def create_blast_router(
         finally:
             db.close()
 
-    # A blast paces sends over hours; a second click (or a retry after the
-    # browser times out) would walk the same CREATED rows and double-send.
-    import asyncio
-    send_lock = asyncio.Lock()
+    # A blast paces sends over hours (rate_limit_per_hour), so it runs as a
+    # background job the UI polls. One at a time: a second run would walk the
+    # same CREATED rows and double-send legal mail.
+    send_state: dict = {
+        "running": False, "progress": 0, "total": 0, "result": None, "error": None,
+    }
 
     @r.post("/send-all")
-    async def send_all_pending(session: str | None = Cookie(default=None)) -> dict:
-        """Send all pending (created) requests via email."""
-        session_store.validate(session)
-        if send_lock.locked():
-            raise HTTPException(status_code=409, detail="A send is already in progress.")
-        async with send_lock:
-            return await _send_all_pending(session)
-
-    async def _send_all_pending(session: str | None) -> dict:
+    async def send_all_pending(
+        background_tasks: BackgroundTasks, session: str | None = Cookie(default=None),
+    ) -> dict:
+        """Start sending all pending (created) requests via email."""
         key, salt = session_store.validate(session)
+        if send_state["running"]:
+            raise HTTPException(status_code=409, detail="A send is already in progress.")
         profile, smtp, _ = vault.load_with_key(key)
-
         if smtp is None:
             raise HTTPException(
                 status_code=400,
                 detail="SMTP not configured. Add SMTP settings before sending requests.",
             )
+        from backend.core.secrets import read_secret
 
+        # Captured now: the session may expire long before the job finishes.
+        # Absent a key, resolve_recipient is a no-op and we send as before.
+        sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
+        send_state.update(running=True, progress=0, total=0, result=None, error=None)
+        background_tasks.add_task(_run_send_all, profile, smtp, sl_key)
+        return {"status": "started"}
+
+    @r.get("/send-all/status")
+    def send_all_status(session: str | None = Cookie(default=None)) -> dict:
+        session_store.validate(session)
+        return send_state
+
+    async def _run_send_all(profile, smtp, sl_key) -> None:
+        try:
+            send_state["result"] = await _send_all_pending(profile, smtp, sl_key)
+        except Exception as e:
+            log.error("Send-all failed: %s", e)
+            send_state["error"] = "Send failed. Check logs for details."
+        finally:
+            send_state["running"] = False
+
+    async def _send_all_pending(profile, smtp, sl_key) -> dict:
         from pathlib import Path
 
         from backend.core.alias_resolver import resolve_recipient
-        from backend.core.secrets import read_secret
         from backend.db.models import EmailDirection
         from backend.db.models import EmailMessage as EmailMessageModel
         from backend.senders.email import EmailSender
 
-        # Absent a key, resolve_recipient is a no-op and we send as before.
-        sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
         repo_templates = Path(__file__).parent.parent.parent / "templates"
         templates_dir = config.data_dir / "templates"
         if not templates_dir.exists():
@@ -183,9 +202,10 @@ def create_blast_router(
             failed = 0
             results = []
 
-            import asyncio
 
+            send_state["total"] = len(pending)
             for i, req in enumerate(pending):
+                send_state["progress"] = i
                 is_last = i == len(pending) - 1
                 try:
                     broker = broker_registry.get(req.broker_id)

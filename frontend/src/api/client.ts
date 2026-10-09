@@ -115,7 +115,12 @@ export const api = {
       body: JSON.stringify({ request_type: requestType, dry_run: dryRun }),
     }),
   blastSendAll: () =>
-    request<{ sent: number; failed: number; manual: number; total: number; results: Array<Record<string, string>> }>("/blast/send-all", { method: "POST" }),
+    request<{ status: string }>("/blast/send-all", { method: "POST" }),
+  blastSendStatus: () =>
+    request<{
+      running: boolean; progress: number; total: number; error: string | null;
+      result: { sent: number; failed: number; manual: number; total: number; results: Array<Record<string, string>> } | null;
+    }>("/blast/send-all/status"),
   runFollowUp: () =>
     request<{ newly_overdue: number; follow_ups_sent: number; escalations_sent: number; errors: string[] }>("/blast/follow-up", { method: "POST" }),
   generateComplaint: (requestId: string) =>

@@ -169,6 +169,13 @@ def _seed_alias_row(config, broker_id):
         db.close()
 
 
+def _send_result(client):
+    # TestClient runs the background job before post() returns
+    state = client.get("/api/blast/send-all/status").json()
+    assert state["running"] is False
+    return state["result"]
+
+
 def test_send_all_sends_to_the_reverse_alias(app_dir):
     """The 228-broker blast is the track's core promise — the loop must SMTP
     to the reverse-alias for aliased brokers and fall back to the real DPO
@@ -195,7 +202,7 @@ def test_send_all_sends_to_the_reverse_alias(app_dir):
         resp = client.post("/api/blast/send-all")
 
     assert resp.status_code == 200
-    assert resp.json()["sent"] == 5
+    assert _send_result(client)["sent"] == 5
     sent_to = [c.kwargs["to_email"] for c in mock_send.call_args_list]
     assert "reply+x@simplelogin.co" in sent_to     # aliased broker: the alias
     assert "dpo@broker1.com" in sent_to            # mint failure: real fallback
@@ -275,7 +282,7 @@ def test_send_all_commit_failure_fails_one_broker_not_the_blast(app_dir):
         resp = client.post("/api/blast/send-all")
 
     assert resp.status_code == 200
-    statuses = [r["status"] for r in resp.json()["results"]]
+    statuses = [r["status"] for r in _send_result(client)["results"]]
     assert statuses.count("error") == 1       # only the poisoned broker
     assert statuses.count("sent") == 4        # the rest of the blast survives
 
