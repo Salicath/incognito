@@ -197,6 +197,9 @@ def get_dpa_for_request(entry, user_country: str = "DK") -> dict | None:
     at the residence SA, which then has full Art. 55 competence and decides
     itself.
     """
+    if getattr(entry, "category", "") == "company":
+        # Datenanfragen record: no vetted establishment data — Art. 77 residence SA
+        return get_dpa_for_country(user_country)
     if getattr(entry, "category", "") in ("controller", "delisting"):
         if entry.entity_country == "GB":
             return get_dpa_for_country("GB")

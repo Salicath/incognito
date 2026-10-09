@@ -135,6 +135,10 @@ class RegistryUnion:
         hit = self._brokers.get(entry_id) or self._controllers.get(entry_id)
         if hit is None and self._delisting is not None:
             hit = self._delisting.get(entry_id)
+        if hit is None:
+            # Datenanfragen companies: actioned per exposure, never listed or blasted
+            from backend.core.company_registry import company_registry
+            hit = company_registry().get(entry_id)
         return hit
 
     def get_by_domain(self, domain: str | None):
@@ -180,6 +184,13 @@ def reply_matching_sets(
         domains.update(t.domain.lower() for t in delisting_registry.targets)
         exclude.update(t.id for t in delisting_registry.targets)
         id_domains.update({t.id: t.domain.lower() for t in delisting_registry.targets})
+    # Datenanfragen companies are ordinary consumer brands that send routine
+    # mail (orders, newsletters) — same tier 1-2 only treatment as controllers.
+    from backend.core.company_registry import company_registry
+    for b in company_registry().brokers:
+        domains.add(b.domain.lower())
+        exclude.add(b.id)
+        id_domains.setdefault(b.id, b.domain.lower())
     return domains, exclude, id_domains
 
 

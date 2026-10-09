@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from backend.api.deps import SessionStore
 from backend.core.broker import BrokerRegistry, RemovalMethod, in_scope
+from backend.core.company_registry import company_registry
 from backend.core.config import AppConfig
 from backend.core.controller import RegistryUnion
 from backend.core.cpr_lever import CprLeverRegistry, covered_broker_ids
@@ -208,7 +209,10 @@ def create_blast_router(
                 send_state["progress"] = i
                 is_last = i == len(pending) - 1
                 try:
-                    broker = broker_registry.get(req.broker_id)
+                    # Exposure-actioned Datenanfragen companies are sent here too
+                    broker = broker_registry.get(req.broker_id) or company_registry().get(
+                        req.broker_id
+                    )
                     if broker is None:
                         results.append({
                             "broker_id": req.broker_id,
