@@ -13,6 +13,25 @@ from backend.core.secrets import read_secret, remove_secret, write_secret
 log = logging.getLogger("incognito.settings")
 
 
+def start_imap_poller(app, imap: ImapConfig) -> None:
+    """(Re)start the background IMAP poller. Must run on the event loop thread."""
+    from backend.core.imap import ImapPoller
+
+    old_poller = getattr(app.state, "imap_poller", None)
+    if old_poller:
+        old_poller.stop()
+    db_factory = getattr(app.state, "db_session_factory", None)
+    if not db_factory:
+        return
+    poller = ImapPoller(
+        imap, db_factory, getattr(app.state, "broker_domains", set()),
+        tier3_exclude=getattr(app.state, "imap_tier3_exclude", set()),
+        broker_id_domains=getattr(app.state, "imap_id_domains", {}),
+    )
+    app.state.imap_poller = poller
+    poller.start()
+
+
 def create_settings_router(
     vault: ProfileVault,
     session_store: SessionStore,
@@ -214,24 +233,7 @@ def create_settings_router(
         profile, smtp, _ = vault.load_with_key(key)
         vault.save_with_key(profile, smtp, body.imap, key, salt)
 
-        # Start/restart the poller
-        from backend.core.imap import ImapPoller
-
-        old_poller = getattr(request.app.state, "imap_poller", None)
-        if old_poller:
-            old_poller.stop()
-
-        broker_domains = getattr(request.app.state, "broker_domains", set())
-        tier3_exclude = getattr(request.app.state, "imap_tier3_exclude", set())
-        id_domains = getattr(request.app.state, "imap_id_domains", {})
-        db_factory = getattr(request.app.state, "db_session_factory", None)
-        if db_factory:
-            poller = ImapPoller(
-                body.imap, db_factory, broker_domains, tier3_exclude=tier3_exclude,
-                broker_id_domains=id_domains,
-            )
-            request.app.state.imap_poller = poller
-            poller.start()
+        start_imap_poller(request.app, body.imap)
 
         return {"status": "updated"}
 
@@ -250,28 +252,15 @@ def create_settings_router(
         return {"status": "deleted"}
 
     @r.post("/imap/test")
-    async def test_imap(session: str | None = Cookie(default=None)):
+    def test_imap(session: str | None = Cookie(default=None)):
         key, _salt = session_store.validate(session)
         _, _, imap = vault.load_with_key(key)
         if imap is None:
             raise HTTPException(status_code=400, detail="IMAP not configured")
 
-        import ssl as ssl_mod
+        from backend.core.imap import open_mailbox
         try:
-            from imap_tools import MailBox, MailBoxStartTls
-
-            ssl_ctx = ssl_mod.create_default_context()
-            if imap.host in ("127.0.0.1", "localhost", "::1"):
-                ssl_ctx.check_hostname = False
-                ssl_ctx.verify_mode = ssl_mod.CERT_NONE
-
-            mb: MailBox | MailBoxStartTls
-            if imap.starttls:
-                mb = MailBoxStartTls(host=imap.host, port=imap.port, ssl_context=ssl_ctx)
-            else:
-                mb = MailBox(host=imap.host, port=imap.port, ssl_context=ssl_ctx)
-
-            with mb.login(imap.username, imap.password, imap.folder) as mailbox:
+            with open_mailbox(imap).login(imap.username, imap.password, imap.folder) as mailbox:
                 folders = [f.name for f in mailbox.folder.list()]
             return {"status": "success", "folders": folders}
         except Exception as exc:
@@ -508,7 +497,7 @@ def create_settings_router(
         )
 
     @r.post("/backup/import")
-    async def import_backup(body: dict, session: str | None = Cookie(default=None)):
+    def import_backup(body: dict, session: str | None = Cookie(default=None)):
         """Import a backup file. Requires password confirmation."""
         import base64
 

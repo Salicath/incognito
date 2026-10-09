@@ -62,13 +62,12 @@ def create_auth_router(
             raise HTTPException(status_code=400, detail="Not initialized")
 
         client_ip = client_ip_for(request, trusted_proxy_header)
-        rate_limiter.check(client_ip)
+        rate_limiter.check_and_count(client_ip)
 
         try:
             derived_key, salt = vault.derive_key_from_file(req.password)
-            vault.load_with_key(derived_key)
+            _, _, imap = vault.load_with_key(derived_key)
         except Exception:
-            rate_limiter.record_failure(client_ip)
             log.warning("Failed unlock attempt from %s", client_ip)
             raise HTTPException(status_code=401, detail="Wrong password") from None
 
@@ -83,6 +82,13 @@ def create_auth_router(
             path="/",
         )
         log.info("Vault unlocked from %s", client_ip)
+        # The IMAP config lives in the vault, so after a restart the poller can
+        # only resume once someone unlocks — otherwise replies go unwatched.
+        if imap is not None and getattr(request.app.state, "imap_poller", None) is None:
+            import anyio.from_thread
+
+            from backend.api.settings import start_imap_poller
+            anyio.from_thread.run_sync(start_imap_poller, request.app, imap)
         return {"status": "unlocked"}
 
     @r.post("/lock")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+import threading
 from collections import defaultdict
 from datetime import UTC, datetime
 
@@ -21,9 +22,15 @@ class LoginRateLimiter:
         self._lockout_seconds = lockout_seconds
         self._attempts: defaultdict[str, list[datetime]] = defaultdict(list)
         self._lockouts: dict[str, datetime] = {}
+        # Sync endpoints run on a threadpool
+        self._lock = threading.Lock()
 
     def check(self, key: str) -> None:
         """Raise 429 if the key is locked out."""
+        with self._lock:
+            self._check(key)
+
+    def _check(self, key: str) -> None:
         now = datetime.now(UTC)
 
         # Check active lockout
@@ -39,8 +46,20 @@ class LoginRateLimiter:
             del self._lockouts[key]
             self._attempts.pop(key, None)
 
+    def check_and_count(self, key: str) -> None:
+        """check() + record_failure() atomically: count the attempt BEFORE the
+        slow password check so parallel guesses can't all pass check() first.
+        A correct password then calls record_success(), which clears it."""
+        with self._lock:
+            self._check(key)
+            self._record_failure(key)
+
     def record_failure(self, key: str) -> None:
         """Record a failed attempt. Lock out if threshold exceeded."""
+        with self._lock:
+            self._record_failure(key)
+
+    def _record_failure(self, key: str) -> None:
         now = datetime.now(UTC)
         cutoff = now.timestamp() - self._window_seconds
 
@@ -56,8 +75,9 @@ class LoginRateLimiter:
 
     def record_success(self, key: str) -> None:
         """Clear attempts on successful login."""
-        self._attempts.pop(key, None)
-        self._lockouts.pop(key, None)
+        with self._lock:
+            self._attempts.pop(key, None)
+            self._lockouts.pop(key, None)
 
 
 class SessionStore:
@@ -69,6 +89,7 @@ class SessionStore:
         self._timeout_minutes = timeout_minutes
         # Maps token -> (derived_key, salt, last_access)
         self._sessions: dict[str, tuple[bytes, bytes, datetime]] = {}
+        self._lock = threading.Lock()
 
     def _cleanup_expired(self) -> None:
         """Remove expired sessions."""
@@ -81,6 +102,10 @@ class SessionStore:
             del self._sessions[tok]
 
     def create(self, derived_key: bytes, salt: bytes) -> str:
+        with self._lock:
+            return self._create(derived_key, salt)
+
+    def _create(self, derived_key: bytes, salt: bytes) -> str:
         self._cleanup_expired()
         # Evict oldest session if at limit
         while len(self._sessions) >= self.MAX_SESSIONS:
@@ -92,6 +117,10 @@ class SessionStore:
 
     def validate(self, token: str | None) -> tuple[bytes, bytes]:
         """Validate session and return (derived_key, salt)."""
+        with self._lock:
+            return self._validate(token)
+
+    def _validate(self, token: str | None) -> tuple[bytes, bytes]:
         if token is None:
             raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -109,5 +138,6 @@ class SessionStore:
         return derived_key, salt
 
     def destroy(self, token: str | None) -> None:
-        if token and token in self._sessions:
-            del self._sessions[token]
+        with self._lock:
+            if token:
+                self._sessions.pop(token, None)

@@ -22,6 +22,27 @@ log = logging.getLogger("incognito.imap")
 
 _REF_PATTERN = re.compile(r"\[REF-([A-Z0-9]{8})\]")
 
+# Without a socket timeout an unreachable/hung IMAP server stalls a poll forever.
+_IMAP_TIMEOUT_SECONDS = 30
+
+
+def open_mailbox(config: ImapConfig):
+    """Unlogged-in imap_tools mailbox for `config` (blocking — call off the event loop)."""
+    import ssl as ssl_mod
+
+    from imap_tools import MailBox, MailBoxStartTls
+
+    ssl_ctx = ssl_mod.create_default_context()
+    # Proton Bridge on loopback serves a self-signed cert
+    if config.host in ("127.0.0.1", "localhost", "::1"):
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl_mod.CERT_NONE
+    cls = MailBoxStartTls if config.starttls else MailBox
+    return cls(
+        host=config.host, port=config.port,
+        timeout=_IMAP_TIMEOUT_SECONDS, ssl_context=ssl_ctx,
+    )
+
 
 class MatchTier(enum.StrEnum):
     MESSAGE_ID = "message_id"
@@ -303,7 +324,10 @@ class ImapPoller:
 
             in_reply_to = ""
             references = ""
+            own_message_id = ""
             if hasattr(msg, "headers") and msg.headers:
+                own_vals = msg.headers.get("message-id", ("",))
+                own_message_id = own_vals[0].strip() if own_vals else ""
                 in_reply_to_vals = msg.headers.get("in-reply-to", ("",))
                 in_reply_to = in_reply_to_vals[0] if in_reply_to_vals else ""
                 ref_vals = msg.headers.get("references", ("",))
@@ -425,7 +449,7 @@ class ImapPoller:
                 return None
             email_record = EmailMessage(
                 request_id=result.request_id,
-                message_id=in_reply_to or f"<unknown-{msg.uid}@imap>",
+                message_id=own_message_id or f"<unknown-{msg.uid}@imap>",
                 in_reply_to=in_reply_to or None,
                 direction=EmailDirection.INBOUND,
                 from_address=from_addr,
@@ -478,28 +502,15 @@ class ImapPoller:
             db.close()
 
     async def poll_once(self) -> int:
-        import ssl as ssl_mod
+        # imap_tools and SQLite are blocking — keep them off the event loop.
+        return await asyncio.to_thread(self._poll_sync)
 
-        from imap_tools import AND, MailBox, MailBoxStartTls, MailMessageFlags
+    def _poll_sync(self) -> int:
+        from imap_tools import AND, MailMessageFlags
 
         processed = 0
         try:
-            ssl_ctx = ssl_mod.create_default_context()
-            if self._config.host in ("127.0.0.1", "localhost", "::1"):
-                ssl_ctx.check_hostname = False
-                ssl_ctx.verify_mode = ssl_mod.CERT_NONE
-
-            mb: MailBox | MailBoxStartTls
-            if self._config.starttls:
-                mb = MailBoxStartTls(
-                    host=self._config.host,
-                    port=self._config.port,
-                    ssl_context=ssl_ctx,
-                )
-            else:
-                mb = MailBox(host=self._config.host, port=self._config.port, ssl_context=ssl_ctx)
-
-            with mb.login(
+            with open_mailbox(self._config).login(
                 self._config.username, self._config.password, self._config.folder,
             ) as mailbox:
                 # Build lookup maps once per poll cycle instead of per message
@@ -510,7 +521,13 @@ class ImapPoller:
                     lookup_db.close()
 
                 for msg in mailbox.fetch(AND(seen=False), mark_seen=False):
-                    result = self.process_message(msg, _lookup_maps=lookup_maps)
+                    try:
+                        result = self.process_message(msg, _lookup_maps=lookup_maps)
+                    except Exception as exc:  # noqa: BLE001
+                        # One bad message must not abort the cycle and wedge
+                        # every later poll on the same unread message.
+                        log.error("Failed to process IMAP message %s: %s", msg.uid, exc)
+                        continue
                     if result is not None and msg.uid:
                         mailbox.flag(msg.uid, MailMessageFlags.SEEN, True)
                     processed += 1
