@@ -131,23 +131,18 @@ def build_report_from_messages(messages) -> NewsletterReport:
 
 async def scan_newsletters(imap_config, limit: int = 300) -> NewsletterReport:
     """Connect to IMAP and scan the newest `limit` messages for unsubscribe headers."""
-    import ssl as ssl_mod
+    import asyncio
 
-    from imap_tools import MailBox, MailBoxStartTls
+    return await asyncio.to_thread(_scan_newsletters_sync, imap_config, limit)
+
+
+def _scan_newsletters_sync(imap_config, limit: int) -> NewsletterReport:
+    from backend.core.imap import open_mailbox
 
     try:
-        ssl_ctx = ssl_mod.create_default_context()
-        if imap_config.host in ("127.0.0.1", "localhost", "::1"):
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl_mod.CERT_NONE
-
-        mb: MailBox | MailBoxStartTls
-        if imap_config.starttls:
-            mb = MailBoxStartTls(host=imap_config.host, port=imap_config.port, ssl_context=ssl_ctx)
-        else:
-            mb = MailBox(host=imap_config.host, port=imap_config.port, ssl_context=ssl_ctx)
-
-        with mb.login(imap_config.username, imap_config.password, imap_config.folder) as mailbox:
+        with open_mailbox(imap_config).login(
+            imap_config.username, imap_config.password, imap_config.folder,
+        ) as mailbox:
             messages = list(
                 mailbox.fetch(limit=limit, reverse=True, mark_seen=False, headers_only=True)
             )

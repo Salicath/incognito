@@ -168,3 +168,20 @@ def test_proxy_lockout_is_per_client_not_per_proxy(tmp_path, sample_profile, sam
     # the victim, arriving through the same proxy, is unaffected
     resp = client.post("/api/auth/unlock", json={"password": "correct-pw"}, headers=victim)
     assert resp.status_code == 200
+
+
+def test_attempts_counted_before_password_check():
+    """Parallel guesses must not all pass check() before any failure lands."""
+    import pytest
+    from fastapi import HTTPException
+
+    from backend.api.deps import LoginRateLimiter
+
+    rl = LoginRateLimiter(max_attempts=5)
+    for _ in range(5):
+        rl.check_and_count("1.2.3.4")  # in flight, no outcome recorded yet
+    with pytest.raises(HTTPException) as exc:
+        rl.check_and_count("1.2.3.4")
+    assert exc.value.status_code == 429
+    rl.record_success("1.2.3.4")
+    rl.check_and_count("1.2.3.4")  # a correct password clears the slate

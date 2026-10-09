@@ -121,9 +121,21 @@ def create_blast_router(
         finally:
             db.close()
 
+    # A blast paces sends over hours; a second click (or a retry after the
+    # browser times out) would walk the same CREATED rows and double-send.
+    import asyncio
+    send_lock = asyncio.Lock()
+
     @r.post("/send-all")
     async def send_all_pending(session: str | None = Cookie(default=None)) -> dict:
         """Send all pending (created) requests via email."""
+        session_store.validate(session)
+        if send_lock.locked():
+            raise HTTPException(status_code=409, detail="A send is already in progress.")
+        async with send_lock:
+            return await _send_all_pending(session)
+
+    async def _send_all_pending(session: str | None) -> dict:
         key, salt = session_store.validate(session)
         profile, smtp, _ = vault.load_with_key(key)
 
@@ -165,7 +177,8 @@ def create_blast_router(
 
             import asyncio
 
-            for req in pending:
+            for i, req in enumerate(pending):
+                is_last = i == len(pending) - 1
                 try:
                     broker = broker_registry.get(req.broker_id)
                     if broker is None:
@@ -198,8 +211,8 @@ def create_blast_router(
                                     "status": "sent",
                                     "method": "web_form",
                                 })
-                                delay = 3600 / max(config.rate_limit_per_hour, 1)
-                                await asyncio.sleep(delay)
+                                if not is_last:
+                                    await asyncio.sleep(3600 / max(config.rate_limit_per_hour, 1))
                                 continue
 
                         url = broker.removal_url or broker.domain
@@ -288,7 +301,8 @@ def create_blast_router(
                     delay = 3600 / max(config.rate_limit_per_hour, 1)
                     log.info("Sent to %s, waiting %.0fs (rate: %d/hr)",
                              broker.dpo_email, delay, config.rate_limit_per_hour)
-                    await asyncio.sleep(delay)
+                    if not is_last:
+                        await asyncio.sleep(delay)
                 except Exception as e:
                     # One session serves the whole blast — roll back or this
                     # broker's dirty state fails every broker after it.
@@ -324,9 +338,19 @@ def create_blast_router(
         finally:
             db.close()
 
+    follow_up_lock = asyncio.Lock()
+
     @r.post("/follow-up")
     async def run_follow_up(session: str | None = Cookie(default=None)) -> dict:
         """Check deadlines and send follow-ups/escalations."""
+        session_store.validate(session)
+        # Two overlapping runs would both see "no follow-up yet" and chase twice.
+        if follow_up_lock.locked():
+            raise HTTPException(status_code=409, detail="Follow-up already running.")
+        async with follow_up_lock:
+            return await _run_follow_up(session)
+
+    async def _run_follow_up(session: str | None) -> dict:
         key, _salt = session_store.validate(session)
         profile, smtp, _ = vault.load_with_key(key)
 
