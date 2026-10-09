@@ -299,9 +299,8 @@ export default function Dashboard() {
           </h3>
           <p className="text-sm text-amber-800 mb-4">
             This will create {confirmBlast.type === "access" ? "data access" : "data deletion"} requests
-            for all {confirmBlast.count} brokers in the registry. Note: sending requests to brokers who
-            don't have your data may expose your identity to them. Consider running a scan first to
-            identify which brokers actually have your data.
+            for {confirmBlast.count} brokers: every European broker, plus non-European ones a scan
+            actually found you on. Run a scan first so the non-European ones are included only on evidence.
           </p>
           <div className="flex gap-3">
             <button

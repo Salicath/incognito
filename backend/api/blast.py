@@ -5,7 +5,7 @@ from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel
 
 from backend.api.deps import SessionStore
-from backend.core.broker import BrokerRegistry, RemovalMethod
+from backend.core.broker import BrokerRegistry, RemovalMethod, in_scope
 from backend.core.config import AppConfig
 from backend.core.controller import RegistryUnion
 from backend.core.cpr_lever import CprLeverRegistry, covered_broker_ids
@@ -74,11 +74,18 @@ def create_blast_router(
                 }
                 lever_covered = covered_broker_ids(lever_registry, lever_states)
 
+            from backend.core.rescan import found_broker_domains
+            found = found_broker_domains(db)
+
             created = []
             skipped = []
             covered = []
+            out_of_scope = 0
 
             for broker in broker_registry.brokers:
+                if not in_scope(broker, found):
+                    out_of_scope += 1
+                    continue
                 if broker.id in existing_broker_ids:
                     skipped.append(broker.id)
                     continue
@@ -115,6 +122,7 @@ def create_blast_router(
                 "created": len(created),
                 "skipped": len(skipped),
                 "covered_by_lever": len(covered),
+                "out_of_scope": out_of_scope,
                 "total_brokers": len(broker_registry.brokers),
                 "requests": created,
             }

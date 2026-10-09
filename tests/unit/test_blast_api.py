@@ -19,7 +19,7 @@ def app_dir(tmp_path):
             "category": "data_broker",
             "dpo_email": f"dpo@broker{i}.com",
             "removal_method": "email",
-            "country": "US",
+            "country": "DK",
             "gdpr_applies": True,
             "verification_required": False,
             "language": "en",
@@ -103,6 +103,31 @@ def test_blast_different_types_dont_skip(client):
     data = response.json()
     assert data["created"] == 5
     assert data["skipped"] == 0
+
+
+def test_blast_contacts_non_european_brokers_only_on_scan_evidence(app_dir, client):
+    us = {
+        "name": "US Broker", "domain": "usbroker.com", "category": "people_search",
+        "dpo_email": "privacy@usbroker.com", "removal_method": "email", "country": "US",
+        "gdpr_applies": True, "verification_required": False, "language": "en",
+        "last_verified": "2026-03-01",
+    }
+    (app_dir / "brokers" / "usbroker.yaml").write_text(yaml.dump(us))
+    from backend.main import create_app
+    app = create_app(AppConfig(data_dir=app_dir))
+    c = TestClient(app)
+    c.post("/api/auth/unlock", json={"password": "password"})
+
+    data = c.post("/api/blast/create", json={"request_type": "access"}).json()
+    assert (data["created"], data["out_of_scope"]) == (5, 1)
+
+    from backend.db.models import ScanResult
+    db = app.state.db_session_factory()
+    db.add(ScanResult(source="ddg", broker_id="usbroker.com", found_data="{}"))
+    db.commit()
+    db.close()
+    data = c.post("/api/blast/create", json={"request_type": "access"}).json()
+    assert (data["created"], data["out_of_scope"]) == (6, 0)
 
 
 def test_blast_requires_auth(config):

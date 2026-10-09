@@ -110,7 +110,7 @@ export const api = {
   getBreachStatus: () =>
     request<{ running: boolean; error: string | null }>("/scan/breaches/status"),
   blastCreate: (requestType: string, dryRun: boolean) =>
-    request<{ dry_run: boolean; created: number; skipped: number; total_brokers: number; requests: Array<Record<string, string>> }>("/blast/create", {
+    request<{ dry_run: boolean; created: number; skipped: number; out_of_scope: number; total_brokers: number; requests: Array<Record<string, string>> }>("/blast/create", {
       method: "POST",
       body: JSON.stringify({ request_type: requestType, dry_run: dryRun }),
     }),

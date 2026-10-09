@@ -11,6 +11,16 @@ from sqlalchemy.orm import Session
 
 from backend.db.models import Request, RequestStatus, ScanResult
 
+
+def found_broker_domains(db: Session) -> set[str]:
+    """Domains a scan found the user on (dismissed false positives excluded)."""
+    return {
+        d.lower() for (d,) in db.query(ScanResult.broker_id).filter(
+            ScanResult.broker_id.isnot(None),
+            ScanResult.disposition.is_distinct_from("dismissed"),
+        )
+    }
+
 log = logging.getLogger("incognito.rescan")
 
 
