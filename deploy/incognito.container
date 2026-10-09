@@ -13,7 +13,6 @@ Environment=INCOGNITO_LOG_LEVEL=info
 # via host.containers.internal.
 # Network=pasta:-T,8888
 # Environment=INCOGNITO_SEARXNG_URL=http://127.0.0.1:8888
-UserNS=keep-id
 
 [Service]
 Restart=always
