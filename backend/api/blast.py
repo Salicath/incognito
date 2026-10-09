@@ -189,32 +189,8 @@ def create_blast_router(
                         })
                         continue
 
-                    # Non-email brokers: try web form automation, else manual
+                    # Non-email brokers: the user files the form; track it as manual
                     if broker.removal_method != RemovalMethod.EMAIL:
-                        if broker.removal_method == RemovalMethod.WEB_FORM:
-                            from pathlib import Path
-
-                            from backend.senders.web import WebFormSender
-
-                            forms_dir = Path(__file__).parent.parent.parent / "brokers" / "forms"
-                            web_sender = WebFormSender(profile, forms_dir)
-                            web_result = await web_sender.send(
-                                broker.domain, broker.removal_url or broker.domain,
-                                request_id=req.id,
-                            )
-                            if web_result.status.value == "success":
-                                mgr.mark_sent(req.id)
-                                sent += 1
-                                results.append({
-                                    "broker_id": req.broker_id,
-                                    "broker_name": broker.name,
-                                    "status": "sent",
-                                    "method": "web_form",
-                                })
-                                if not is_last:
-                                    await asyncio.sleep(3600 / max(config.rate_limit_per_hour, 1))
-                                continue
-
                         url = broker.removal_url or broker.domain
                         method = broker.removal_method
                         reason = f"Broker requires {method} — visit {url}"

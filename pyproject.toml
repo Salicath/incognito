@@ -46,11 +46,6 @@ scanner-deep = [
     "maigret>=0.6.2",
 ]
 
-# Web form automation (adds ~400MB — install only when needed)
-automation = [
-    "playwright>=1.49.0",
-]
-
 [project.scripts]
 incognito = "cli:app"
 

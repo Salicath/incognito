@@ -14,7 +14,6 @@ log = logging.getLogger("incognito.broker")
 class RemovalMethod(enum.StrEnum):
     EMAIL = "email"
     WEB_FORM = "web_form"
-    API = "api"
 
 
 class Broker(BaseModel):
@@ -24,7 +23,7 @@ class Broker(BaseModel):
     dpo_email: str
     removal_method: RemovalMethod
     removal_url: str | None = None
-    api_endpoint: str | None = None
+    api_endpoint: str | None = None  # unused; kept so existing YAMLs validate
     country: str
     gdpr_applies: bool
     verification_required: bool
