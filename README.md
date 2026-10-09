@@ -1,15 +1,15 @@
 # Incognito
 
-Self-hosted tool that automates GDPR and CCPA personal data removal requests.
+Self-hosted tool that automates GDPR personal data removal requests — built for EU (and especially Danish) residents.
 
 [![CI](https://github.com/Salicath/incognito/actions/workflows/ci.yml/badge.svg)](https://github.com/Salicath/incognito/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/Tests-572_passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-560_passing-brightgreen.svg)](tests/)
 
 ## What It Does
 
-Incognito scans for your personal data across 228 data brokers, 16 tech giants and the open web, sends legally-binding GDPR Art. 17 and CCPA deletion requests, tracks the 30-day compliance deadline, monitors for broker replies via IMAP, and generates DPA complaints when controllers fail to respond. Beyond brokers it covers tech-giant account erasure, search-engine delisting (RTBF), Danish registry-level protections (CPR levers), statutory retention holds that fire the moment erasure becomes demandable, and honest "this is legally undeletable — here is what you can do" guidance. Everything runs on your own machine — no cloud, no telemetry, no third-party accounts.
+Incognito scans for your personal data across 228 data brokers, 16 tech giants and the open web, sends legally-binding GDPR Art. 17 deletion requests, tracks the 30-day compliance deadline, monitors for broker replies via IMAP, and generates DPA complaints when controllers fail to respond. Beyond brokers it covers tech-giant account erasure, search-engine delisting (RTBF), Danish registry-level protections (CPR levers), statutory retention holds that fire the moment erasure becomes demandable, and honest "this is legally undeletable — here is what you can do" guidance. Everything runs on your own machine — no cloud, no telemetry, no third-party accounts.
 
 **Free alternative to DeleteMe ($129/year) and Incogni ($78/year).**
 
@@ -23,19 +23,19 @@ Incognito scans for your personal data across 228 data brokers, 16 tech giants a
 
 ## Key Features
 
-- **228 data brokers** (EU/Nordic-focused, plus US and international)
+- **228 data brokers** — European ones are contacted by default; non-European ones only once a scan finds you there (asking a broker that never had your data just hands it over)
+- **2,500+ companies via [Datenanfragen.de](https://www.datarequests.org/)** — a newsletter sender, found account or web hit that isn't a broker still gets a tracked one-click Art. 17 request to the right privacy address
 - **Tech-giant erasure** — 16 hand-verified controllers (Meta, Google, Reddit, ...) with per-platform filing kits and jurisdiction-aware DPA escalation
 - **Search-engine delisting** — Google/Bing/Brave RTBF kits with tracked lifecycle, decision-email matching and resurfacing alerts
 - **Danish CPR levers & statutory tracks** — one MitID action covers whole broker clusters; retention holds fire an Art. 17 the day the legal duty matures
 - **Exposure scanning** — DuckDuckGo or a self-hosted SearXNG sidecar, Have I Been Pwned, Wayback Machine ghost profiles, GitHub code-leak search, account discovery by email (user-scanner) and username (Maigret, ~3000 sites), newsletter discovery via IMAP
 - **Exposures inbox** — every hit triaged to a one-click request, guided removal steps, or an honest "legally impossible"
-- **9 languages** — English, Danish, German, French, Spanish, Italian, Dutch, Polish, CCPA
+- **8 languages** — English, Danish, German, French, Spanish, Italian, Dutch, Polish
 - **IMAP reply monitoring** — auto-detect broker responses in your inbox
 - **30-day deadline tracking** with automatic follow-up and escalation emails
 - **DPA complaint generation** — pre-filled complaints for 23 supervisory authorities
 - **Privacy score** — A-F grade with exposure report and audit trail CSV export
 - **Push notifications** — Ntfy, Gotify, or webhook alerts for replies, deadlines, and exposures
-- **Web form automation** — Playwright-based opt-out for web_form brokers (with YAML scripts)
 - **CSV import** — migrate history from DeleteMe, Optery, or other services
 - **Prometheus metrics** — `/api/metrics` for Grafana dashboards
 - **Reverse proxy header** — surfaced on `/api/auth/status` (Authentik/Authelia/Traefik); the master password is still required
@@ -44,16 +44,6 @@ Incognito scans for your personal data across 228 data brokers, 16 tech giants a
 - **Re-scan monitoring** — detect data reappearing after removal
 
 ## Quick Start
-
-### Docker Compose (recommended)
-
-```bash
-git clone https://github.com/Salicath/incognito.git
-cd incognito
-docker compose up -d
-```
-
-Open http://localhost:8080 and complete the setup wizard.
 
 ### From Source
 
@@ -65,10 +55,12 @@ cd frontend && npm ci && npm run build && cd ..
 python cli.py serve
 ```
 
-### Container (Podman/Docker)
+### Container (rootless Podman)
+
+Quadlet units for systemd live in [`deploy/`](deploy/) (incl. timers and an optional SearXNG sidecar). One-off:
 
 ```bash
-docker run -d --name incognito \
+podman run -d --name incognito \
   -p 127.0.0.1:8080:8080 \
   -v incognito-data:/home/incognito/.incognito \
   ghcr.io/salicath/incognito:latest
@@ -80,7 +72,7 @@ Multi-arch images available: `linux/amd64` and `linux/arm64`.
 
 1. **Setup** — Create a master password and enter your identity details
 2. **Scan** — Check where your data is exposed (web search, breaches, archives, accounts)
-3. **Send** — Dispatch GDPR Art. 17 deletion requests to all brokers
+3. **Send** — Dispatch Art. 15/17 requests to European brokers plus any broker the scan found you on (runs in the background, paced by `INCOGNITO_RATE_LIMIT_PER_HOUR`)
 4. **Track** — Monitor the 30-day legal deadline; system sends follow-ups automatically
 5. **Escalate** — Generate DPA complaints when brokers fail to respond
 
@@ -90,7 +82,7 @@ Multi-arch images available: `linux/amd64` and `linux/arm64`.
 incognito serve              # Start web server
 incognito status             # Show request stats
 incognito report             # Privacy score and exposure report
-incognito send --no-dry-run  # Create requests for all brokers
+incognito send --no-dry-run  # Create requests (European brokers + scan hits)
 incognito follow-up --auto   # Check deadlines, send follow-ups
 incognito check-replies      # Check IMAP inbox for broker replies
 incognito rescan             # Re-scan for data reappearing
@@ -127,7 +119,6 @@ Environment variables (prefix `INCOGNITO_`):
 | **Ntfy / Gotify** | Set `INCOGNITO_NOTIFY_URL` |
 | **Prometheus / Grafana** | Scrape `GET /api/metrics` (set `INCOGNITO_METRICS_TOKEN` before exposing it) |
 | **Authentik / Authelia** | Set `INCOGNITO_TRUSTED_PROXY_HEADER=Remote-User` (surfaced on the status endpoint; does not replace the vault unlock) |
-| **Traefik** | Uncomment labels in `docker-compose.yml` |
 | **Proton Bridge** | IMAP with STARTTLS on localhost:1143 |
 
 ## Contributing
@@ -156,7 +147,7 @@ cd frontend && npm run dev  # Frontend dev server
 
 ## Legal
 
-This tool helps you exercise your existing rights under GDPR (Art. 15, Art. 17) and CCPA. It does not constitute legal advice.
+This tool helps you exercise your existing rights under GDPR (Art. 15, Art. 17). It does not constitute legal advice.
 
 ## License
 
