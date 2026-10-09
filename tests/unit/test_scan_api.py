@@ -264,16 +264,19 @@ def test_scan_history_returns_results(client, config):
 # --- Breach check ---
 
 
-def test_breach_check_requires_hibp_key(client, config):
-    """POST /api/scan/breaches/start returns 400 when no HIBP key configured."""
-    # Ensure no hibp_key.txt exists
-    key_path = config.data_dir / "hibp_key.txt"
-    if key_path.exists():
-        key_path.unlink()
+def test_breach_check_runs_keyless_without_hibp_key(client, config):
+    """No HIBP key: the check still starts (XposedOrNot fallback)."""
+    from unittest.mock import AsyncMock, patch
 
-    resp = client.post("/api/scan/breaches/start")
-    assert resp.status_code == 400
-    assert "HIBP API key not configured" in resp.json()["detail"]
+    from backend.scanner.hibp import BreachReport
+
+    with patch(
+        "backend.scanner.hibp.check_breaches",
+        new_callable=AsyncMock, return_value=BreachReport(email="t@t.com"),
+    ) as mock_check:
+        resp = client.post("/api/scan/breaches/start")
+    assert resp.status_code == 200
+    assert mock_check.call_args.args[1] is None
 
 
 # --- Rescan ---

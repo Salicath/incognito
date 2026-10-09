@@ -799,12 +799,8 @@ def create_scan_router(
         from backend.core.config import AppConfig
         from backend.core.secrets import read_secret
         effective_config = config if config is not None else AppConfig()
+        # Optional: without a key the check runs keyless against XposedOrNot
         api_key = read_secret(vault, effective_config.data_dir, key, salt, "hibp")
-        if not api_key:
-            raise HTTPException(
-                status_code=400,
-                detail="HIBP API key not configured. Add it in Settings.",
-            )
 
         validated = _validate_email(email)
         target_email = validated or (profile.emails[0] if profile.emails else None)

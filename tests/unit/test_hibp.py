@@ -79,3 +79,28 @@ def test_breach_info_model():
     )
     assert info.name == "Adobe"
     assert info.pwn_count == 152445165
+
+
+@pytest.mark.asyncio
+async def test_no_key_uses_xposedornot():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"ExposedBreaches": {"breaches_details": [{
+        "breach": "McKesson", "domain": "mckesson.com", "xposed_date": "2026",
+        "xposed_records": 6800000, "xposed_data": "Email addresses;Names",
+        "details": "desc",
+    }]}}
+
+    with patch("backend.scanner.hibp.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client_cls.return_value = mock_client
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        report = await check_breaches("test@example.com", None)
+
+    assert "xposedornot" in mock_client.get.call_args.args[0]
+    assert report.total_breaches == 1
+    assert report.breaches[0].data_classes == ["Email addresses", "Names"]
+    assert report.error is None

@@ -426,22 +426,11 @@ export default function Scan() {
         <div className="mb-6">
           <h2 className="text-xl font-bold">Breach Scanner</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
-            Check if your email has appeared in known data breaches via Have I Been Pwned
+            Check if your email has appeared in known data breaches —{" "}
+            {hibpConfigured
+              ? "via Have I Been Pwned (your API key)"
+              : "via the free XposedOrNot API (add an HIBP key in Settings to use Have I Been Pwned instead)"}
           </p>
-
-          {hibpConfigured === false && (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 text-sm text-orange-800">
-              <span className="font-medium">HIBP API key not configured.</span>{" "}
-              <a href="/settings" className="underline hover:text-orange-900">
-                Add your key in Settings
-              </a>{" "}
-              to use this feature. Keys are available at{" "}
-              <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener noreferrer"
-                className="underline hover:text-orange-900">
-                haveibeenpwned.com/API/Key
-              </a>.
-            </div>
-          )}
 
           <div className="flex gap-3">
             <div className="flex-1">
@@ -450,8 +439,7 @@ export default function Scan() {
                 placeholder="Enter email to check (leave empty for profile email)"
                 value={breachEmailInput}
                 onChange={(e) => setBreachEmailInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !breach.running && hibpConfigured && breach.start(breachEmailInput.trim() || undefined)}
-                disabled={!hibpConfigured}
+                onKeyDown={(e) => e.key === "Enter" && !breach.running && breach.start(breachEmailInput.trim() || undefined)}
                 className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {profileEmails.length > 1 && (
@@ -465,7 +453,7 @@ export default function Scan() {
             </div>
             <button
               onClick={() => breach.start(breachEmailInput.trim() || undefined)}
-              disabled={breach.running || !hibpConfigured}
+              disabled={breach.running}
               className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50 shrink-0"
             >
               {breach.running ? (
@@ -492,7 +480,7 @@ export default function Scan() {
           </div>
         )}
 
-        {!breach.running && !breach.hasResults && !breach.error && hibpConfigured && (
+        {!breach.running && !breach.hasResults && !breach.error && (
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
             <ShieldAlert className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No breach results yet</h3>
