@@ -28,6 +28,7 @@ interface ScanResults {
   has_results: boolean;
   checked: number;
   hits: ScanHit[];
+  errors?: string[];
 }
 
 interface AccountResults {
@@ -208,6 +209,9 @@ export default function Scan() {
 
   const scanHits = (scan.results as ScanResults | null)?.hits ?? [];
   const scanChecked = (scan.results as ScanResults | null)?.checked ?? 0;
+  const scanErrors = (scan.results as ScanResults | null)?.errors ?? [];
+  // Every search failed: an empty hit list means "couldn't look", not "nothing found"
+  const scanFailed = scanErrors.length > 0 && scanErrors.length >= scanChecked;
   const scanPct = scan.total > 0 ? Math.round((scan.progress / scan.total) * 100) : 0;
 
   const accountHits = (account.results as AccountResults | null)?.hits ?? [];
@@ -340,10 +344,20 @@ export default function Scan() {
                 ))}
               </div>
             </div>
+          ) : scanFailed ? (
+            <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+              <p className="text-red-900 font-medium">The search failed — nothing was checked</p>
+              <p className="text-red-700 text-sm mt-1">{scanErrors[scanErrors.length - 1]}</p>
+            </div>
           ) : (
             <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
               <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
               <p className="text-green-900 font-medium">No data found in search results</p>
+              {scanErrors.length > 0 && (
+                <p className="text-amber-700 text-sm mt-1">
+                  {scanErrors.length} of {scanChecked} searches failed — results are incomplete.
+                </p>
+              )}
               <p className="text-green-700 text-sm mt-1">
                 Most data brokers don't expose data to search engines. Use the
                 Art. 15 blast from the Dashboard to ask them directly — they're

@@ -70,3 +70,20 @@ def test_scan_hit_model():
         url="https://spokeo.com/Test-User",
     )
     assert hit.broker_domain == "spokeo.com"
+
+
+@pytest.mark.asyncio
+async def test_scan_stops_when_search_engine_blocks(profile):
+    """DDG 403s every query once an IP is flagged — stop early and say so,
+    instead of 229 silent failures that render as "no data found"."""
+    brokers = [(f"b{i}.com", f"B{i}") for i in range(20)]
+    failing = AsyncMock(side_effect=RuntimeError("DuckDuckGo search failed: HTTPStatusError"))
+    with (
+        patch("backend.scanner.duckduckgo._search_ddg", failing),
+        patch("backend.scanner.duckduckgo.asyncio.sleep", new_callable=AsyncMock),
+    ):
+        report = await scan_profile(profile, brokers)
+
+    assert failing.await_count == 5
+    assert "blocking this IP" in report.errors[-1]
+    assert report.hits == []

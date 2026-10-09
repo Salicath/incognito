@@ -26,6 +26,9 @@ class ScanReport:
     errors: list[str] = field(default_factory=list)
 
 
+_MAX_CONSECUTIVE_FAILURES = 5
+
+
 async def _search_ddg(
     query: str, client: httpx.AsyncClient, region: str | None = None,
 ) -> list[dict]:
@@ -114,6 +117,7 @@ async def scan_profile(
 
     total = len(queries)
 
+    consecutive_failures = 0
     async with httpx.AsyncClient() as client:
         for i, (query, domain, broker_name) in enumerate(queries):
             try:
@@ -125,6 +129,19 @@ async def scan_profile(
             except RuntimeError as e:
                 report.errors.append(str(e))
                 results = []
+                consecutive_failures += 1
+                if consecutive_failures >= _MAX_CONSECUTIVE_FAILURES:
+                    # Blocked (DDG answers 403 once an IP is flagged) — every
+                    # remaining query would fail too, and the empty result
+                    # must not read as "no data found".
+                    report.errors.append(
+                        f"Stopped after {consecutive_failures} failed searches in a row — "
+                        "the search engine is blocking this IP. Set INCOGNITO_SEARXNG_URL "
+                        "(deploy/searxng.container) or retry later."
+                    )
+                    break
+            else:
+                consecutive_failures = 0
             report.checked += 1
 
             for result in results:
