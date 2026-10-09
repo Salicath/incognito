@@ -984,14 +984,33 @@ def create_scan_router(
             or source
         )
 
-    def _match_broker(row_broker_id, data):
-        """A registry broker this exposure could be actioned against, or None."""
+    # Sources where the hit's own domain is the one holding the data. A code
+    # leak or archive snapshot is hosted by GitHub/archive.org on someone
+    # else's behalf — those keep their removal guidance instead.
+    company_sources = {"duckduckgo", "newsletter", "userscan", "maigret", "holehe"}
+
+    def _match_broker(row_broker_id, data, source=""):
+        """A registry broker (or Datenanfragen company) this exposure could be
+        actioned against, or None."""
         if broker_registry is None:
             return None
         domain = None
         if isinstance(data, dict):
             domain = data.get("broker_domain")
-        return broker_registry.get_by_domain(domain or row_broker_id)
+        hit = broker_registry.get_by_domain(domain or row_broker_id)
+        if (
+            hit is None and isinstance(data, dict)
+            and source.split(":", 1)[0] in company_sources
+        ):
+            from backend.core.company_registry import lookup_company
+            # A web hit's host may be a tenant of a shared platform — match it exactly.
+            # Newsletter senders and account hits name the controller's own domain.
+            exact = source.startswith("duckduckgo")
+            for candidate in (data.get("sender_domain"), domain, data.get("url")):
+                hit = lookup_company(candidate, exact=exact)
+                if hit:
+                    break
+        return hit
 
     @r.get("/exposures")
     def list_exposures(session: str | None = Cookie(default=None)):
@@ -1024,7 +1043,7 @@ def create_scan_router(
                 if disposition is None:
                     summary["needs_triage"] += 1
                 url = data.get("url", "") if isinstance(data, dict) else ""
-                broker = _match_broker(r_.broker_id, data)
+                broker = _match_broker(r_.broker_id, data, r_.source)
                 # Matched brokers get the one-click Art. 17 path; everything else
                 # gets source-specific manual removal guidance instead. Alias
                 # leaks always get guidance: the leak row carries the registry
@@ -1115,7 +1134,7 @@ def create_scan_router(
                 raise HTTPException(status_code=404, detail="Exposure not found")
 
             data = _safe_json(row.found_data)
-            broker = _match_broker(row.broker_id, data)
+            broker = _match_broker(row.broker_id, data, row.source)
             if broker is None:
                 raise HTTPException(
                     status_code=400, detail="No matching broker in the registry"

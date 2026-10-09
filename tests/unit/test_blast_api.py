@@ -19,7 +19,7 @@ def app_dir(tmp_path):
             "category": "data_broker",
             "dpo_email": f"dpo@broker{i}.com",
             "removal_method": "email",
-            "country": "US",
+            "country": "DK",
             "gdpr_applies": True,
             "verification_required": False,
             "language": "en",
@@ -105,6 +105,31 @@ def test_blast_different_types_dont_skip(client):
     assert data["skipped"] == 0
 
 
+def test_blast_contacts_non_european_brokers_only_on_scan_evidence(app_dir, client):
+    us = {
+        "name": "US Broker", "domain": "usbroker.com", "category": "people_search",
+        "dpo_email": "privacy@usbroker.com", "removal_method": "email", "country": "US",
+        "gdpr_applies": True, "verification_required": False, "language": "en",
+        "last_verified": "2026-03-01",
+    }
+    (app_dir / "brokers" / "usbroker.yaml").write_text(yaml.dump(us))
+    from backend.main import create_app
+    app = create_app(AppConfig(data_dir=app_dir))
+    c = TestClient(app)
+    c.post("/api/auth/unlock", json={"password": "password"})
+
+    data = c.post("/api/blast/create", json={"request_type": "access"}).json()
+    assert (data["created"], data["out_of_scope"]) == (5, 1)
+
+    from backend.db.models import ScanResult
+    db = app.state.db_session_factory()
+    db.add(ScanResult(source="ddg", broker_id="usbroker.com", found_data="{}"))
+    db.commit()
+    db.close()
+    data = c.post("/api/blast/create", json={"request_type": "access"}).json()
+    assert (data["created"], data["out_of_scope"]) == (6, 0)
+
+
 def test_blast_requires_auth(config):
     from backend.main import create_app
     app = create_app(config)
@@ -144,6 +169,13 @@ def _seed_alias_row(config, broker_id):
         db.close()
 
 
+def _send_result(client):
+    # TestClient runs the background job before post() returns
+    state = client.get("/api/blast/send-all/status").json()
+    assert state["running"] is False
+    return state["result"]
+
+
 def test_send_all_sends_to_the_reverse_alias(app_dir):
     """The 228-broker blast is the track's core promise — the loop must SMTP
     to the reverse-alias for aliased brokers and fall back to the real DPO
@@ -170,7 +202,7 @@ def test_send_all_sends_to_the_reverse_alias(app_dir):
         resp = client.post("/api/blast/send-all")
 
     assert resp.status_code == 200
-    assert resp.json()["sent"] == 5
+    assert _send_result(client)["sent"] == 5
     sent_to = [c.kwargs["to_email"] for c in mock_send.call_args_list]
     assert "reply+x@simplelogin.co" in sent_to     # aliased broker: the alias
     assert "dpo@broker1.com" in sent_to            # mint failure: real fallback
@@ -250,7 +282,7 @@ def test_send_all_commit_failure_fails_one_broker_not_the_blast(app_dir):
         resp = client.post("/api/blast/send-all")
 
     assert resp.status_code == 200
-    statuses = [r["status"] for r in resp.json()["results"]]
+    statuses = [r["status"] for r in _send_result(client)["results"]]
     assert statuses.count("error") == 1       # only the poisoned broker
     assert statuses.count("sent") == 4        # the rest of the blast survives
 

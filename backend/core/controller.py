@@ -135,6 +135,10 @@ class RegistryUnion:
         hit = self._brokers.get(entry_id) or self._controllers.get(entry_id)
         if hit is None and self._delisting is not None:
             hit = self._delisting.get(entry_id)
+        if hit is None:
+            # Datenanfragen companies: actioned per exposure, never listed or blasted
+            from backend.core.company_registry import company_registry
+            hit = company_registry().get(entry_id)
         return hit
 
     def get_by_domain(self, domain: str | None):
@@ -180,6 +184,14 @@ def reply_matching_sets(
         domains.update(t.domain.lower() for t in delisting_registry.targets)
         exclude.update(t.id for t in delisting_registry.targets)
         id_domains.update({t.id: t.domain.lower() for t in delisting_registry.targets})
+    # Datenanfragen companies send routine mail, so no tier-3. Their domains
+    # stay OUT of `domains`: the snapshot includes freemail providers (web.de,
+    # yahoo.com), and tier 2 accepts any sender in that set — the poller checks
+    # a company REF match against that request's own domain instead.
+    from backend.core.company_registry import company_registry
+    for b in company_registry().brokers:
+        exclude.add(b.id)
+        id_domains.setdefault(b.id, b.domain.lower())
     return domains, exclude, id_domains
 
 

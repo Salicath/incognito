@@ -83,7 +83,7 @@ jobs:
 
           required_fields = ['name', 'domain', 'category', 'dpo_email', 'removal_method', 'country', 'gdpr_applies', 'verification_required', 'language', 'last_verified']
           valid_categories = ['data_broker', 'people_search', 'marketing', 'credit_agency', 'other']
-          valid_methods = ['email', 'web_form', 'api']
+          valid_methods = ['email', 'web_form']
           errors = []
           count = 0
 

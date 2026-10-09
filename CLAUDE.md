@@ -1,6 +1,6 @@
 # Incognito — Developer Guide
 
-Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React/TypeScript frontend.
+Self-hosted GDPR personal data removal tool, EU/Denmark-focused. Python FastAPI backend + React/TypeScript frontend.
 
 ## Quick Reference
 
@@ -8,7 +8,7 @@ Self-hosted GDPR/CCPA personal data removal tool. Python FastAPI backend + React
 # Run backend
 python cli.py serve
 
-# Run tests (572 tests, 228 brokers, 16 controllers, 23 DPAs)
+# Run tests (560 tests, 228 brokers, 16 controllers, 23 DPAs)
 python -m pytest tests/ -v
 
 # Lint
@@ -29,7 +29,7 @@ cd frontend && npm run build
 # CLI commands
 incognito serve              # Start web server
 incognito status             # Show request stats
-incognito send --no-dry-run  # Create requests for all brokers
+incognito send --no-dry-run  # Create requests (European brokers + scan hits)
 incognito follow-up --auto   # Check deadlines, send follow-ups
 incognito check-replies      # Check IMAP inbox for broker replies
 incognito rescan             # Re-scan and check for data reappearing
@@ -46,7 +46,7 @@ incognito report             # Privacy score and exposure report
 - `core/` — Business logic (crypto, profile vault, broker registry, request state machine, scheduler, rescan, templates, DPA registry, IMAP poller)
 - `db/` — SQLAlchemy models + Alembic migrations. SQLite with WAL mode.
 - `scanner/` — DuckDuckGo search, user-scanner account discovery (email axis), HIBP breach check, Wayback CDX archived-profile scan, GitHub code-leak scan, Maigret deep username enumeration (isolated subprocess, ~3000 sites), newsletter scan (IMAP List-Unsubscribe discovery), SearXNG sidecar backend (`scanner/searxng.py`, used for discovery scans when `INCOGNITO_SEARXNG_URL` is set; delisting re-verification stays on DDG for the Bing surface)
-- `senders/` — Email sender (SMTP), web form sender (Playwright), base result types
+- `senders/` — Email sender (SMTP), base result types. web_form brokers are filed by the user (MANUAL_ACTION_NEEDED)
 
 **Frontend** (`frontend/src/`):
 - `pages/` — Dashboard, Requests, RequestDetail, Brokers, Controllers, CprLevers, Statutory, Scan, Exposures, Settings, SetupWizard, Report
@@ -59,12 +59,15 @@ incognito report             # Privacy score and exposure report
 - Session store holds derived keys, never raw passwords
 - Each API router is a factory function receiving its dependencies (no global state)
 - Broker registry loaded from YAML files in `brokers/`
-- Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl, ccpa
+- Templates are Jinja2 with locale support (`templates/locales/{lang}/`) — en, da, de, fr, es, it, nl, pl
 - CPR lever track (`core/cpr_lever.py`, `brokers/cpr_levers.yaml`): Danish upstream protections the user performs via MitID; active levers cover cascade brokers so blast skips them (see `docs/tracks/cpr_lever.md`). Renewal ladder (T-30/T-7/expiry) fires from the `follow-up` command via `check_lever_renewals`.
 - Controller track (`core/controller.py`, `brokers/controllers.yaml`, `docs/tracks/controller.md`): opt-in tech-giant erasure — 16 hand-verified platforms, never blasted (separate `ControllerRegistry`; `RegistryUnion` feeds shared machinery). Email-viable platforms send a controller-specific Art. 17 immediately; form-only ones enter MANUAL_ACTION_NEEDED with a filing kit and the user attests "I filed it" (→ SENT starts the Art. 12(3) clock). Complaints route to the residence SA via `dpa.get_dpa_for_request` (`INCOGNITO_USER_COUNTRY`, default DK; GB→ICO), with the lead SA named in the complaint text.
 - Exposure triage: every scanner (DDG, user-scanner, Wayback, GitHub, Maigret) persists hits to `scan_results`; the Exposures inbox (`GET /api/scan/exposures`) aggregates them and drives each to a disposition (actioned/dismissed/legally_impossible). Hits matching a registry broker get a one-click Art. 17 request (`create-request`); others get per-source `core/removal_guidance.py` steps. Account hits (user-scanner/Maigret) are resolved against the vendored JustDelete.me dataset (`core/account_registry.py`, `data/justdeleteme_sites.json`) to surface the exact deletion URL + difficulty; `difficulty: impossible` routes toward the `legally_impossible` disposition. Newsletter hits carry an unsubscribe action (`POST /api/scan/exposures/{id}/unsubscribe`): RFC 8058 one-click POST via `core/unsubscribe.py` (SSRF-guarded, HTTPS-only, no redirects), or a mailto send via the SMTP sender. Any URL exposure carries a delisting kit (`GET /api/scan/exposures/{id}/delisting-kit`, `core/delisting.py`): per-engine RTBF deep-links (Google/Bing forms + Brave email) plus a drafted, locale-aware Art. 17 justification — filing is manual (ID-gated forms), but the lifecycle is tracked (`docs/tracks/delisting.md`): "I filed it" creates a `(URL, engine)` request (`Request.target_url`, `DelistingRegistry` pseudo-targets in the `RegistryUnion`) with the Art. 12(3) clock; decision emails match via `ImapPoller._match_delisting_decision` (Google URL-in-body → auto-ACK, Bing attach-only); escalation routes to the residence SA (Google = Art. 55 national case vs Google LLC); the weekly rescan flags resurfaced delisted URLs.
 - Statutory tracks (`core/time_locked.py`, `core/restriction_only.py`, `brokers/{time_locked,restriction_only}.yaml`, `docs/tracks/{time_locked,restriction_only}.md`): time_locked arms per-institution retention holds (bank +5y exact, bogføring FY+5y+1d, insurer 3y/10y, telco 3y, employer 5y) and the `follow-up` job fires an assist-only Art. 17 kit (da template) when the duty matures; restriction_only serves 9 honest "legally undeletable + what you CAN do" cards. Both on the Statutory page via `api/statutory.py`.
 - Alias track (`core/alias.py`, `core/alias_resolver.py`, `docs/tracks/alias.md`): opt-in per-recipient SimpleLogin aliases so no broker learns the real mailbox. Off unless a `simplelogin` vault secret is set; any SimpleLogin failure falls back to the real recipient. Send goes to the contact's `reverse_alias_address`; replies match via `X-SimpleLogin-Envelope-To` (new `MatchTier.ALIAS`, deliberately **not** an auto-ACK tier). Mail to alias X from a sender that is provably not X is filed as an `alias_leak` exposure — leak detection needs SimpleLogin's opt-in `include_header_email_header`. Carve-outs: `send_from_account_email` (Reddit) and any controller with `cc_emails` (GitHub, Discord).
+- Blast scope (`core/broker.py:in_scope`): European brokers (EU/EEA+GB+CH) always; non-European ones only when a non-dismissed scan hit matches their domain (`core/rescan.py:found_broker_domains`). `gdpr_applies` is not used for scoping — nearly every US broker claims it.
+- Send-all is a background job: `POST /api/blast/send-all` starts it (409 while running), `GET /api/blast/send-all/status` reports progress/result; the Dashboard polls it.
+- Company track (`core/company_registry.py`, `data/datenanfragen_companies.json`): vendored CC0 snapshot of datenanfragen/data loaded as `category=company` Broker objects. `RegistryUnion.get` falls back to it, so send/follow-up/complaint work unchanged; exposures from `company_sources` (web search, newsletter, account scanners — not GitHub/Wayback) match it for the one-click request. Never blasted; tier 1-2 reply matching only; complaints go to the residence SA. Refresh instructions in the module docstring.
 - Request lifecycle: CREATED -> SENT -> ACKNOWLEDGED -> COMPLETED (with REFUSED/OVERDUE/ESCALATED branches)
 - IMAP poller runs as asyncio background task, polls for broker replies
 - Outgoing emails include Message-ID header and [REF-XXXXXXXX] in subject for reply matching
@@ -145,12 +148,10 @@ pytest tests/unit/test_alias.py -v            # Alias track (SimpleLogin, ALIAS 
 Core deps in `pyproject.toml`. Optional extras:
 - `pip install -e ".[scanner]"` — user-scanner for email-axis account discovery
 - `pip install -e ".[scanner-deep]"` — maigret for deep username enumeration (heavy deps; container installs it into an isolated `/opt/maigret` venv)
-- `pip install -e ".[automation]"` — Playwright for future web form automation
 - `pip install -e ".[dev]"` — pytest, ruff, mypy
 
 ## Deployment
 
-Docker Compose file in project root (`docker-compose.yml`).
 Rootless Podman with Quadlet systemd units in `deploy/` (incl. optional SearXNG sidecar: `searxng.container` + `searxng-settings.yml`).
 Container builds via `deploy/Containerfile` (multi-stage: Node frontend + Python backend).
 Container includes HEALTHCHECK on `/api/health`.
@@ -196,6 +197,4 @@ cd frontend && npm audit
 
 ## What's Not Built Yet
 
-- Form definitions for individual web_form brokers (`brokers/forms/*.yaml`)
-- API sender (`senders/api.py`, Data Rights Protocol)
 - Multi-profile / family support

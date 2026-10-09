@@ -519,9 +519,15 @@ def send(
         ).all()
         existing_ids = {r.broker_id for r in existing}
 
+        from backend.core.broker import in_scope
+        from backend.core.rescan import found_broker_domains
+        found = found_broker_domains(session)
+
         created = 0
         skipped = 0
         for broker in registry.brokers:
+            if not in_scope(broker, found):
+                continue
             if broker.id in existing_ids:
                 skipped += 1
                 continue

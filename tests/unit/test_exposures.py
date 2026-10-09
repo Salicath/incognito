@@ -545,3 +545,32 @@ def test_guidance_present_for_unmatched_absent_for_matched(client, config):
     g = exposures["GitHub: acme/leak"]["guidance"]
     assert g is not None
     assert g["steps"] and g["links"]
+
+
+def test_newsletter_sender_resolves_to_datenanfragen_company(client, config):
+    """A non-registry newsletter sender gets the one-click request via the
+    vendored Datenanfragen snapshot (subdomain stripped to the company)."""
+    eid = _seed(config, "newsletter:zalando.de", {
+        "broker_domain": "news.zalando.de", "sender_domain": "news.zalando.de",
+        "url": "https://news.zalando.de/unsub",
+    })
+    e = client.get("/api/scan/exposures").json()["exposures"][0]
+    assert e["matched_broker"]["name"] == "Zalando SE"
+
+    body = client.post(f"/api/scan/exposures/{eid}/create-request").json()
+    assert body["created"] is True
+    # Resolved through the RegistryUnion like any broker: send/follow-up/complaint work
+    detail = client.get(f"/api/requests/{body['request_id']}").json()
+    assert detail["broker"]["dpo_email"] == "datenschutz@zalando.de"
+
+
+def test_company_lookup_strips_subdomains_and_misses_unknowns():
+    from backend.core.company_registry import lookup_company
+
+    assert lookup_company("https://mail.zalando.de/x").dpo_email == "datenschutz@zalando.de"
+    assert lookup_company("telenor.dk").language == "da"
+    assert lookup_company("no-such-company.invalid") is None
+    assert lookup_company(None) is None
+    # shared host: a tenant subdomain must not resolve to the platform
+    assert lookup_company("someone.zalando.de", exact=True) is None
+    assert lookup_company("zalando.de", exact=True).name == "Zalando SE"

@@ -14,7 +14,14 @@ log = logging.getLogger("incognito.broker")
 class RemovalMethod(enum.StrEnum):
     EMAIL = "email"
     WEB_FORM = "web_form"
-    API = "api"
+
+
+# EU/EEA + GB + CH: where GDPR (or its UK/Swiss twin) reliably reaches the broker.
+EUROPE = frozenset({
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
+    "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+    "IS", "LI", "NO", "GB", "CH",
+})
 
 
 class Broker(BaseModel):
@@ -24,7 +31,7 @@ class Broker(BaseModel):
     dpo_email: str
     removal_method: RemovalMethod
     removal_url: str | None = None
-    api_endpoint: str | None = None
+    api_endpoint: str | None = None  # unused; kept so existing YAMLs validate
     country: str
     gdpr_applies: bool
     verification_required: bool
@@ -36,6 +43,12 @@ class Broker(BaseModel):
     @property
     def id(self) -> str:
         return re.sub(r"[^a-z0-9]+", "-", self.domain.lower()).strip("-")
+
+
+def in_scope(broker: Broker, found_domains: set[str]) -> bool:
+    """Blast target? European brokers always; others only on scan evidence —
+    asking a non-European broker that never had your data just hands it over."""
+    return broker.country in EUROPE or broker.domain.lower() in found_domains
 
 
 class BrokerRegistry:

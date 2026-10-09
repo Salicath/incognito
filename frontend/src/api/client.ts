@@ -110,12 +110,17 @@ export const api = {
   getBreachStatus: () =>
     request<{ running: boolean; error: string | null }>("/scan/breaches/status"),
   blastCreate: (requestType: string, dryRun: boolean) =>
-    request<{ dry_run: boolean; created: number; skipped: number; total_brokers: number; requests: Array<Record<string, string>> }>("/blast/create", {
+    request<{ dry_run: boolean; created: number; skipped: number; out_of_scope: number; total_brokers: number; requests: Array<Record<string, string>> }>("/blast/create", {
       method: "POST",
       body: JSON.stringify({ request_type: requestType, dry_run: dryRun }),
     }),
   blastSendAll: () =>
-    request<{ sent: number; failed: number; manual: number; total: number; results: Array<Record<string, string>> }>("/blast/send-all", { method: "POST" }),
+    request<{ status: string }>("/blast/send-all", { method: "POST" }),
+  blastSendStatus: () =>
+    request<{
+      running: boolean; progress: number; total: number; error: string | null;
+      result: { sent: number; failed: number; manual: number; total: number; results: Array<Record<string, string>> } | null;
+    }>("/blast/send-all/status"),
   runFollowUp: () =>
     request<{ newly_overdue: number; follow_ups_sent: number; escalations_sent: number; errors: string[] }>("/blast/follow-up", { method: "POST" }),
   generateComplaint: (requestId: string) =>

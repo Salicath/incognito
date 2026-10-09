@@ -1,11 +1,13 @@
+import asyncio
 import logging
 from datetime import date as _date  # module-level so the 2027 gate is testable
 
-from fastapi import APIRouter, Cookie, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Cookie, HTTPException
 from pydantic import BaseModel
 
 from backend.api.deps import SessionStore
-from backend.core.broker import BrokerRegistry, RemovalMethod
+from backend.core.broker import BrokerRegistry, RemovalMethod, in_scope
+from backend.core.company_registry import company_registry
 from backend.core.config import AppConfig
 from backend.core.controller import RegistryUnion
 from backend.core.cpr_lever import CprLeverRegistry, covered_broker_ids
@@ -74,11 +76,18 @@ def create_blast_router(
                 }
                 lever_covered = covered_broker_ids(lever_registry, lever_states)
 
+            from backend.core.rescan import found_broker_domains
+            found = found_broker_domains(db)
+
             created = []
             skipped = []
             covered = []
+            out_of_scope = 0
 
             for broker in broker_registry.brokers:
+                if not in_scope(broker, found):
+                    out_of_scope += 1
+                    continue
                 if broker.id in existing_broker_ids:
                     skipped.append(broker.id)
                     continue
@@ -115,46 +124,65 @@ def create_blast_router(
                 "created": len(created),
                 "skipped": len(skipped),
                 "covered_by_lever": len(covered),
+                "out_of_scope": out_of_scope,
                 "total_brokers": len(broker_registry.brokers),
                 "requests": created,
             }
         finally:
             db.close()
 
-    # A blast paces sends over hours; a second click (or a retry after the
-    # browser times out) would walk the same CREATED rows and double-send.
-    import asyncio
-    send_lock = asyncio.Lock()
+    # A blast paces sends over hours (rate_limit_per_hour), so it runs as a
+    # background job the UI polls. One at a time: a second run would walk the
+    # same CREATED rows and double-send legal mail.
+    send_state: dict = {
+        "running": False, "progress": 0, "total": 0, "result": None, "error": None,
+    }
 
     @r.post("/send-all")
-    async def send_all_pending(session: str | None = Cookie(default=None)) -> dict:
-        """Send all pending (created) requests via email."""
-        session_store.validate(session)
-        if send_lock.locked():
-            raise HTTPException(status_code=409, detail="A send is already in progress.")
-        async with send_lock:
-            return await _send_all_pending(session)
-
-    async def _send_all_pending(session: str | None) -> dict:
+    async def send_all_pending(
+        background_tasks: BackgroundTasks, session: str | None = Cookie(default=None),
+    ) -> dict:
+        """Start sending all pending (created) requests via email."""
         key, salt = session_store.validate(session)
+        if send_state["running"]:
+            raise HTTPException(status_code=409, detail="A send is already in progress.")
         profile, smtp, _ = vault.load_with_key(key)
-
         if smtp is None:
             raise HTTPException(
                 status_code=400,
                 detail="SMTP not configured. Add SMTP settings before sending requests.",
             )
+        from backend.core.secrets import read_secret
 
+        # Captured now: the session may expire long before the job finishes.
+        # Absent a key, resolve_recipient is a no-op and we send as before.
+        sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
+        send_state.update(running=True, progress=0, total=0, result=None, error=None)
+        background_tasks.add_task(_run_send_all, profile, smtp, sl_key)
+        return {"status": "started"}
+
+    @r.get("/send-all/status")
+    def send_all_status(session: str | None = Cookie(default=None)) -> dict:
+        session_store.validate(session)
+        return send_state
+
+    async def _run_send_all(profile, smtp, sl_key) -> None:
+        try:
+            send_state["result"] = await _send_all_pending(profile, smtp, sl_key)
+        except Exception as e:
+            log.error("Send-all failed: %s", e)
+            send_state["error"] = "Send failed. Check logs for details."
+        finally:
+            send_state["running"] = False
+
+    async def _send_all_pending(profile, smtp, sl_key) -> dict:
         from pathlib import Path
 
         from backend.core.alias_resolver import resolve_recipient
-        from backend.core.secrets import read_secret
         from backend.db.models import EmailDirection
         from backend.db.models import EmailMessage as EmailMessageModel
         from backend.senders.email import EmailSender
 
-        # Absent a key, resolve_recipient is a no-op and we send as before.
-        sl_key = read_secret(vault, config.data_dir, key, salt, "simplelogin")
         repo_templates = Path(__file__).parent.parent.parent / "templates"
         templates_dir = config.data_dir / "templates"
         if not templates_dir.exists():
@@ -175,12 +203,16 @@ def create_blast_router(
             failed = 0
             results = []
 
-            import asyncio
 
+            send_state["total"] = len(pending)
             for i, req in enumerate(pending):
+                send_state["progress"] = i
                 is_last = i == len(pending) - 1
                 try:
-                    broker = broker_registry.get(req.broker_id)
+                    # Exposure-actioned Datenanfragen companies are sent here too
+                    broker = broker_registry.get(req.broker_id) or company_registry().get(
+                        req.broker_id
+                    )
                     if broker is None:
                         results.append({
                             "broker_id": req.broker_id,
@@ -189,32 +221,8 @@ def create_blast_router(
                         })
                         continue
 
-                    # Non-email brokers: try web form automation, else manual
+                    # Non-email brokers: the user files the form; track it as manual
                     if broker.removal_method != RemovalMethod.EMAIL:
-                        if broker.removal_method == RemovalMethod.WEB_FORM:
-                            from pathlib import Path
-
-                            from backend.senders.web import WebFormSender
-
-                            forms_dir = Path(__file__).parent.parent.parent / "brokers" / "forms"
-                            web_sender = WebFormSender(profile, forms_dir)
-                            web_result = await web_sender.send(
-                                broker.domain, broker.removal_url or broker.domain,
-                                request_id=req.id,
-                            )
-                            if web_result.status.value == "success":
-                                mgr.mark_sent(req.id)
-                                sent += 1
-                                results.append({
-                                    "broker_id": req.broker_id,
-                                    "broker_name": broker.name,
-                                    "status": "sent",
-                                    "method": "web_form",
-                                })
-                                if not is_last:
-                                    await asyncio.sleep(3600 / max(config.rate_limit_per_hour, 1))
-                                continue
-
                         url = broker.removal_url or broker.domain
                         method = broker.removal_method
                         reason = f"Broker requires {method} — visit {url}"

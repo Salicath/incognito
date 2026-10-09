@@ -23,7 +23,7 @@ properties:
     format: email
   removal_method:
     type: string
-    enum: [email, web_form, api]
+    enum: [email, web_form]
   removal_url:
     type: [string, "null"]
   api_endpoint:

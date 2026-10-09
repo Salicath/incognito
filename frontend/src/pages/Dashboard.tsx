@@ -30,12 +30,17 @@ export default function Dashboard() {
   const [blastResult, setBlastResult] = useState<{ created: number; skipped: number } | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
   const [sendResult, setSendResult] = useState<{ sent: number; failed: number; manual: number } | null>(null);
+  const [sendProgress, setSendProgress] = useState("");
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [followUpResult, setFollowUpResult] = useState<{ newly_overdue: number; follow_ups_sent: number; escalations_sent: number } | null>(null);
   const [error, setError] = useState("");
   const [confirmBlast, setConfirmBlast] = useState<{ type: string; count: number } | null>(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    // A send runs for hours server-side — pick its progress back up on reload
+    api.blastSendStatus().then((s) => { if (s.running) { setSendLoading(true); pollSend(); } }).catch(() => {});
+  }, []);
 
   function loadData() {
     api.getStats()
@@ -100,15 +105,35 @@ export default function Dashboard() {
     setError("");
     setSendResult(null);
     try {
-      const result = await api.blastSendAll();
-      setSendResult({ sent: result.sent, failed: result.failed, manual: result.manual });
-      loadData();
+      await api.blastSendAll();
+      pollSend();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send requests");
-    } finally {
       setSendLoading(false);
     }
   }
+
+  function pollSend() {
+    setTimeout(async () => {
+      try {
+        const s = await api.blastSendStatus();
+        if (s.running) {
+          setSendProgress(s.total ? `${s.progress}/${s.total}` : "");
+          pollSend();
+          return;
+        }
+        if (s.error) setError(s.error);
+        if (s.result) setSendResult({ sent: s.result.sent, failed: s.result.failed, manual: s.result.manual });
+        loadData();
+      } catch {
+        pollSend();  // transient (e.g. server restart) — keep watching
+        return;
+      }
+      setSendLoading(false);
+      setSendProgress("");
+    }, 3000);
+  }
+
 
   if (!stats) return <div className="p-8 text-gray-500 dark:text-gray-400">Loading...</div>;
 
@@ -299,9 +324,8 @@ export default function Dashboard() {
           </h3>
           <p className="text-sm text-amber-800 mb-4">
             This will create {confirmBlast.type === "access" ? "data access" : "data deletion"} requests
-            for all {confirmBlast.count} brokers in the registry. Note: sending requests to brokers who
-            don't have your data may expose your identity to them. Consider running a scan first to
-            identify which brokers actually have your data.
+            for {confirmBlast.count} brokers: every European broker, plus non-European ones a scan
+            actually found you on. Run a scan first so the non-European ones are included only on evidence.
           </p>
           <div className="flex gap-3">
             <button
@@ -342,7 +366,7 @@ export default function Dashboard() {
                 className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition disabled:opacity-50"
               >
                 {sendLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {sendLoading ? "Sending..." : `Send all ${blastResult.created} requests now`}
+                {sendLoading ? `Sending ${sendProgress}…` : `Send all ${blastResult.created} requests now`}
               </button>
               <p className="text-green-600 text-xs mt-2">Requires SMTP to be configured in settings.</p>
             </div>
@@ -461,7 +485,7 @@ export default function Dashboard() {
             className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition disabled:opacity-50"
           >
             {sendLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Send all
+            {sendLoading ? `Sending ${sendProgress}…` : "Send all"}
           </button>
         </div>
       )}
