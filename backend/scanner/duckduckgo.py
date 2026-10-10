@@ -26,7 +26,9 @@ class ScanReport:
     errors: list[str] = field(default_factory=list)
 
 
-_MAX_CONSECUTIVE_FAILURES = 5
+_MAX_CONSECUTIVE_FAILURES = 3  # each already retried after a backoff
+_BLOCK_BACKOFF_SECONDS = 200
+_SEARXNG_DELAY_SECONDS = 8
 _SITES_PER_QUERY = 8
 
 
@@ -122,13 +124,22 @@ async def scan_profile(
 
     consecutive_failures = 0
     async with httpx.AsyncClient() as client:
+
+        async def search(q: str) -> list[dict]:
+            if searxng_url:
+                from backend.scanner.searxng import search_searxng
+                return await search_searxng(q, client, searxng_url)
+            return await _search_ddg(q, client)
+
         for i, (query, targets) in enumerate(queries):
             try:
-                if searxng_url:
-                    from backend.scanner.searxng import search_searxng
-                    results = await search_searxng(query, client, searxng_url)
-                else:
-                    results = await _search_ddg(query, client)
+                try:
+                    results = await search(query)
+                except RuntimeError:
+                    # Engines suspend a flagged IP for ~3 min (SearXNG's
+                    # suspended_time=180): wait it out once, then retry.
+                    await asyncio.sleep(_BLOCK_BACKOFF_SECONDS)
+                    results = await search(query)
             except RuntimeError as e:
                 report.errors.append(str(e))
                 results = []
@@ -172,8 +183,8 @@ async def scan_profile(
             if on_progress:
                 on_progress(i + 1, total)
 
-            # Rate limit: be polite to DDG
-            await asyncio.sleep(1.5)
+            # Pace queries: Google flags "unusual traffic" after a fast burst
+            await asyncio.sleep(_SEARXNG_DELAY_SECONDS if searxng_url else 1.5)
 
     # Deduplicate hits by domain
     seen = set()

@@ -84,7 +84,7 @@ async def test_scan_stops_when_search_engine_blocks(profile):
     ):
         report = await scan_profile(profile, brokers)
 
-    assert failing.await_count == 5
+    assert failing.await_count == 6  # 3 queries, each retried once after backoff
     assert "blocking this IP" in report.errors[-1]
     assert report.hits == []
 
@@ -106,3 +106,23 @@ async def test_batched_query_attributes_hit_to_the_right_broker(profile):
     first_query = search.await_args_list[0].args[0]
     assert first_query == '"Test User" (site:krak.dk OR site:118.dk OR site:spokeo.com)'
     assert [(h.broker_domain, h.broker_name) for h in report.hits] == [("118.dk", "118")]
+
+
+@pytest.mark.asyncio
+async def test_transient_block_is_retried_after_backoff(profile):
+    """An engine suspension mid-scan is waited out, not counted as a failure."""
+    search = AsyncMock(side_effect=[
+        RuntimeError("SearXNG: no engine answered"),
+        [{"url": "https://krak.dk/p/test-user", "title": "t", "snippet": "s"}],
+        [],  # email query
+    ])
+    sleep = AsyncMock()
+    with (
+        patch("backend.scanner.duckduckgo._search_ddg", search),
+        patch("backend.scanner.duckduckgo.asyncio.sleep", sleep),
+    ):
+        report = await scan_profile(profile, [("krak.dk", "Krak")])
+
+    assert report.errors == []
+    assert [h.broker_domain for h in report.hits] == ["krak.dk"]
+    assert any(c.args[0] >= 180 for c in sleep.await_args_list)  # waited out the suspension

@@ -212,6 +212,8 @@ export default function Scan() {
   const scanErrors = (scan.results as ScanResults | null)?.errors ?? [];
   // Every search failed: an empty hit list means "couldn't look", not "nothing found"
   const scanFailed = scanErrors.length > 0 && scanErrors.length >= scanChecked;
+  // Blocked partway: the brokers after the stop were never searched
+  const scanStopped = scanErrors.some((e) => e.startsWith("Stopped after"));
   const scanPct = scan.total > 0 ? Math.round((scan.progress / scan.total) * 100) : 0;
 
   const accountHits = (account.results as AccountResults | null)?.hits ?? [];
@@ -344,9 +346,11 @@ export default function Scan() {
                 ))}
               </div>
             </div>
-          ) : scanFailed ? (
+          ) : scanFailed || scanStopped ? (
             <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-              <p className="text-red-900 font-medium">The search failed — nothing was checked</p>
+              <p className="text-red-900 font-medium">
+                {scanFailed ? "The search failed — nothing was checked" : "Scan stopped early — only some brokers were checked"}
+              </p>
               <p className="text-red-700 text-sm mt-1">{scanErrors[scanErrors.length - 1]}</p>
             </div>
           ) : (
@@ -355,7 +359,7 @@ export default function Scan() {
               <p className="text-green-900 font-medium">No data found in search results</p>
               {scanErrors.length > 0 && (
                 <p className="text-amber-700 text-sm mt-1">
-                  {scanErrors.length} of {scanChecked} searches failed — results are incomplete.
+                  Results are incomplete: {scanErrors[scanErrors.length - 1]}
                 </p>
               )}
               <p className="text-green-700 text-sm mt-1">
