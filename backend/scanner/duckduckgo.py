@@ -167,6 +167,12 @@ async def scan_profile(
                 # Attribute the hit to the batch's broker whose site it is on.
                 # General (bare-email) queries accept every result — the email
                 # appearing anywhere is itself the exposure.
+                # Engines (Bing) drop the quotes around an email and return
+                # generic "mail" pages — only count results that contain it.
+                if targets[0][0] == "*":
+                    text = f"{url} {result.get('title', '')} {result.get('snippet', '')}"
+                    if query.strip('"').lower() not in text.lower():
+                        continue
                 match = next(((d, n) for d, n in targets if d == "*" or d in url), None)
                 if match:
                     domain, broker_name = match

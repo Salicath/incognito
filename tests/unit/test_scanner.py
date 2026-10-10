@@ -126,3 +126,24 @@ async def test_transient_block_is_retried_after_backoff(profile):
     assert report.errors == []
     assert [h.broker_domain for h in report.hits] == ["krak.dk"]
     assert any(c.args[0] >= 180 for c in sleep.await_args_list)  # waited out the suspension
+
+
+@pytest.mark.asyncio
+async def test_email_query_ignores_results_that_dont_contain_the_email(profile):
+    """Bing ignores the quotes on an email query and returns yahoo.com et al.;
+    those are not exposures (8 such false hits landed in production)."""
+    search = AsyncMock(side_effect=[
+        [],  # site batch
+        [
+            {"url": "https://mail.yahoo.com/", "title": "Yahoo Mail", "snippet": "free email"},
+            {"url": "https://paste.example/x", "title": "dump",
+             "snippet": "TEST@example.com:hunter2"},
+        ],
+    ])
+    with (
+        patch("backend.scanner.duckduckgo._search_ddg", search),
+        patch("backend.scanner.duckduckgo.asyncio.sleep", new_callable=AsyncMock),
+    ):
+        report = await scan_profile(profile, [("krak.dk", "Krak")])
+
+    assert [h.url for h in report.hits] == ["https://paste.example/x"]
