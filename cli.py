@@ -606,7 +606,9 @@ def rescan():
         f"from {report.checked} searches"
     )
 
-    if not report.hits:
+    if report.errors:
+        console.print(f"[yellow]{len(report.errors)} searches failed: {report.errors[-1]}[/]")
+    if not report.hits and not report.errors:
         console.print("[green]No data found in search results.[/]")
 
     session_factory = init_db(config.db_path)

@@ -3,6 +3,8 @@ Description=Incognito — Personal Data Removal Service
 
 [Container]
 Image=ghcr.io/salicath/incognito:latest
+# The timer services podman-exec into this name
+ContainerName=incognito
 AutoUpdate=registry
 PublishPort=127.0.0.1:8080:8080
 Volume=incognito-data.volume:/home/incognito/.incognito:Z
