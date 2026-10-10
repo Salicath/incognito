@@ -137,10 +137,14 @@ async def scan_profile(
                     # Blocked (DDG answers 403 once an IP is flagged) — every
                     # remaining query would fail too, and the empty result
                     # must not read as "no data found".
+                    hint = (
+                        "Retry later — engine suspensions lift after minutes to hours."
+                        if searxng_url else
+                        "Set INCOGNITO_SEARXNG_URL (deploy/searxng.container) or retry later."
+                    )
                     report.errors.append(
                         f"Stopped after {consecutive_failures} failed searches in a row — "
-                        "the search engine is blocking this IP. Set INCOGNITO_SEARXNG_URL "
-                        "(deploy/searxng.container) or retry later."
+                        f"the search engines are blocking this IP. {hint}"
                     )
                     break
             else:

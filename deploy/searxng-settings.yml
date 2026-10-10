@@ -14,3 +14,11 @@ search:
   formats:
     - html
     - json
+
+# More independent web engines: a scan only fails when ALL of them have
+# suspended this IP. Mojeek runs its own index and rarely rate-limits.
+engines:
+  - name: mojeek
+    disabled: false
+  - name: bing
+    disabled: false

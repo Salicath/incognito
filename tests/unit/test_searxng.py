@@ -66,6 +66,38 @@ async def test_all_engines_suspended_is_an_error_not_an_empty_result():
         await search_searxng("q", client, "http://127.0.0.1:8888")
 
 
+class RoutingClient:
+    """/config lists the enabled engines; /search returns `search_payload`."""
+
+    def __init__(self, search_payload, enabled):
+        self._search = FakeResp(payload=search_payload)
+        self._config = FakeResp(payload={"engines": [
+            {"name": n, "enabled": True, "categories": ["general"]} for n in enabled
+        ] + [{"name": "wikipedia", "enabled": True, "categories": ["general"]}]})
+
+    async def get(self, url, **kwargs):
+        return self._config if url.endswith("/config") else self._search
+
+
+async def test_one_web_engine_answering_makes_empty_result_real():
+    """Brave/DDG suspended but Google answered with nothing: a genuine empty
+    result, not a failed search (this false failure happened in production)."""
+    client = RoutingClient(
+        {"results": [], "unresponsive_engines": [["brave", "Suspended"], ["duckduckgo", "x"]]},
+        enabled=["google cse", "brave", "duckduckgo"],
+    )
+    assert await search_searxng("q", client, "http://sx-one-answers:8888") == []
+
+
+async def test_every_web_engine_suspended_fails_even_if_wikipedia_answers():
+    client = RoutingClient(
+        {"results": [], "unresponsive_engines": [["google cse", "x"], ["brave", "y"]]},
+        enabled=["google cse", "brave"],
+    )
+    with pytest.raises(RuntimeError, match="no engine answered"):
+        await search_searxng("q", client, "http://sx-all-down:8888")
+
+
 async def test_empty_result_with_healthy_engines_is_genuinely_empty():
     client = FakeClient(FakeResp(payload={"results": [], "unresponsive_engines": []}))
     assert await search_searxng("q", client, "http://127.0.0.1:8888") == []
